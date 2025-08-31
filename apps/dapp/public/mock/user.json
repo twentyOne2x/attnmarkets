@@ -1,0 +1,7 @@
+{
+  "wallet": "mock_user_wallet",
+  "usdc_balance": 1000,
+  "cyt_balance": 0,
+  "deposits": [],
+  "positions": []
+}

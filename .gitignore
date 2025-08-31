@@ -1,0 +1,6 @@
+node_modules/
+.next/
+.env.local
+dist/
+apps/dapp/.turbo
+apps/dapp/.turbo/turbo-build.log

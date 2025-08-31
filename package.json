@@ -1,0 +1,27 @@
+{
+    "name": "attn-market",
+    "private": true,
+    "scripts": {
+      "build": "cd apps/landing && npm run build && cd ../dapp && npm run build",
+      "dev": "concurrently \"cd apps/landing && npm run dev\" \"cd apps/dapp && npm run dev -- -p 3001\"",
+      "dev:landing": "cd apps/landing && npm run dev",
+      "dev:dapp": "cd apps/dapp && npm run dev -- -p 3001",
+      "build:landing": "cd apps/landing && npm run build",
+      "build:dapp": "cd apps/dapp && npm run build",
+      "lint": "cd apps/landing && npm run lint && cd ../dapp && npm run lint",
+      "clean": "rm -rf node_modules apps/*/node_modules apps/*/.next"
+    },
+    "dependencies": {
+      "@vercel/analytics": "^1.1.1"
+    },
+    "devDependencies": {
+      "concurrently": "^8.2.0"
+    },
+    "packageManager": "pnpm@9.6.0",
+    "engines": {
+      "node": "20.x"
+    },
+    "workspaces": [
+      "apps/*"
+    ]
+  }
