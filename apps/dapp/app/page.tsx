@@ -175,7 +175,7 @@ Active borrowers: ${activeCreators.length}`;
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6 flex flex-col">
             <h2 className="text-xl font-bold mb-4">Creator Portal</h2>
             <p className="text-text-secondary mb-6">
-              Unlock cash, keep your upside
+              Get cash backed by your creator earnings, keep your token upside
             </p>
 
             <div className="bg-secondary/10 border border-secondary/20 rounded-lg p-4 mb-6 flex-grow">

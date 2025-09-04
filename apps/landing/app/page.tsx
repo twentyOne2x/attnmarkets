@@ -151,11 +151,11 @@ export default function Home(): React.JSX.Element {
           
           <h1 className={`text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
             <span className="gradient-text">Get instant funding</span><br />
-            <span className="text-white">without selling equity</span>
+            <span className="text-white">backed by your creator earnings</span>
           </h1>
           
           <p className="text-xl text-text-secondary mb-12 max-w-3xl mx-auto">
-            Access capital when you need it. No upfront commitments, no equity dilution. Only pay back when you borrow.
+            Access capital when you need it. No upfront commitments, no token dilution. Only pay back when you borrow.
           </p>
           
           {/* Creator vs LP Blocks */}
