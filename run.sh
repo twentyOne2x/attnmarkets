@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# attn.market build and run script
-echo "🔧 Building and running attn.market..."
+# attn.markets build and run script
+echo "🔧 Building and running attn.markets..."
 
 # Check if we're in the right directory
 if [ ! -f "package.json" ]; then

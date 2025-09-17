@@ -11,7 +11,7 @@ export default function TradePage(): React.JSX.Element {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-gradient-to-r from-primary to-secondary rounded-lg"></div>
-              <span className="text-xl font-semibold">attn.market</span>
+              <span className="text-xl font-semibold">attn.markets</span>
               <span className="text-xs bg-secondary px-2 py-1 rounded">App</span>
             </div>
             <div className="flex items-center space-x-6">

@@ -177,7 +177,7 @@ export default function Navigation(): React.JSX.Element {
         <div className="flex justify-between items-center h-16">
           <a href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 bg-gradient-to-r from-primary to-secondary rounded-lg"></div>
-            <span className="text-xl font-semibold">attn.market</span>
+            <span className="text-xl font-semibold">attn.markets</span>
             <span className="text-xs bg-secondary px-2 py-1 rounded">App</span>
             <span className="text-xs bg-warning/20 text-warning border border-warning/30 px-2 py-1 rounded ml-2">DEMO</span>
           </a>

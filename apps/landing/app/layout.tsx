@@ -7,7 +7,7 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'attn.market - Creator Earnings to Liquidity',
+  title: 'attn.markets - Creator Earnings to Liquidity',
   description: 'Lock creator earnings, mint liquidity, earn uncorrelated yields on Solana.',
   icons: {
     icon: '/favicon.svg',

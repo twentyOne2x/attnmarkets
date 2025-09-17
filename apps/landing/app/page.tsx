@@ -126,7 +126,7 @@ export default function Home(): React.JSX.Element {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-gradient-to-r from-primary to-secondary rounded-lg"></div>
-              <span className="text-xl font-semibold">attn.market</span>
+              <span className="text-xl font-semibold">attn.markets</span>
               <span className="text-xs bg-warning/20 text-warning border border-warning/30 px-2 py-1 rounded ml-2">DEMO</span>
             </div>
             <div className="flex items-center space-x-6">
@@ -136,7 +136,7 @@ export default function Home(): React.JSX.Element {
               >
                 Docs
               </button>
-              <a href="https://app.attn.market" className="bg-primary text-dark px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors">
+              <a href="https://app.attn.markets" className="bg-primary text-dark px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors">
                 Launch App
               </a>
             </div>
@@ -184,7 +184,7 @@ export default function Home(): React.JSX.Element {
                   <span className="text-sm">Only pay back when you borrow</span>
                 </div>
               </div>
-              <a href="https://app.attn.market" className="bg-primary text-dark px-6 py-3 rounded-xl font-semibold hover:bg-primary/90 transition-all block">
+              <a href="https://app.attn.markets" className="bg-primary text-dark px-6 py-3 rounded-xl font-semibold hover:bg-primary/90 transition-all block">
                 Get Advance Quote
               </a>
             </div>
@@ -213,7 +213,7 @@ export default function Home(): React.JSX.Element {
                   <span className="text-sm">DeFi composable lending position</span>
                 </div>
               </div>
-              <a href="https://app.attn.market/deposit" className="bg-secondary text-white px-6 py-3 rounded-xl font-semibold hover:bg-secondary/90 transition-all block">
+              <a href="https://app.attn.markets/deposit" className="bg-secondary text-white px-6 py-3 rounded-xl font-semibold hover:bg-secondary/90 transition-all block">
                 Deposit to Priority Pool
               </a>
             </div>
@@ -727,10 +727,10 @@ export default function Home(): React.JSX.Element {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="https://app.attn.market" className="bg-primary text-dark px-8 py-4 rounded-xl font-semibold text-lg hover:bg-primary/90 transition-all glow-effect">
+            <a href="https://app.attn.markets" className="bg-primary text-dark px-8 py-4 rounded-xl font-semibold text-lg hover:bg-primary/90 transition-all glow-effect">
               Get Advance Quote
             </a>
-            <a href="https://app.attn.market/leaderboard" className="bg-secondary text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-secondary/90 transition-all">
+            <a href="https://app.attn.markets/leaderboard" className="bg-secondary text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-secondary/90 transition-all">
               View Creator Leaderboard
             </a>
           </div>
@@ -747,7 +747,7 @@ export default function Home(): React.JSX.Element {
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center space-x-2 mb-4 md:mb-0">
               <div className="w-8 h-8 bg-gradient-to-r from-primary to-secondary rounded-lg"></div>
-              <span className="text-xl font-semibold">attn.market</span>
+              <span className="text-xl font-semibold">attn.markets</span>
             </div>
             <div className="flex items-center space-x-6">
               <button 
@@ -777,7 +777,7 @@ export default function Home(): React.JSX.Element {
             </div>
           </div>
           <div className="text-center text-text-secondary text-sm mt-8">
-            © 2025 attn.market. Solana's bridge from earnings to funding.
+            © 2025 attn.markets. Solana's bridge from earnings to funding.
           </div>
         </div>
       </footer>

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# attn.market project setup script
-echo "🚀 Setting up attn.market project..."
+# attn.markets project setup script
+echo "🚀 Setting up attn.markets project..."
 
 # Create root directory
 mkdir -p attn-market

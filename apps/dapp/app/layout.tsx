@@ -7,7 +7,7 @@ import { AppProvider } from './context/AppContext';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'attn.market App - Creator Earnings to Liquidity',
+  title: 'attn.markets App - Creator Earnings to Liquidity',
   description: 'Lock creator earnings, mint liquidity, earn uncorrelated yields on Solana',
 };
 
