@@ -4,11 +4,12 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
-/* Prevent horizontal scrolling on mobile */
+/* Prevent horizontal scrolling and improve mobile layout */
 @layer base {
   html {
     overflow-x: hidden;
     width: 100%;
+    -webkit-text-size-adjust: 100%;
   }
   
   body {
@@ -16,22 +17,19 @@
     width: 100%;
     max-width: 100vw;
     position: relative;
-  }
-  
-  /* Ensure all containers respect viewport width */
-  #__next {
-    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
   }
   
   * {
     box-sizing: border-box;
   }
-}
-
-/* Utility class to prevent overflow on main containers */
-.no-horizontal-scroll {
-  overflow-x: hidden;
-  max-width: 100vw;
+  
+  /* Prevent all elements from overflowing */
+  main, section, div {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
 }
 
 .gradient-text {
@@ -54,7 +52,7 @@
   box-shadow: 0 0 20px rgba(20, 241, 149, 0.3);
 }
 
-/* Mobile-specific overflow prevention */
+/* Mobile-specific improvements */
 @media (max-width: 768px) {
   html, body {
     overflow-x: hidden !important;
@@ -62,9 +60,148 @@
     max-width: 100vw !important;
   }
   
-  .container, .max-w-7xl, .max-w-6xl, .max-w-5xl, .max-w-4xl {
-    padding-left: 1rem;
-    padding-right: 1rem;
-    overflow-x: hidden;
+  /* Reduce padding on containers */
+  .px-4 {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
   }
+  
+  .px-6 {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+  
+  .px-8 {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+  
+  /* Fix large text sizes on mobile */
+  .text-5xl {
+    font-size: 1.875rem !important;
+    line-height: 2.25rem !important;
+  }
+  
+  .text-4xl {
+    font-size: 1.5rem !important;
+    line-height: 2rem !important;
+  }
+  
+  .text-3xl {
+    font-size: 1.25rem !important;
+    line-height: 1.75rem !important;
+  }
+  
+  .text-2xl {
+    font-size: 1.125rem !important;
+    line-height: 1.5rem !important;
+  }
+  
+  .text-xl {
+    font-size: 1rem !important;
+    line-height: 1.5rem !important;
+  }
+  
+  /* Hide table of contents on mobile */
+  .xl\:block {
+    display: none !important;
+  }
+  
+  /* Fix toast notification position */
+  .fixed.top-20.right-8 {
+    right: 1rem !important;
+    left: 1rem !important;
+    top: 5rem !important;
+  }
+  
+  /* Improve card spacing */
+  .grid {
+    gap: 1rem !important;
+  }
+  
+  .space-y-12 {
+    gap: 2rem !important;
+  }
+  
+  .space-y-8 {
+    gap: 1.5rem !important;
+  }
+  
+  .space-y-6 {
+    gap: 1rem !important;
+  }
+  
+  /* Fix padding on sections */
+  .py-20 {
+    padding-top: 3rem !important;
+    padding-bottom: 3rem !important;
+  }
+  
+  .py-32 {
+    padding-top: 4rem !important;
+  }
+  
+  .pb-20 {
+    padding-bottom: 3rem !important;
+  }
+  
+  /* Fix button sizes */
+  .px-8.py-4 {
+    padding: 0.75rem 1.5rem !important;
+  }
+  
+  .px-6.py-3 {
+    padding: 0.625rem 1.25rem !important;
+  }
+  
+  /* Improve navigation */
+  nav .max-w-7xl {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+  
+  /* Fix grid columns */
+  .grid-cols-2 {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .grid-cols-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  /* Ensure cards don't overflow */
+  .bg-dark-card {
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  /* Fix FAQ buttons */
+  button.w-full {
+    padding: 1rem !important;
+  }
+  
+  /* Improve footer */
+  footer .flex-col {
+    align-items: stretch !important;
+  }
+}
+
+/* Tablet improvements */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .container, .max-w-7xl, .max-w-6xl, .max-w-5xl, .max-w-4xl {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+/* Animation fixes */
+@keyframes fade-in-out {
+  0% { opacity: 0; transform: translateX(20px); }
+  10% { opacity: 1; transform: translateX(0); }
+  90% { opacity: 1; transform: translateX(0); }
+  100% { opacity: 0; transform: translateX(20px); }
+}
+
+.animate-fade-in-out {
+  animation: fade-in-out 3s ease-in-out forwards;
 }
