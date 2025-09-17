@@ -4,6 +4,36 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
+/* Prevent horizontal scrolling on mobile */
+@layer base {
+  html {
+    overflow-x: hidden;
+    width: 100%;
+  }
+  
+  body {
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
+    position: relative;
+  }
+  
+  /* Ensure all containers respect viewport width */
+  #__next {
+    overflow-x: hidden;
+  }
+  
+  * {
+    box-sizing: border-box;
+  }
+}
+
+/* Utility class to prevent overflow on main containers */
+.no-horizontal-scroll {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 .gradient-text {
   background: linear-gradient(135deg, #14F195 0%, #7C3AED 100%);
   -webkit-background-clip: text;
@@ -22,4 +52,19 @@
 
 .glow-effect {
   box-shadow: 0 0 20px rgba(20, 241, 149, 0.3);
+}
+
+/* Mobile-specific overflow prevention */
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+  }
+  
+  .container, .max-w-7xl, .max-w-6xl, .max-w-5xl, .max-w-4xl {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    overflow-x: hidden;
+  }
 }
