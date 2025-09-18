@@ -897,7 +897,7 @@ export default function Home(): React.JSX.Element {
           display: inline-block;
           height: 1em;
           line-height: 1;
-          width: 325px;
+          width: 310px;
           overflow: hidden !important;
           vertical-align: baseline;
           /* Prevent any scrollbars */
