@@ -638,30 +638,6 @@ export default function Home(): React.JSX.Element {
               
               <div className="bg-dark-card border border-gray-700 rounded-xl">
                 <button
-                  onClick={() => toggleFAQ('creator-4')}
-                  className="w-full text-left p-4 sm:p-6 flex justify-between items-center hover:bg-gray-800/30 transition-colors"
-                >
-                  <h4 className="text-base sm:text-lg font-semibold pr-4">Can I change my repayment percentage?</h4>
-                  <svg 
-                    className={`w-5 h-5 transform transition-transform flex-shrink-0 ${openFAQs.has('creator-4') ? 'rotate-180' : ''}`}
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {openFAQs.has('creator-4') && (
-                  <div className="px-4 sm:px-6 pb-4 sm:pb-6">
-                    <p className="text-text-secondary text-sm sm:text-base">
-                      Yes. You can adjust this each epoch (30-day periods). Want to borrow more? Increase your percentage. Want to reduce repayments? Lower it or stop participating entirely at epoch end.
-                    </p>
-                  </div>
-                )}
-              </div>
-              
-              <div className="bg-dark-card border border-gray-700 rounded-xl">
-                <button
                   onClick={() => toggleFAQ('creator-5')}
                   className="w-full text-left p-4 sm:p-6 flex justify-between items-center hover:bg-gray-800/30 transition-colors"
                 >
@@ -762,29 +738,6 @@ export default function Home(): React.JSX.Element {
                 )}
               </div>
               
-              <div className="bg-dark-card border border-gray-700 rounded-xl">
-                <button
-                  onClick={() => toggleFAQ('lp-4')}
-                  className="w-full text-left p-4 sm:p-6 flex justify-between items-center hover:bg-gray-800/30 transition-colors"
-                >
-                  <h4 className="text-base sm:text-lg font-semibold pr-4">Can I use cYT tokens elsewhere?</h4>
-                  <svg 
-                    className={`w-5 h-5 transform transition-transform flex-shrink-0 ${openFAQs.has('lp-4') ? 'rotate-180' : ''}`}
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {openFAQs.has('lp-4') && (
-                  <div className="px-4 sm:px-6 pb-4 sm:pb-6">
-                    <p className="text-text-secondary text-sm sm:text-base">
-                      Yes! cYT tokens are composable across Solana DeFi. Use them for carry trades, as collateral in other protocols, or trade different maturity curves when we expand beyond 30-day periods.
-                    </p>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </div>
