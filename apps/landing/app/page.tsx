@@ -179,51 +179,52 @@ export default function Home(): React.JSX.Element {
         <div className="max-w-7xl mx-auto text-center">
           <div className="text-lg text-text-secondary mb-4">Solana's bridge from earnings to funding</div>
           
-      <h1 className={`text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold mb-8 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`} style={{ overflow: 'hidden' }}>
-        <span className="gradient-text block mb-4">Get instant funding</span>
-        <div className="text-white inline-flex items-center justify-center" style={{ overflow: 'hidden' }}>
-          <span>backed by your</span>
-          <div className="word-wheel-container mx-6">
-            <div 
-              className="word-wheel-inner" 
-              style={{ 
-                transform: `translateY(-${currentWordIndex * 1}em)` 
-              }}
-            >
-              {/* Create array with enough words */}
-              {(() => {
-                const displayArray = [];
-                // Need at least 21 words (indices 0-20) to show the word at index 20
-                const totalWords = 25; // A bit extra for safety
-                
-                for (let i = 0; i < totalWords; i++) {
-                  displayArray.push(rotatingWords[i % rotatingWords.length]);
-                }
-                
-                return displayArray.map((word, index) => {
-                  const distance = Math.abs(index - currentWordIndex);
-                  const isActive = index === currentWordIndex;
-                  const isAdjacent = distance === 1;
-                  
-                  return (
-                    <div
-                      key={`${word}-${index}`}
-                      className={`wheel-word ${
-                        isActive ? 'active' : 
-                        isAdjacent ? 'adjacent' : ''
-                      }`}
-                      style={{ overflow: 'hidden' }}
-                    >
-                      {word}
+          <h1 className={`text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold mb-8 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`} style={{ overflow: 'hidden' }}>
+                    <span className="gradient-text block mb-4">Get instant funding</span>
+                    <div className="text-2xl sm:text-5xl lg:text-6xl xl:text-7xl text-white inline-flex items-center justify-center" style={{ overflow: 'hidden' }}>
+                      <span>backed by your</span>
+                      <div className="word-wheel-container mx-3 sm:mx-6">
+                        <div 
+                          className="word-wheel-inner" 
+                          style={{ 
+                            transform: `translateY(-${currentWordIndex * 1}em)` 
+                          }}
+                        >
+                          {/* Create array for 5 rotations plus landing on 'creator' */}
+                          {(() => {
+                            const displayArray = [];
+                            // Need enough words to cover 5 full rotations (20 words) plus landing on creator (index 21)
+                            // Add a few extra for visual continuity
+                            const totalWords = rotatingWords.length * 6; // 24 words total
+                            
+                            for (let i = 0; i < totalWords; i++) {
+                              displayArray.push(rotatingWords[i % rotatingWords.length]);
+                            }
+                            
+                            return displayArray.map((word, index) => {
+                              const distance = Math.abs(index - currentWordIndex);
+                              const isActive = index === currentWordIndex;
+                              const isAdjacent = distance === 1;
+                              
+                              return (
+                                <div
+                                  key={`${word}-${index}`}
+                                  className={`wheel-word ${
+                                    isActive ? 'active' : 
+                                    isAdjacent ? 'adjacent' : ''
+                                  }`}
+                                  style={{ overflow: 'hidden' }}
+                                >
+                                  {word}
+                                </div>
+                              );
+                            });
+                          })()}
+                        </div>
+                      </div>
+                      <span>earnings</span>
                     </div>
-                  );
-                });
-              })()}
-            </div>
-          </div>
-          <span>earnings</span>
-        </div>
-      </h1>
+            </h1>
           
           <p className="text-lg sm:text-xl text-text-secondary mb-12 max-w-3xl mx-auto">
             Access capital when you need it. No upfront commitments, no token dilution. Only pay back when you borrow.
@@ -944,7 +945,7 @@ export default function Home(): React.JSX.Element {
         /* Mobile adjustments */
         @media (max-width: 640px) {
           .word-wheel-container {
-            width: 140px;
+            width: 80px;
           }
         }
       `}</style>
