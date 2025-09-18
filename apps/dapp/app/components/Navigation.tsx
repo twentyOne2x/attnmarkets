@@ -184,7 +184,7 @@ export default function Navigation(): React.JSX.Element {
           {/* Logo */}
           <a href="/" className="flex items-center space-x-1 sm:space-x-2 hover:opacity-80 transition-opacity">
             <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-primary to-secondary rounded-lg"></div>
-            <span className="text-base sm:text-xl font-semibold">attn</span>
+            <span className="text-base sm:text-xl font-semibold">attn.markets</span>
             <span className="text-xs bg-secondary px-1 sm:px-2 py-0.5 sm:py-1 rounded hidden sm:inline">App</span>
             <span className="text-xs bg-warning/20 text-warning border border-warning/30 px-1 sm:px-2 py-0.5 sm:py-1 rounded ml-1 sm:ml-2">DEMO</span>
           </a>
