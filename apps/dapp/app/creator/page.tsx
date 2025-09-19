@@ -88,13 +88,13 @@ export default function CreatorPage(): React.JSX.Element {
   
   // Processing states
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
-  const [isListing, setIsListing] = useState<boolean>(false);
   const [isBorrowing, setIsBorrowing] = useState<boolean>(false);
   const [isRepaying, setIsRepaying] = useState<boolean>(false);
   
   // Notification system
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationCounter, setNotificationCounter] = useState<number>(0); // Track creation order
+  const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
   const [processingStep, setProcessingStep] = useState<string>('');
   
   // Loan simulation state for repayment demo
@@ -344,114 +344,85 @@ export default function CreatorPage(): React.JSX.Element {
     return value;
   };
 
-  // Step 1: Connect wallet only
   const handleConnectWallet = async () => {
     setIsConnecting(true);
+    setIsTransitioning(true);
+    
+    // Reset borrow percentage to 0 first to ensure clean state
+    setBorrowPercentage(0);
     
     try {
-      console.log('🔑 Step 1: Connecting wallet...');
+      // Step 1: Connect wallet
       addNotification({
         type: 'processing',
         title: 'Connecting Wallet',
-        message: 'Generating wallet address...',
+        message: 'Waiting for wallet approval...',
         duration: 1000
       });
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      if (!currentUserWallet) {
-        const deterministicWallet = '0x1234567890abcdef1234567890abcdef12345678';
-        setCurrentUserWallet(deterministicWallet);
-        console.log('🔑 Wallet connected:', deterministicWallet);
-        
-        addNotification({
-          type: 'success',
-          title: 'Wallet Connected!',
-          message: 'Ready to sign message and list yourself.',
-          duration: 2000
-        });
-        
-        // Wait for wallet to be set
-        await new Promise(resolve => setTimeout(resolve, 500));
+      const deterministicWallet = '0x1234567890abcdef1234567890abcdef12345678';
+      setCurrentUserWallet(deterministicWallet);
+      
+      // Step 2: Automatically list the creator
+      addNotification({
+        type: 'processing',
+        title: 'Setting Up Account',
+        message: 'Adding to creator leaderboard...',
+        duration: 800
+      });
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      const newCreator = {
+        wallet: deterministicWallet,
+        fees7d_usd: weeklyEarnings,
+        beta_pct: 0.15,
+        alpha_pct: 0.70,
+        gamma_pct: 0.15,
+        status: 'listed',
+        est_beta_next30d_usd: weeklyEarnings * 4.3
+      };
+      
+      addCreatorToList(newCreator);
+      
+      // Small delay before setting borrow percentage
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Set default borrow percentage to 50% to show the loan terms
+      const maxBorrowable = weeklyEarnings * 2;
+      const currentLiquidity = getAvailableLiquidity();
+      const desiredAmount = maxBorrowable * 0.5;
+      
+      if (desiredAmount <= currentLiquidity) {
+        setBorrowPercentage(50);
+      } else {
+        const maxPossiblePercentage = Math.floor((currentLiquidity / maxBorrowable) * 100);
+        setBorrowPercentage(Math.max(25, maxPossiblePercentage));
       }
+      
+      // Wait for the container expansion animation
+      await new Promise(resolve => setTimeout(resolve, 400));
+      
+      // End transition state - this will allow button to change
+      setIsTransitioning(false);
+      
+      addNotification({
+        type: 'success',
+        title: 'Connected Successfully!',
+        message: 'Your wallet is connected and you can now borrow up to 2 weeks of earnings.',
+        duration: 3000
+      });
+      
     } catch (error) {
       console.error('Error connecting wallet:', error);
       addNotification({
         type: 'error',
         title: 'Connection Failed',
-        message: 'Failed to connect wallet'
+        message: 'Failed to connect wallet. Please try again.'
       });
+      setIsTransitioning(false);
     } finally {
       setIsConnecting(false);
-    }
-  };
-
-  // Step 2: Sign message and list creator
-  const handleSignAndList = async () => {
-    setIsListing(true);
-    
-    try {
-      // Step 1: Sign message simulation
-      addNotification({
-        type: 'processing',
-        title: 'Sign Message',
-        message: 'Please sign the message in your wallet...',
-        persistent: true,
-        duration: 1500
-      });
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Step 2: Processing signature
-      addNotification({
-        type: 'processing',
-        title: 'Processing Signature',
-        message: 'Verifying signature and listing creator...',
-        persistent: true,
-        duration: 1000
-      });
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      console.log('📝 Step 2: Signing message and listing creator...');
-      console.log('Current wallet:', currentUserWallet);
-      console.log('Current creators before listing:', creators.length);
-      
-      const existingCreator = creators.find(c => c.wallet === currentUserWallet);
-      if (!existingCreator) {
-        const newCreator = {
-          wallet: currentUserWallet,
-          fees7d_usd: weeklyEarnings,
-          beta_pct: 0.15,
-          alpha_pct: 0.70,
-          gamma_pct: 0.15,
-          status: 'listed',
-          est_beta_next30d_usd: weeklyEarnings * 4.3
-        };
-        console.log('Adding new creator to leaderboard:', newCreator);
-        addCreatorToList(newCreator);
-      } else {
-        console.log('Creator already exists, updating earnings');
-        const updatedCreator = {
-          ...existingCreator,
-          fees7d_usd: weeklyEarnings,
-          est_beta_next30d_usd: weeklyEarnings * 4.3,
-          status: 'listed'
-        };
-        addCreatorToList(updatedCreator);
-      }
-      
-      addNotification({
-        type: 'success',
-        title: 'Successfully Listed!',
-        message: 'Message signed and added to leaderboard. You can now borrow up to 2 weeks of earnings.'
-      });
-    } catch (error) {
-      console.error('Error signing and listing:', error);
-      addNotification({
-        type: 'error',
-        title: 'Error',
-        message: 'Failed to sign message or list creator'
-      });
-    } finally {
-      setIsListing(false);
     }
   };
 
@@ -1223,21 +1194,13 @@ export default function CreatorPage(): React.JSX.Element {
                 </div>
 
                 {/* Action Button */}
-                {!currentUserWallet ? (
+                {!currentUserWallet || isTransitioning ? (
                   <button
                     onClick={handleConnectWallet}
-                    disabled={isConnecting}
+                    disabled={isConnecting || isTransitioning}
                     className="w-full py-3 rounded-xl font-semibold transition-all bg-primary text-dark hover:bg-primary/90 disabled:opacity-50"
                   >
-                    {isConnecting ? 'Connecting Wallet...' : 'Connect Wallet'}
-                  </button>
-                ) : !isListed ? (
-                  <button
-                    onClick={handleSignAndList}
-                    disabled={isListing}
-                    className="w-full py-3 rounded-xl font-semibold transition-all bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
-                  >
-                    {isListing ? 'Signing Message...' : 'Sign Message & List for Free (DEMO)'}
+                    {isConnecting || isTransitioning ? 'Setting up...' : 'Connect Wallet'}
                   </button>
                 ) : showRepaySection ? (
                   <button
