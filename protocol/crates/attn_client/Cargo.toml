@@ -1,0 +1,13 @@
+[package]
+name = "attn_client"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anchor-lang = { workspace = true }
+anchor-client = "0.30.0"
+solana-client = "1.18.12"
+solana-sdk = "1.18.12"
+anyhow = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }

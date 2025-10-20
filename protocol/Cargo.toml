@@ -1,0 +1,28 @@
+[workspace]
+members = [
+    "programs/creator_vault",
+    "programs/splitter",
+    "programs/stable_vault",
+    "programs/amm",
+    "crates/attn_client",
+    "crates/attn_indexer",
+    "crates/attn_api",
+    "crates/attn_notifier",
+    "crates/attn_cli"
+]
+resolver = "2"
+
+[workspace.dependencies]
+anchor-lang = "0.30.0"
+anchor-spl = "0.30.0"
+anyhow = "1"
+serde = "1"
+serde_json = "1"
+thiserror = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+axum = "0.7"
+clap = { version = "4", features = ["derive"] }
+sqlx = { version = "0.7", default-features = false, features = ["runtime-tokio", "postgres", "macros"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+reqwest = { version = "0.11", features = ["json"] }

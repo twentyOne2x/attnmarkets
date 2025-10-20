@@ -1,0 +1,23 @@
+[workspace]
+members = [
+  "programs/creator_vault",
+  "programs/splitter",
+  "programs/stable_vault",
+  "programs/amm"
+]
+
+[provider]
+cluster = "devnet"
+wallet = "~/.config/solana/id.json"
+
+[registry]
+url = "https://anchor.projectserum.com"
+
+[programs.devnet]
+creator_vault = "CreAtor111111111111111111111111111111111111"
+splitter = "SpLit1111111111111111111111111111111111111"
+stable_vault = "StaBle11111111111111111111111111111111111"
+amm = "AMM11111111111111111111111111111111111111"
+
+[scripts]
+test = "anchor test"

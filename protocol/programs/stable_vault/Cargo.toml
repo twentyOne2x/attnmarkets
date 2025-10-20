@@ -1,0 +1,13 @@
+[package]
+name = "stable_vault"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "stable_vault"
+
+[dependencies]
+anchor-lang = { workspace = true }
+anchor-spl = { workspace = true }
+thiserror = { workspace = true }

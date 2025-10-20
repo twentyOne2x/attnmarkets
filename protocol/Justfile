@@ -1,0 +1,20 @@
+anchor-build:
+	anchor build
+
+anchor-test:
+	anchor test
+
+fmt:
+	cargo fmt
+
+lint:
+	cargo clippy --all-targets --all-features -- -D warnings
+
+run-indexer:
+	cargo run -p attn_indexer
+
+run-api:
+	cargo run -p attn_api
+
+run-cli:
+	cargo run -p attn_cli -- ping

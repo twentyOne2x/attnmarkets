@@ -1,0 +1,17 @@
+[package]
+name = "attn_indexer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+attn_client = { path = "../attn_client" }
+anchor-client = "0.30.0"
+solana-client = "1.18.12"
+solana-sdk = "1.18.12"
+tokio = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
