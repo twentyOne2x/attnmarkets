@@ -17,6 +17,8 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new().route("/health", get(health));
     let addr = "0.0.0.0:8080".parse()?;
     info!("attn_api listening on {addr}");
-    axum::Server::bind(&addr).serve(app.into_make_service()).await?;
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
+        .await?;
     Ok(())
 }

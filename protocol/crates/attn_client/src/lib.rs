@@ -1,7 +1,7 @@
 use anchor_client::Program;
 use anchor_lang::prelude::*;
-use solana_sdk::signature::Keypair;
 use anyhow::Result;
+use solana_sdk::signature::Keypair;
 
 pub struct AttnClient {
     program: Program,

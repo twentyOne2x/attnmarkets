@@ -4,3 +4,4 @@ node_modules/
 dist/
 apps/dapp/.turbo
 apps/dapp/.turbo/turbo-build.log
+protocol/target/
