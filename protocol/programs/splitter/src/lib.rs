@@ -1,5 +1,10 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Burn, Mint, MintTo, Token, TokenAccount, Transfer};
+use anchor_lang::solana_program::{
+    instruction::{AccountMeta, Instruction},
+    program::invoke_signed,
+};
+use anchor_lang::InstructionData;
+use anchor_spl::token::{self, Burn, Mint, Token, TokenAccount};
 use creator_vault::CreatorVault;
 
 declare_id!("DusRTfShkXozaatx71Qv413RNEXqPNZS8hg9BnBeAQQE");
@@ -16,6 +21,14 @@ pub mod splitter {
             ctx.accounts.creator_vault.sy_mint,
             ctx.accounts.sy_mint.key()
         );
+        require_keys_eq!(
+            ctx.accounts.creator_vault.splitter_program,
+            crate::ID,
+            SplitterError::SplitterProgramMismatch
+        );
+
+        let splitter_bump = ctx.bumps.splitter_authority;
+        ctx.accounts.splitter_authority.bump = splitter_bump;
 
         let market = &mut ctx.accounts.market;
         market.creator_vault = ctx.accounts.creator_vault.key();
@@ -49,8 +62,6 @@ pub mod splitter {
         require_keys_eq!(ctx.accounts.market.pt_mint, ctx.accounts.pt_mint.key());
         require_keys_eq!(ctx.accounts.market.yt_mint, ctx.accounts.yt_mint.key());
 
-        let creator_vault = &ctx.accounts.creator_vault;
-
         require!(
             ctx.accounts.user_sy_ata.amount >= amount,
             SplitterError::InsufficientSyBalance
@@ -65,39 +76,40 @@ pub mod splitter {
         let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), burn_accounts);
         token::burn(cpi_ctx, amount)?;
 
-        // signer seeds for creator vault PDA
-        let seeds: [&[u8]; 3] = [
-            b"creator-vault",
-            creator_vault.pump_mint.as_ref(),
-            &[creator_vault.bump],
-        ];
-        let signer = &[&seeds[..]];
-
         // mint PT
-        let mint_pt_accounts = MintTo {
-            mint: ctx.accounts.pt_mint.to_account_info(),
-            to: ctx.accounts.user_pt_ata.to_account_info(),
-            authority: ctx.accounts.creator_vault.to_account_info(),
-        };
-        let cpi_ctx = CpiContext::new_with_signer(
+        let splitter_bump = ctx.bumps.splitter_authority;
+        let creator_vault_key = ctx.accounts.creator_vault.key();
+        let bump_seed = [splitter_bump];
+        let splitter_seeds: [&[u8]; 3] = [
+            b"splitter-authority",
+            creator_vault_key.as_ref(),
+            &bump_seed,
+        ];
+        let signer_seeds = [&splitter_seeds[..]];
+        msg!("splitter: minting PT via CreatorVault");
+        mint_via_creator_vault(
+            ctx.accounts.creator_vault_program.to_account_info(),
+            ctx.accounts.creator_vault.to_account_info(),
+            ctx.accounts.splitter_authority.to_account_info(),
+            ctx.accounts.pt_mint.to_account_info(),
+            ctx.accounts.user_pt_ata.to_account_info(),
             ctx.accounts.token_program.to_account_info(),
-            mint_pt_accounts,
-            signer,
-        );
-        token::mint_to(cpi_ctx, amount)?;
+            amount,
+            &signer_seeds,
+        )?;
 
         // mint YT
-        let mint_yt_accounts = MintTo {
-            mint: ctx.accounts.yt_mint.to_account_info(),
-            to: ctx.accounts.user_yt_ata.to_account_info(),
-            authority: ctx.accounts.creator_vault.to_account_info(),
-        };
-        let cpi_ctx = CpiContext::new_with_signer(
+        msg!("splitter: minting YT via CreatorVault");
+        mint_via_creator_vault(
+            ctx.accounts.creator_vault_program.to_account_info(),
+            ctx.accounts.creator_vault.to_account_info(),
+            ctx.accounts.splitter_authority.to_account_info(),
+            ctx.accounts.yt_mint.to_account_info(),
+            ctx.accounts.user_yt_ata.to_account_info(),
             ctx.accounts.token_program.to_account_info(),
-            mint_yt_accounts,
-            signer,
-        );
-        token::mint_to(cpi_ctx, amount)?;
+            amount,
+            &signer_seeds,
+        )?;
 
         let market = &mut ctx.accounts.market;
         market.total_pt_issued = market
@@ -147,6 +159,16 @@ pub mod splitter {
             SplitterError::NoYieldPosition
         );
 
+        let (expected_fee_vault, _) = Pubkey::find_program_address(
+            &[b"fee-vault", ctx.accounts.creator_vault.pump_mint.as_ref()],
+            &creator_vault::id(),
+        );
+        require_keys_eq!(
+            expected_fee_vault,
+            ctx.accounts.fee_vault.key(),
+            SplitterError::InvalidFeeVault
+        );
+
         let delta_for_market = new_fee_index
             .checked_sub(market.fee_index)
             .ok_or(SplitterError::MathOverflow)?;
@@ -181,23 +203,28 @@ pub mod splitter {
             SplitterError::InsufficientYieldLiquidity
         );
 
-        let seeds: [&[u8]; 3] = [
-            b"creator-vault",
-            ctx.accounts.creator_vault.pump_mint.as_ref(),
-            &[ctx.accounts.creator_vault.bump],
+        let splitter_bump = ctx.bumps.splitter_authority;
+        let creator_vault_key = ctx.accounts.creator_vault.key();
+        let bump_seed = [splitter_bump];
+        let splitter_seeds: [&[u8]; 3] = [
+            b"splitter-authority",
+            creator_vault_key.as_ref(),
+            &bump_seed,
         ];
-        let signer = &[&seeds[..]];
-        let transfer_accounts = Transfer {
-            from: ctx.accounts.fee_vault.to_account_info(),
-            to: ctx.accounts.user_quote_ata.to_account_info(),
-            authority: ctx.accounts.creator_vault.to_account_info(),
+        let signer_seeds = [&splitter_seeds[..]];
+        let transfer_accounts = creator_vault::cpi::accounts::TransferFeesForSplitter {
+            creator_vault: ctx.accounts.creator_vault.to_account_info(),
+            splitter_authority: ctx.accounts.splitter_authority.to_account_info(),
+            fee_vault: ctx.accounts.fee_vault.to_account_info(),
+            destination: ctx.accounts.user_quote_ata.to_account_info(),
+            token_program: ctx.accounts.token_program.to_account_info(),
         };
         let cpi_ctx = CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
+            ctx.accounts.creator_vault_program.to_account_info(),
             transfer_accounts,
-            signer,
+            &signer_seeds,
         );
-        token::transfer(cpi_ctx, claimable)?;
+        creator_vault::cpi::transfer_fees_for_splitter(cpi_ctx, claimable)?;
 
         emit!(YieldRedeemed {
             market: market.key(),
@@ -232,23 +259,26 @@ pub mod splitter {
         let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), burn_accounts);
         token::burn(cpi_ctx, amount)?;
 
-        let seeds: [&[u8]; 3] = [
-            b"creator-vault",
-            ctx.accounts.creator_vault.pump_mint.as_ref(),
-            &[ctx.accounts.creator_vault.bump],
+        let splitter_bump = ctx.bumps.splitter_authority;
+        let creator_vault_key = ctx.accounts.creator_vault.key();
+        let bump_seed = [splitter_bump];
+        let splitter_seeds: [&[u8]; 3] = [
+            b"splitter-authority",
+            creator_vault_key.as_ref(),
+            &bump_seed,
         ];
-        let signer = &[&seeds[..]];
-        let mint_accounts = MintTo {
-            mint: ctx.accounts.sy_mint.to_account_info(),
-            to: ctx.accounts.user_sy_ata.to_account_info(),
-            authority: ctx.accounts.creator_vault.to_account_info(),
-        };
-        let cpi_ctx = CpiContext::new_with_signer(
+        let signer_seeds = [&splitter_seeds[..]];
+        msg!("splitter: minting SY via CreatorVault");
+        mint_via_creator_vault(
+            ctx.accounts.creator_vault_program.to_account_info(),
+            ctx.accounts.creator_vault.to_account_info(),
+            ctx.accounts.splitter_authority.to_account_info(),
+            ctx.accounts.sy_mint.to_account_info(),
+            ctx.accounts.user_sy_ata.to_account_info(),
             ctx.accounts.token_program.to_account_info(),
-            mint_accounts,
-            signer,
-        );
-        token::mint_to(cpi_ctx, amount)?;
+            amount,
+            &signer_seeds,
+        )?;
 
         let market = &mut ctx.accounts.market;
         market.total_pt_issued = market
@@ -294,12 +324,54 @@ pub mod splitter {
     }
 }
 
+fn mint_via_creator_vault<'info>(
+    program: AccountInfo<'info>,
+    creator_vault: AccountInfo<'info>,
+    splitter_authority: AccountInfo<'info>,
+    mint: AccountInfo<'info>,
+    destination: AccountInfo<'info>,
+    token_program: AccountInfo<'info>,
+    amount: u64,
+    signer_seeds: &[&[&[u8]]],
+) -> Result<()> {
+    let ix = creator_vault::instruction::MintForSplitter { amount };
+    let instruction = Instruction {
+        program_id: *program.key,
+        accounts: vec![
+            AccountMeta::new(*creator_vault.key, false),
+            AccountMeta::new_readonly(*splitter_authority.key, true),
+            AccountMeta::new(*mint.key, false),
+            AccountMeta::new(*destination.key, false),
+            AccountMeta::new_readonly(*token_program.key, false),
+        ],
+        data: ix.data(),
+    };
+    let account_infos = [
+        creator_vault,
+        splitter_authority,
+        mint,
+        destination,
+        token_program,
+        program,
+    ];
+    invoke_signed(&instruction, &account_infos, signer_seeds)?;
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct CreateMarket<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     #[account(has_one = pump_mint, has_one = sy_mint)]
     pub creator_vault: Account<'info, CreatorVault>,
+    #[account(
+        init,
+        payer = authority,
+        seeds = [b"splitter-authority", creator_vault.key().as_ref()],
+        bump,
+        space = 8 + SplitterAuthority::INIT_SPACE
+    )]
+    pub splitter_authority: Account<'info, SplitterAuthority>,
     pub pump_mint: Account<'info, Mint>,
     pub sy_mint: Account<'info, Mint>,
     #[account(init, payer = authority, space = 8 + Market::INIT_SPACE)]
@@ -327,7 +399,13 @@ pub struct CreateMarket<'info> {
 pub struct MintPtYt<'info> {
     #[account(mut)]
     pub market: Account<'info, Market>,
+    #[account(mut)]
     pub creator_vault: Account<'info, CreatorVault>,
+    #[account(
+        seeds = [b"splitter-authority", creator_vault.key().as_ref()],
+        bump
+    )]
+    pub splitter_authority: Account<'info, SplitterAuthority>,
     #[account(mut)]
     pub user: Signer<'info>,
     #[account(mut, constraint = user_sy_ata.owner == user.key(), constraint = user_sy_ata.mint == market.sy_mint)]
@@ -352,13 +430,20 @@ pub struct MintPtYt<'info> {
     pub user_position: Account<'info, UserPosition>,
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
+    pub creator_vault_program: Program<'info, creator_vault::program::CreatorVault>,
 }
 
 #[derive(Accounts)]
 pub struct RedeemYield<'info> {
     #[account(mut)]
     pub market: Account<'info, Market>,
+    #[account(mut)]
     pub creator_vault: Account<'info, CreatorVault>,
+    #[account(
+        seeds = [b"splitter-authority", creator_vault.key().as_ref()],
+        bump
+    )]
+    pub splitter_authority: Account<'info, SplitterAuthority>,
     #[account(mut)]
     pub user: Signer<'info>,
     #[account(
@@ -369,22 +454,25 @@ pub struct RedeemYield<'info> {
     pub user_position: Account<'info, UserPosition>,
     #[account(mut, constraint = user_yt_ata.owner == user.key(), constraint = user_yt_ata.mint == market.yt_mint)]
     pub user_yt_ata: Account<'info, TokenAccount>,
-    #[account(
-        mut,
-        seeds = [b"fee-vault", creator_vault.pump_mint.as_ref()],
-        bump = creator_vault.fee_vault_bump
-    )]
+    #[account(mut)]
     pub fee_vault: Account<'info, TokenAccount>,
     #[account(mut, constraint = user_quote_ata.owner == user.key(), constraint = user_quote_ata.mint == fee_vault.mint)]
     pub user_quote_ata: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
+    pub creator_vault_program: Program<'info, creator_vault::program::CreatorVault>,
 }
 
 #[derive(Accounts)]
 pub struct RedeemPrincipal<'info> {
     #[account(mut)]
     pub market: Account<'info, Market>,
+    #[account(mut)]
     pub creator_vault: Account<'info, CreatorVault>,
+    #[account(
+        seeds = [b"splitter-authority", creator_vault.key().as_ref()],
+        bump
+    )]
+    pub splitter_authority: Account<'info, SplitterAuthority>,
     #[account(mut)]
     pub user: Signer<'info>,
     #[account(mut, constraint = user_pt_ata.owner == user.key(), constraint = user_pt_ata.mint == market.pt_mint)]
@@ -396,6 +484,7 @@ pub struct RedeemPrincipal<'info> {
     #[account(mut, constraint = sy_mint.key() == market.sy_mint)]
     pub sy_mint: Account<'info, Mint>,
     pub token_program: Program<'info, Token>,
+    pub creator_vault_program: Program<'info, creator_vault::program::CreatorVault>,
 }
 
 #[derive(Accounts)]
@@ -409,6 +498,15 @@ pub struct CloseMarket<'info> {
     pub pt_mint: Account<'info, Mint>,
     #[account(mut, constraint = yt_mint.key() == market.yt_mint)]
     pub yt_mint: Account<'info, Mint>,
+}
+
+#[account]
+pub struct SplitterAuthority {
+    pub bump: u8,
+}
+
+impl SplitterAuthority {
+    pub const INIT_SPACE: usize = 1;
 }
 
 #[account]
@@ -491,12 +589,16 @@ pub enum SplitterError {
     InsufficientSyBalance,
     #[msg("PDA bump missing for position init")]
     MissingBump,
+    #[msg("Creator vault not configured for this splitter")]
+    SplitterProgramMismatch,
     #[msg("Fee index cannot decrease")]
     FeeIndexRegression,
     #[msg("User has no YT balance")]
     NoYieldPosition,
     #[msg("Insufficient liquidity in fee vault")]
     InsufficientYieldLiquidity,
+    #[msg("Fee vault address mismatch")]
+    InvalidFeeVault,
     #[msg("Market has not matured")]
     MarketNotMatured,
     #[msg("User has insufficient PT balance")]

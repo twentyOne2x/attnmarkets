@@ -1,26 +1,34 @@
 use anchor_lang::prelude::*;
+use anchor_lang::Discriminator;
 use anchor_lang::{InstructionData, ToAccountMetas};
 use creator_vault::CreatorVault;
-use anchor_lang::Discriminator;
+use solana_program::{entrypoint::ProgramResult, program_option::COption, program_pack::Pack};
 use solana_program_test::{processor, ProgramTest, ProgramTestContext};
 use solana_sdk::{
     account::{Account, AccountSharedData},
     instruction::Instruction,
     signature::{Keypair, Signer},
-    system_instruction, system_program,
+    system_instruction, system_program, sysvar,
     transaction::Transaction,
-    sysvar,
 };
-use solana_program::{entrypoint::ProgramResult, program_option::COption, program_pack::Pack};
-use std::mem;
 use spl_associated_token_account::get_associated_token_address;
 use spl_associated_token_account::instruction as ata_instruction;
 use spl_token::instruction as token_instruction;
 use spl_token::state::{Account as TokenAccountState, AccountState, Mint as MintState};
 use splitter::{accounts, instruction, Market};
+use std::mem;
 
 const DECIMALS: u8 = 6;
 const FEE_INDEX_SCALE: u128 = 1_000_000_000;
+
+fn creator_vault_entry_shim(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    data: &[u8],
+) -> ProgramResult {
+    let accounts_static: &[AccountInfo] = unsafe { mem::transmute(accounts) };
+    creator_vault::entry(program_id, accounts_static, data)
+}
 
 fn splitter_entry_shim(
     program_id: &Pubkey,
@@ -35,8 +43,13 @@ fn splitter_entry_shim(
 
 #[tokio::test]
 async fn full_market_flow() {
-    let program_test =
-        ProgramTest::new("splitter", splitter::id(), processor!(splitter_entry_shim));
+    let mut program_test = ProgramTest::default();
+    program_test.add_program(
+        "creator_vault",
+        creator_vault::id(),
+        processor!(creator_vault_entry_shim),
+    );
+    program_test.add_program("splitter", splitter::id(), processor!(splitter_entry_shim));
 
     let pump_mint = Keypair::new();
     let quote_mint = Keypair::new();
@@ -141,18 +154,23 @@ async fn full_market_flow() {
     )
     .await;
 
-    // Prepare maturity timestamp
+    // Prepare immediate maturity timestamp
     let clock: Clock = context.banks_client.get_sysvar().await.unwrap();
-    let maturity_ts: i64 = clock.unix_timestamp + 10;
+    let maturity_ts: i64 = clock.unix_timestamp - 10;
 
     // Create market
     let market_account = Keypair::new();
     let pt_mint = Keypair::new();
     let yt_mint = Keypair::new();
+    let (splitter_authority_pda, _) = Pubkey::find_program_address(
+        &[b"splitter-authority", creator_vault_pda.as_ref()],
+        &splitter::id(),
+    );
 
     let create_market_accounts = accounts::CreateMarket {
         authority: context.payer.pubkey(),
         creator_vault: creator_vault_pda,
+        splitter_authority: splitter_authority_pda,
         pump_mint: pump_mint.pubkey(),
         sy_mint: sy_mint_pda,
         market: market_account.pubkey(),
@@ -209,6 +227,7 @@ async fn full_market_flow() {
     let mint_accounts = accounts::MintPtYt {
         market: market_account.pubkey(),
         creator_vault: creator_vault_pda,
+        splitter_authority: splitter_authority_pda,
         user: user.pubkey(),
         user_sy_ata,
         user_pt_ata,
@@ -217,8 +236,9 @@ async fn full_market_flow() {
         pt_mint: pt_mint.pubkey(),
         yt_mint: yt_mint.pubkey(),
         user_position: user_position_pda,
-        token_program: spl_token::id(),
         system_program: system_program::id(),
+        token_program: spl_token::id(),
+        creator_vault_program: creator_vault::id(),
     };
     let mint_ix = Instruction {
         program_id: splitter::id(),
@@ -254,47 +274,48 @@ async fn full_market_flow() {
     send_tx_owned(&mut context, &[mint_yield_ix], vec![payer_clone]).await;
 
     // Redeem yield with updated index
-    let delta_index = (accrue_amount as u128 * FEE_INDEX_SCALE) / market_state.total_yt_issued as u128;
+    let delta_index =
+        (accrue_amount as u128 * FEE_INDEX_SCALE) / market_state.total_yt_issued as u128;
     let new_fee_index = market_state.fee_index + delta_index;
 
     let redeem_accounts = accounts::RedeemYield {
         market: market_account.pubkey(),
         creator_vault: creator_vault_pda,
+        splitter_authority: splitter_authority_pda,
         user: user.pubkey(),
         user_position: user_position_pda,
         user_yt_ata,
         fee_vault: fee_vault_pda,
         user_quote_ata,
         token_program: spl_token::id(),
+        creator_vault_program: creator_vault::id(),
     };
     let redeem_ix = Instruction {
         program_id: splitter::id(),
         accounts: redeem_accounts.to_account_metas(None),
-        data: instruction::RedeemYield {
-            new_fee_index,
-        }
-        .data(),
+        data: instruction::RedeemYield { new_fee_index }.data(),
     };
-    let pre_quote_balance = get_token_account(&mut context, &user_quote_ata).await.amount;
+    let pre_quote_balance = get_token_account(&mut context, &user_quote_ata)
+        .await
+        .amount;
     send_tx(&mut context, &[redeem_ix], &[&user]).await;
-    let post_quote_balance = get_token_account(&mut context, &user_quote_ata).await.amount;
+    let post_quote_balance = get_token_account(&mut context, &user_quote_ata)
+        .await
+        .amount;
     assert_eq!(post_quote_balance - pre_quote_balance, accrue_amount);
-
-    // Warp to maturity
-    context
-        .warp_to_slot(clock.slot + 1_000)
-        .unwrap();
 
     // Redeem principal in two steps
     let redeem_accounts = accounts::RedeemPrincipal {
         market: market_account.pubkey(),
         creator_vault: creator_vault_pda,
+        splitter_authority: splitter_authority_pda,
         user: user.pubkey(),
         user_pt_ata,
         user_sy_ata,
         pt_mint: pt_mint.pubkey(),
         sy_mint: sy_mint_pda,
         token_program: spl_token::id(),
+        creator_vault_program: creator_vault::id(),
     };
 
     let redeem_ix = Instruction {
@@ -397,6 +418,7 @@ async fn seed_creator_vault_accounts(
         pump_mint: pump_mint.pubkey(),
         quote_mint: quote_mint.pubkey(),
         sy_mint: sy_mint_pda,
+        splitter_program: splitter::id(),
         total_fees_collected: 0,
         total_sy_minted: 0,
     };
@@ -410,7 +432,10 @@ async fn seed_creator_vault_accounts(
         &creator_vault::id(),
     );
     creator_account.data = state_data;
-    context.set_account(&creator_vault_pda, &AccountSharedData::from(creator_account));
+    context.set_account(
+        &creator_vault_pda,
+        &AccountSharedData::from(creator_account),
+    );
 }
 
 async fn seed_user_sy_balance(
@@ -464,7 +489,10 @@ async fn seed_user_sy_balance(
     data.append(&mut state_bytes);
     data.resize(8 + CreatorVault::INIT_SPACE, 0);
     creator_account.data = data;
-    context.set_account(&creator_vault_pda, &AccountSharedData::from(creator_account));
+    context.set_account(
+        &creator_vault_pda,
+        &AccountSharedData::from(creator_account),
+    );
 }
 
 async fn send_tx(
@@ -478,7 +506,17 @@ async fn send_tx(
         signers,
         context.last_blockhash,
     );
-    context.banks_client.process_transaction(tx).await.unwrap();
+    let result = context.banks_client.process_transaction(tx.clone()).await;
+    if let Err(err) = result {
+        if let Ok(simulation) = context.banks_client.simulate_transaction(tx.clone()).await {
+            if let Some(details) = simulation.simulation_details {
+                for log in details.logs {
+                    println!("tx log: {}", log);
+                }
+            }
+        }
+        panic!("process_transaction failed: {:?}", err);
+    }
     context.last_blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
 }
 

@@ -7,7 +7,7 @@ declare_id!("CreAtor111111111111111111111111111111111111");
 pub mod creator_vault {
     use super::*;
 
-    pub fn initialize_vault(ctx: Context<InitializeVault>) -> Result<()> {
+    pub fn initialize_vault(ctx: Context<InitializeVault>, splitter_program: Pubkey) -> Result<()> {
         let vault = &mut ctx.accounts.creator_vault;
         let bumps = &ctx.bumps;
         vault.bump = bumps.creator_vault;
@@ -18,6 +18,7 @@ pub mod creator_vault {
         vault.pump_mint = ctx.accounts.pump_mint.key();
         vault.quote_mint = ctx.accounts.quote_mint.key();
         vault.sy_mint = ctx.accounts.sy_mint.key();
+        vault.splitter_program = splitter_program;
         vault.total_fees_collected = 0;
         vault.total_sy_minted = 0;
         emit!(VaultInitialized {
@@ -79,6 +80,103 @@ pub mod creator_vault {
             pump_mint: ctx.accounts.pump_mint.key(),
             amount,
         });
+
+        Ok(())
+    }
+
+    pub fn mint_for_splitter(ctx: Context<MintForSplitter>, amount: u64) -> Result<()> {
+        require!(amount > 0, AttnError::InvalidAmount);
+
+        let vault = &ctx.accounts.creator_vault;
+        require!(
+            vault.splitter_program != Pubkey::default(),
+            AttnError::SplitterProgramUnset
+        );
+
+        msg!(
+            "mint_for_splitter: vault={}, amount={}, authority={}",
+            vault.key(),
+            amount,
+            ctx.accounts.splitter_authority.key()
+        );
+
+        let expected_authority = Pubkey::find_program_address(
+            &[b"splitter-authority", vault.key().as_ref()],
+            &vault.splitter_program,
+        )
+        .0;
+        require_keys_eq!(
+            expected_authority,
+            ctx.accounts.splitter_authority.key(),
+            AttnError::UnauthorizedSplitter
+        );
+        msg!("splitter authority match verified");
+
+        let vault_bump = [vault.bump];
+        let seeds: [&[u8]; 3] = [b"creator-vault", vault.pump_mint.as_ref(), &vault_bump];
+        let signer_seeds = &[&seeds[..]];
+        let mint_accounts = MintTo {
+            mint: ctx.accounts.mint.to_account_info(),
+            to: ctx.accounts.destination.to_account_info(),
+            authority: ctx.accounts.creator_vault.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            mint_accounts,
+            signer_seeds,
+        );
+        msg!("mint_for_splitter: invoking mint_to");
+        token::mint_to(cpi_ctx, amount)?;
+        msg!("mint_for_splitter: completed");
+
+        Ok(())
+    }
+
+    pub fn transfer_fees_for_splitter(
+        ctx: Context<TransferFeesForSplitter>,
+        amount: u64,
+    ) -> Result<()> {
+        require!(amount > 0, AttnError::InvalidAmount);
+
+        let vault = &ctx.accounts.creator_vault;
+        require!(
+            vault.splitter_program != Pubkey::default(),
+            AttnError::SplitterProgramUnset
+        );
+
+        let expected_authority = Pubkey::find_program_address(
+            &[b"splitter-authority", vault.key().as_ref()],
+            &vault.splitter_program,
+        )
+        .0;
+        require_keys_eq!(
+            expected_authority,
+            ctx.accounts.splitter_authority.key(),
+            AttnError::UnauthorizedSplitter
+        );
+
+        let (expected_fee_vault, _) =
+            Pubkey::find_program_address(&[b"fee-vault", vault.pump_mint.as_ref()], &crate::ID);
+        require_keys_eq!(
+            expected_fee_vault,
+            ctx.accounts.fee_vault.key(),
+            AttnError::InvalidFeeVault
+        );
+
+        let vault_bump = [vault.bump];
+        let seeds: [&[u8]; 3] = [b"creator-vault", vault.pump_mint.as_ref(), &vault_bump];
+        let signer_seeds = &[&seeds[..]];
+        let transfer_accounts = Transfer {
+            from: ctx.accounts.fee_vault.to_account_info(),
+            to: ctx.accounts.destination.to_account_info(),
+            authority: ctx.accounts.creator_vault.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            transfer_accounts,
+            signer_seeds,
+        );
+        token::transfer(cpi_ctx, amount)?;
 
         Ok(())
     }
@@ -150,6 +248,32 @@ pub struct WrapFees<'info> {
     pub token_program: Program<'info, Token>,
 }
 
+#[derive(Accounts)]
+pub struct MintForSplitter<'info> {
+    #[account(mut)]
+    pub creator_vault: Account<'info, CreatorVault>,
+    /// CHECK: PDA owned by splitter program, validated in handler
+    pub splitter_authority: Signer<'info>,
+    #[account(mut)]
+    pub mint: Account<'info, Mint>,
+    #[account(mut)]
+    pub destination: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct TransferFeesForSplitter<'info> {
+    #[account(mut)]
+    pub creator_vault: Account<'info, CreatorVault>,
+    /// CHECK: PDA owned by splitter program, validated in handler
+    pub splitter_authority: Signer<'info>,
+    #[account(mut)]
+    pub fee_vault: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub destination: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+}
+
 #[account]
 pub struct CreatorVault {
     pub bump: u8,
@@ -160,12 +284,13 @@ pub struct CreatorVault {
     pub pump_mint: Pubkey,
     pub quote_mint: Pubkey,
     pub sy_mint: Pubkey,
+    pub splitter_program: Pubkey,
     pub total_fees_collected: u64,
     pub total_sy_minted: u64,
 }
 
 impl CreatorVault {
-    pub const INIT_SPACE: usize = 1 + 1 + 1 + 32 + 32 + 32 + 32 + 32 + 8 + 8;
+    pub const INIT_SPACE: usize = 1 + 1 + 1 + 32 + 32 + 32 + 32 + 32 + 32 + 8 + 8;
 }
 
 #[event]
@@ -188,4 +313,10 @@ pub enum AttnError {
     InvalidAmount,
     #[msg("Math overflow")]
     MathOverflow,
+    #[msg("Splitter program not registered")]
+    SplitterProgramUnset,
+    #[msg("Unauthorized splitter authority")]
+    UnauthorizedSplitter,
+    #[msg("Fee vault address mismatch")]
+    InvalidFeeVault,
 }

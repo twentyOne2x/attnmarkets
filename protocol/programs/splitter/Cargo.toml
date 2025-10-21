@@ -16,7 +16,7 @@ cpi = ["no-entrypoint"]
 [dependencies]
 anchor-lang = { workspace = true }
 anchor-spl = { workspace = true }
-creator_vault = { path = "../creator_vault", features = ["no-entrypoint"] }
+creator_vault = { path = "../creator_vault", features = ["cpi"] }
 thiserror = { workspace = true }
 
 [dev-dependencies]
