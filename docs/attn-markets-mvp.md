@@ -8,7 +8,7 @@ Ship the minimum set of contracts and tooling that turn a Pump.fun creator-fee P
 2. **Fee Custody** – CreatorVault PDA receives all future fees (SOL/USDC). Existing balances are swept via `collectCreatorFee`.
 3. **SY Mint** – Users deposit Pump tokens or raw fees into CreatorVault, receiving SY that represents “1 unit” of that fee stream.
 4. **PT/YT Split** – SY is burned and equal amounts of PT (principal) and YT (yield) SPL tokens are minted for a chosen maturity.
-5. **Stable Yield Routing** – By default YT cash flows sweep into the Stable Yield Vault, where fees are converted into a stablecoin basket and `attnUSD` shares (a yield-bearing stablecoin) are minted.
+5. **Stable Yield Routing** – LPs deposit approved stablecoins (USDC/USDT/USDe, etc.) into the Stable Yield Vault to mint `attnUSD` shares. Creator fees arriving in SOL are swapped into the same basket so NAV grows and depositors capture protocol yield.
 6. **Trading & LP (v0)** – Users hold PT/YT, swap manually, or provide liquidity to a minimal PT/YT AMM (based on Pendle v2 math). Liquidity can also focus on PT/quote and `attnUSD`/quote pairs.
 7. **Redemption** – YT or `attnUSD` holders `redeem_yield` to pull accrued fees, while PT holders `redeem_principal` after maturity to recover Pump tokens or remaining fees.
 
@@ -86,30 +86,27 @@ Ship the minimum set of contracts and tooling that turn a Pump.fun creator-fee P
 - Can reuse existing attn indexer skeleton or Anchor events.
 
 ### Current On-Chain Progress (Q4 2025 snapshot)
-- **CreatorVault**: `initialize_vault` + `wrap_fees` implemented and tested; PDA layout locked in.
-- **Splitter**: Account model and all core instructions implemented, but PT/YT/SY mint authority currently anchored to the CreatorVault PDA. Because Anchor prevents Splitter from signing for a foreign PDA, end-to-end tests now fail at the mint stage. Fix requires either:
-  1. moving PT/YT (and post-maturity SY) mint authority to a Splitter-owned PDA, or
-  2. exposing CPI entrypoints inside CreatorVault that re-sign and relay token mints on Splitter’s behalf.
-  Integration test harness (`protocol/programs/splitter/tests/splitter.rs`) is in place and will pass once one of the above is chosen.
-- **StableVault / AMM**: crates scaffolded but logic/tests not yet started.
-- **SDK (`attn_client`)**: needs to mirror the final Splitter authority story before we can publish helpers.
+- **CreatorVault**: `initialize_vault`, `wrap_fees`, plus new CPI helpers `mint_for_splitter` and `transfer_fees_for_splitter` deployed. Vault stores the authorized `splitter_program` and only honours CPIs signed by the `splitter-authority` PDA.
+- **Splitter**: Markets derive and persist a `splitter-authority` PDA per CreatorVault. `mint_pt_yt`, `redeem_yield`, and `redeem_principal` now CPI into CreatorVault for all SPL minting and fee transfers; Anchor integration test (`cargo test -p splitter`) passes the full mint → accrue → redeem path.
+- **StableVault**: share-priced attnUSD vault (stablecoin deposits + creator-fee yield) scoped; Anchor crate scaffolded but logic/tests not yet started. **AMM**: crate scaffolded; pricing engine pending.
+- **SDK (`attn_client`)**: needs helpers for the new CPI flow and PDA derivations before we publish the crate.
 
-## Milestones (8–10 Weeks MVP)
-| Week | Deliverable | Owner Hints |
-|------|-------------|-------------|
-| 1–2  | CreatorVault program + tests (wrap, collect, SY mint). CLI command to wrap. | Protocol Eng |
-| 1–2  | Vault UI skeleton & CTO checklist page. | Frontend |
-| 2–3  | PT/YT splitter markets (mint, redeem_yield). Unit + integration tests. | Protocol Eng |
-| 3    | Indexer ingestion for fees + supply. Basic API. | Backend/Data |
-| 3–4  | Frontend: wrap/split flow, balances dashboard. | Frontend |
-| 4    | PT redemption logic (post-maturity), state cleanup. | Protocol Eng |
-| 4–6  | AMM v0 design + implementation (fork Pendle math). | Protocol Eng |
-| 5    | Redemption UI (claim YT, redeem PT). Notifications. | Frontend |
-| 5–6  | Integration tests: full CTO → mint → redeem path on devnet. | Protocol + QA |
-| 6–7  | AMM UI (swap, LP). | Frontend |
-| 6–7  | On-chain monitoring / alert scripts (fee flow, vault balance). | Ops/Backend |
-| 8    | Devnet public demo with one Pump token. | All |
-| 8–10 | Hardening, audit handoff, mainnet-guarded launch. | All |
+## Milestones
+| Status | Deliverable | Owner Hints |
+|--------|-------------|-------------|
+| ✅ | CreatorVault program + tests (wrap, collect, SY mint). CLI command to wrap. | Protocol Eng |
+| ❌ | Vault UI skeleton & CTO checklist page. | Frontend |
+| ✅ | PT/YT splitter markets (mint, redeem_yield). Unit + integration tests. | Protocol Eng |
+| ❌ | Indexer ingestion for fees + supply. Basic API. | Backend/Data |
+| ❌ | Frontend: wrap/split flow, balances dashboard. | Frontend |
+| ✅ | PT redemption logic (post-maturity), state cleanup. | Protocol Eng |
+| ❌ | AMM v0 design + implementation (fork Pendle math). | Protocol Eng |
+| ❌ | Redemption UI (claim YT, redeem PT). Notifications. | Frontend |
+| ✅ | Integration tests: full CTO → mint → redeem path on devnet. | Protocol + QA |
+| ❌ | AMM UI (swap, LP). | Frontend |
+| ❌ | On-chain monitoring / alert scripts (fee flow, vault balance). | Ops/Backend |
+| ❌ | Devnet public demo with one Pump token. | All |
+| ❌ | Hardening, audit handoff, mainnet-guarded launch. | All |
 
 ## Open Questions
 - YT payout asset: keep in SOL (native) or auto-wrap to wSOL/USDC?

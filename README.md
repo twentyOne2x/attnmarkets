@@ -16,7 +16,7 @@ attn.markets tokenises Solana fee streams (ICM, creator token) into a Pendle-sty
 ## Core Building Blocks
 1. **CreatorVault PDA** – Custodies the Pump fee PDA post-CTO, collects SOL, and mints SY SPL tokens.
 2. **SY → PT & YT Splitter** – Burns SY and mints equal PT and YT amounts for a chosen maturity. PT redeems the principal at maturity; YT accrues fees continuously.
-3. **Stable Yield Vault (attnUSD)** – Default destination for YT cash flows. It converts collected fees into a stablecoin basket and mints `attnUSD`, the protocol’s yield-bearing stablecoin that investors can stake or trade as a diversified creator-fee stream.
+3. **Stable Yield Vault (attnUSD)** – Default destination for YT cash flows. LPs deposit approved stablecoins (USDC/USDT/USDe, etc.) to mint `attnUSD` shares, while the vault converts incoming creator fees into the same basket so the share price captures protocol-wide yield.
 4. **Pendle-inspired AMM** – Supports PT/quote and `attnUSD`/quote swaps with concentrated liquidity and time-decay pricing.
 5. **Creator + Holder Console** – Web UI and CLI for CTO guidance, wrapping/splitting, fee claims, redemptions, and liquidity provisioning.
 6. **Indexer & Monitoring** – Tracks fee inflows, SY/PT/YT supply, accrued yield, maturity events, and raises alerts on flow disruption.
@@ -24,17 +24,23 @@ attn.markets tokenises Solana fee streams (ICM, creator token) into a Pendle-sty
 ## End-to-End User Flow
 1. Community submits CTO request naming the attn CreatorVault PDA as the new fee authority.
 2. Pump.fun approves and executes `set_creator`, redirecting fees into the vault.
-3. Users wrap Pump tokens or fee balances to mint SY, then split into PT + YT.
-4. Fees stream into the vault; YT or `attnUSD` holders redeem yield (with `attnUSD` functioning as the stakable yield token), while PT holders wait for maturity or trade on the AMM.
+3. Users wrap Pump tokens or fee balances to mint SY, then split into PT + YT via Splitter.
+4. Fees stream into the vault; YT holders redeem yield directly or route it into the Stable Yield Vault (`attnUSD`). LPs mint `attnUSD` by depositing approved stablecoins (USDC/USDT/USDe, etc.) and share in creator-fee yield as NAV grows. Splitter now CPIs into CreatorVault for both minting and fee transfers, keeping mint authority centralized in CreatorVault.
 5. At maturity, PT holders redeem remaining Pump tokens/fees, and the market can roll into a fresh tranche.
 
 ## MVP Deliverables
 - CreatorVault + SY mint deployed to Solana devnet with CLI support.
-- PT/YT splitter markets with yield redemption accounting.
+- PT/YT splitter markets with yield redemption accounting, using CreatorVault CPI hooks for minting and yield payouts.
 - Stable Yield Vault aggregating YT flows into `attnUSD` shares.
 - Minimal PT/quote and `attnUSD`/quote AMM pools.
 - Frontend (creator dashboard + investor portal) and supporting indexer APIs.
 - Guarded mainnet launch for a single Pump token once tests and audits pass.
+
+### Backend Status (Oct 2025)
+- ✅ CreatorVault exposes `mint_for_splitter` and `transfer_fees_for_splitter` CPI endpoints locked to a `splitter-authority` PDA.
+- ✅ Splitter now derives its `splitter-authority` account, CPIs through CreatorVault for PT/YT/SY minting, and routes fee withdrawals via the new CPI.
+- ✅ Integration test (`cargo test -p splitter`) covers mint → accrue → redeem yield → redeem principal using the CPI flow.
+- ⏳ Next: wire attn_client SDK helpers to the updated instruction set, scaffold StableVault/`attnUSD`, and extend docs once end-to-end flows are finalized.
 
 ## Path After MVP
 - Expand to additional Pump tokens via batch CTO onboarding.

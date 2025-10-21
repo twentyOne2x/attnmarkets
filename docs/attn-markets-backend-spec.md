@@ -36,10 +36,12 @@ attnmarkets/
   - `initialize_vault { pump_creator_pda, quote_mint, admin }`
   - `collect_fees { creator_vault, pump_pda }` (CPI to Pump program to sweep fees)
   - `wrap_fees { creator_vault, user, amount, maturity }` – mints SY to user.
+  - `mint_for_splitter { creator_vault, splitter_authority, mint, destination, amount }` – CPI helper to mint PT/YT/SY on Splitter’s behalf.
+  - `transfer_fees_for_splitter { creator_vault, splitter_authority, fee_vault, destination, amount }` – CPI helper moving accrued fees to Splitter users.
   - `update_admin {}` – governance operations.
   - `pause / resume` – guard rails for emergencies.
 - **Events**
-  - `FeeCollected`, `SYMinted`, `VaultPaused`.
+  - `FeeCollected`, `SYMinted`, `SplitterMinted`, `SplitterFeeTransfer`, `VaultPaused`.
 - **Key Considerations**
   - Support both direct Pump token deposits and raw SOL fee deposits (convert via wSOL).
   - Track `total_fees_collected`, `total_sy_minted`, `cta_status` flag (optional) for UI gating.
@@ -48,31 +50,33 @@ attnmarkets/
 - **Accounts**
   - `Market`: keyed by `pump_mint + maturity_ts` storing PT mint, YT mint, maturity, fee index, total minted.
   - `UserPosition`: optional PDA storing last fee index to compute owed yield lazily.
+  - `SplitterAuthority`: PDA per CreatorVault storing bump so both programs share seeds.
 - **Instructions**
   - `create_market { creator_vault, maturity_ts }`
-  - `mint_pt_yt { market, user, sy_amount }`
-  - `redeem_yield { market, user }` – calculates `(current_index - last_index) * YT_balance`.
-  - `redeem_principal { market, user }` – after maturity, transfers Pump token or vault-held assets.
+  - `mint_pt_yt { market, creator_vault, splitter_authority, user, sy_amount }` – burns SY and CPIs into CreatorVault `mint_for_splitter`.
+  - `redeem_yield { market, creator_vault, splitter_authority, user }` – CPIs into `transfer_fees_for_splitter`.
+  - `redeem_principal { market, creator_vault, splitter_authority, user }` – after maturity CPIs to re-mint SY.
   - `close_market {}` – cleans up once PT supply zero.
 - **Events**
   - `MarketCreated`, `PTYT_Minted`, `YieldRedeemed`, `PrincipalRedeemed`.
 - **Considerations**
   - Use `Clock` sysvar to enforce maturity gating.
-  - For simplicity, place markets under CreatorVault admin control (one admin per Pump token).
+  - Markets remain under CreatorVault admin control (one admin per Pump token).
 
 ### 3. Stable Yield Vault Program (`attnUSD`)
 - **Accounts**
   - `StableVault`: stores total deposits, attnUSD mint, share index, conversion queue state.
   - `DepositRecord`: optional tracking for KYC or big deposits.
 - **Instructions**
-  - `initialize_stable_vault { quote_mints[], conversion_strategy }`
-  - `deposit_yt { stable_vault, market, user, yt_amount }`
-  - `mint_attnusd { stable_vault, user }`
-  - `redeem_attnusd { stable_vault, user, shares }`
-  - `process_conversion { stable_vault }` – swaps SOL→USDC via Jupiter.
+  - `initialize_stable_vault { accepted_stable_mints[], conversion_strategy }`
+  - `deposit_stable { stable_vault, user, stable_mint, amount }` – mints attnUSD shares at current NAV.
+  - `redeem_attnusd { stable_vault, user, shares }` – burns shares and returns stables.
+  - `sweep_creator_fees { stable_vault, creator_vault, fee_accounts[] }` – converts incoming SOL to the stable basket and updates NAV.
+  - `process_conversion { stable_vault }` – optional asynchronous SOL→stable swap executor (Jupiter).
 - **Events**
-  - `attnUSD_Minted`, `attnUSD_Redeemed`, `ConversionExecuted`.
+  - `attnUSD_Minted`, `attnUSD_Redeemed`, `CreatorFeesSwept`, `ConversionExecuted`.
 - **Considerations**
+  - Share accounting (`total_assets / total_shares`) must stay exact; deposits/redemptions use price-per-share math.
   - Slippage limits, oracle pricing (Pyth/Jupiter quotes) to protect conversions.
   - Option to disable auto-sweep for markets that prefer standalone YT.
 
@@ -150,8 +154,8 @@ attnmarkets/
 - Unit and fuzz tests for fee distribution invariants (PT+YT conservation, attnUSD share index monotonicity).
 
 ## Implementation Checklist (Rust-first)
-- [ ] Anchor project skeletons for all programs.
-- [ ] SY→PT/YT mint/redeem integration tests (`anchor test`).
+- [✅] Anchor project skeletons for all programs.
+- [✅] SY→PT/YT mint/redeem integration tests (`cargo test -p splitter`).
 - [ ] StableVault conversion tests with Jupiter mock (Rust integration).
 - [ ] AMM swap/liquidity tests (unit + integration).
 - [ ] `attn_client` crate with program bindings and helpers.

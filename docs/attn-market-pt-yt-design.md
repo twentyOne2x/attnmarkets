@@ -79,7 +79,7 @@ When creator-fee authority cannot be reassigned (e.g., Meteora, Bags, Moonshot),
 - **Governance Module**: attn multisig or DAO controlling parameters (fees, supported maturities, emergency stops).
 - **LiquidityMigrator**: wraps legacy liquidity positions from Solana launchpads (e.g., Pump.fun bonding curves, Meteora pools) into PT/YT pairs, optionally performing bonded re-issuance or dual-sided provisioning with minimal approvals.
 - **WalletDelegateProxy**: optional contract enabling creators to sign a single permit that delegates migration authority to the tool without moving root custody.
-- **Stable Yield Vault**: consolidates matured YT fee inflows into a diversified stablecoin strategy, issuing claim tokens that represent a pro-rata share of averaged yield.
+- **Stable Yield Vault**: accepts deposits of approved stablecoins (USDC/USDT/USDe, etc.) from LPs, converts all creator-fee inflows into the same basket, and issues share tokens (`attnUSD`) whose NAV captures system-wide yield.
 
 ### Off-Chain Components
 - **Migration CLI/SDK**: `attn migrate --token <address>` handles signature collection, deployment scripts, snapshot generation, and fee router installation.
@@ -130,7 +130,7 @@ We target a token-by-token upgrade cadence to reduce blast radius and mirror liv
 - **Granular Fee Sales**: Creators may tokenize and sell fee rights tranche-by-tranche per token. Auctions can target a single launch without touching other launches controlled by the same wallet.
 - **Minimal Wallet Movement**: Default flow keeps funds in the original creator wallet; delegation and meta-transactions execute migrations and fee redirections without large custody changes unless explicitly approved.
 - **Multi-Wallet Teams**: Governance can map multiple whitelisted fee wallets to a single CreatorVault, while still issuing per-token fee instruments. This supports studios launching multiple tokens across different operators.
-- **Stable Yield Distribution**: Matured YT streams automatically sweep excess fees into the Stable Yield Vault. The vault converts fees to a target stablecoin basket and mints share tokens (`attnUSD`), a yield-bearing stablecoin that holders can stake or trade for averaged performance across all creator launches.
+- **Stable Yield Distribution**: Matured YT streams automatically sweep excess fees into the Stable Yield Vault. LPs mint `attnUSD` shares by depositing stablecoins; the vault converts fee inflows to the same basket so NAV appreciation delivers averaged yield across all creator launches.
 
 ## Token Lifecycle
 - **Issuance**: PT minted 1:1 with deposited underlying; YT minted based on expected fees for each active maturity tranche.
@@ -141,7 +141,7 @@ We target a token-by-token upgrade cadence to reduce blast radius and mirror liv
 
 ### YT Market Creation
 - YT/PT tokens are minted on migration but liquidity pools are not auto-created; LPs or attn-owned vaults seed markets when demand warrants, mirroring Pendle’s opt-in liquidity model.
-- By default the protocol sweeps YT cash flows into the Stable Yield Vault, converting fees into a stablecoin basket and minting `attnUSD` shares. `attnUSD` acts as the primary yield-bearing stablecoin for the protocol, and concentrating liquidity on PT/quote and `attnUSD`/quote pairs keeps depth simple.
+- By default the protocol sweeps YT cash flows into the Stable Yield Vault, converting fees into a stablecoin basket that backs `attnUSD` shares minted by stablecoin LPs. `attnUSD` acts as the primary yield-bearing stablecoin for the protocol, and concentrating liquidity on PT/quote and `attnUSD`/quote pairs keeps depth simple.
 - Creators can opt out and keep a standalone YT mint if their community wants a dedicated YT/quote market; governance can spin up those pools later without impacting the core vault.
 - Curated “standard maturities” (1D, 1W, 1M) receive protocol-owned liquidity to ensure price discovery, while long-tail tranches rely on external LP incentives.
 - Fixed-maturity YT can also be listed in auction houses or OTC order books for creators seeking forward sales without continuous AMM exposure.
