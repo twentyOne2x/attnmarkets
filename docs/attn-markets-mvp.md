@@ -85,6 +85,15 @@ Ship the minimum set of contracts and tooling that turn a Pump.fun creator-fee P
 - Exposes GraphQL/REST endpoints for frontend usage.
 - Can reuse existing attn indexer skeleton or Anchor events.
 
+### Current On-Chain Progress (Q4 2025 snapshot)
+- **CreatorVault**: `initialize_vault` + `wrap_fees` implemented and tested; PDA layout locked in.
+- **Splitter**: Account model and all core instructions implemented, but PT/YT/SY mint authority currently anchored to the CreatorVault PDA. Because Anchor prevents Splitter from signing for a foreign PDA, end-to-end tests now fail at the mint stage. Fix requires either:
+  1. moving PT/YT (and post-maturity SY) mint authority to a Splitter-owned PDA, or
+  2. exposing CPI entrypoints inside CreatorVault that re-sign and relay token mints on Splitter’s behalf.
+  Integration test harness (`protocol/programs/splitter/tests/splitter.rs`) is in place and will pass once one of the above is chosen.
+- **StableVault / AMM**: crates scaffolded but logic/tests not yet started.
+- **SDK (`attn_client`)**: needs to mirror the final Splitter authority story before we can publish helpers.
+
 ## Milestones (8–10 Weeks MVP)
 | Week | Deliverable | Owner Hints |
 |------|-------------|-------------|

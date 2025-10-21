@@ -1,12 +1,17 @@
 # attn.markets Pump.fun Executive Summary
 
-## Mission
-attn.markets is building a Pendle-style yield protocol for Solana creator-fee streams. The first milestone focuses solely on Pump.fun: we use Pump’s Community Takeover (CTO) mechanism to gain control of a creator’s fee PDA, wrap that stream into standardized yield (SY), and split it into Principal Tokens (PT) and Yield Tokens (YT).
+## What We’re Building
+attn.markets tokenises Solana fee streams (ICM, creator token) into a Pendle-style principal and yield claims. Pump.fun’s CTO flow is the first on-ramp: once fees point to an attn PDA, we wrap them into standardized yield (SY) and split into Principal (PT) and Yield (YT) tokens, a pattern we can reuse wherever fee authority can be reassigned.
+
+### What this unlocks
+- **Creators & builders** – Package fee rights into PT/YT to pre-sell cash flows, hedge volatility, or even sell perpetual claims without touching the base token.
+- **DeFi users, protocols, risk desks** – `attnUSD` and YT tranches turn fee exposure into diversified, yield-bearing assets for farmers, risk custodians, treasuries, and other structured products.
+- **Composable rails** – SY/PT/YT feed the AMM, stable vault, and forthcoming credit/hedging modules—the backbone for internet capital markets on Solana.
 
 ## Why Pump.fun First
 - **Native reassignment path** – Pump.fun already supports CTO fee authority transfers, so we can redirect fees to an attn-controlled PDA without modifying the original token.
-- **Meaningful cash flow** – The top Pump tokens generate material SOL fees that are currently idle in creator wallets.
-- **Active communities** – Migrating fee ownership unlocks new tools (hedging, upfront financing) for teams that already understand bonding curves.
+- **Meaningful cash flow** – The top Pump tokens generate material SOL fees.
+- **Active communities** – Migrating fee ownership unlocks new tools, hedging, upfront financing, sell claim on all future fees.
 
 ## Core Building Blocks
 1. **CreatorVault PDA** – Custodies the Pump fee PDA post-CTO, collects SOL, and mints SY SPL tokens.
