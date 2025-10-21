@@ -4,6 +4,7 @@
 FILES=(
 
 
+'apps/landing/app/page.tsx'
 'apps/dapp/app/context/AppContext.tsx'
 'apps/dapp/app/layout.tsx'
 'apps/dapp/app/deposit/page.tsx'
@@ -13,6 +14,7 @@ FILES=(
 'apps/dapp/app/components/Navigation.tsx'
 'apps/dapp/app/components/BorrowSlider.tsx'
 'apps/dapp/app/components/RepaySlider.tsx'
+
 
 )
 
