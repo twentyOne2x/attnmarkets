@@ -7,6 +7,12 @@ edition = "2021"
 crate-type = ["cdylib", "lib"]
 name = "stable_vault"
 
+[features]
+default = []
+no-entrypoint = []
+no-idl = []
+cpi = ["no-entrypoint"]
+
 [dependencies]
 anchor-lang = { workspace = true }
 anchor-spl = { workspace = true }

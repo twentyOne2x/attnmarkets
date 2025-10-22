@@ -683,6 +683,7 @@ dependencies = [
  "anyhow",
  "attn_client",
  "clap 4.5.50",
+ "solana-sdk",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -694,11 +695,13 @@ version = "0.1.0"
 dependencies = [
  "anchor-client",
  "anchor-lang",
+ "anchor-spl",
  "anyhow",
  "serde",
  "serde_json",
  "solana-client",
  "solana-sdk",
+ "stable_vault",
 ]
 
 [[package]]
