@@ -189,7 +189,7 @@ We target a token-by-token upgrade cadence to reduce blast radius and mirror liv
   - Marketplace fees funnel partially into Stable Yield Vault to enhance system-wide APY.
   - Builders required to stake ATTN or PT to align incentives and cover potential slashing (e.g., underperforming insurance).
 
-## Team Composition
+## Team Functions (will be very lean, most hats worn by few people)
 - **Protocol Engineering**: Build and maintain CreatorVaults, LiquidityMigrator, Stable Yield Vault, fee routers, and AMM components; requires Solana/Anchor expertise and audited DeFi experience.
 - **Backend & Data**: Run indexers, analytics services, snapshot tooling, relayers, and monitoring pipelines to ensure accurate fee accounting.
 - **Frontend & UX**: Deliver creator onboarding, holder dashboards, PT/YT trading interfaces, marketplace discovery, and governance consoles.
