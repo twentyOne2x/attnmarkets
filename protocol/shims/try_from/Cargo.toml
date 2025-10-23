@@ -1,0 +1,7 @@
+[package]
+name = "try_from"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anchor-lang = { version = "0.30.1", default-features = false }

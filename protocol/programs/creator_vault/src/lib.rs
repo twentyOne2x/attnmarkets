@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, MintTo, Token, TokenAccount, Transfer};
 
-declare_id!("CreAtor111111111111111111111111111111111111");
+declare_id!("HPjEgPTb7rrBks1oFrscBdJ7TCZ7bARzCT93X9azCK4b");
 
 #[program]
 pub mod creator_vault {

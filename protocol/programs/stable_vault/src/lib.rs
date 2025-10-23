@@ -1,7 +1,46 @@
+#![allow(clippy::result_large_err)]
+
+#[cfg(not(target_arch = "bpf"))]
+extern crate try_from as try_from_crate;
+#[cfg(not(target_arch = "bpf"))]
+extern crate try_from_unchecked as try_from_unchecked_crate;
+
 use anchor_lang::prelude::*;
 use anchor_lang::system_program;
 use anchor_spl::token::{self, Burn, Mint, MintTo, Token, TokenAccount, Transfer};
 use std::convert::TryInto;
+
+#[cfg(not(target_arch = "bpf"))]
+pub mod try_from {
+    pub use super::try_from_crate::{try_from, try_from_unchecked, TryFromAccountInfo};
+}
+
+#[cfg(not(target_arch = "bpf"))]
+pub mod try_from_unchecked {
+    pub use super::try_from_crate::try_from_unchecked;
+}
+
+#[cfg(not(target_arch = "bpf"))]
+use try_from::TryFromAccountInfo as _TryFromAccountInfo;
+
+#[cfg(not(target_arch = "bpf"))]
+fn try_from<'info, T>(program_id: &Pubkey, account: &'info AccountInfo<'info>) -> Result<T>
+where
+    T: _TryFromAccountInfo<'info>,
+{
+    try_from::try_from(program_id, account)
+}
+
+#[cfg(not(target_arch = "bpf"))]
+fn try_from_unchecked<'info, T>(
+    program_id: &Pubkey,
+    account: &'info AccountInfo<'info>,
+) -> Result<T>
+where
+    T: _TryFromAccountInfo<'info>,
+{
+    try_from::try_from_unchecked(program_id, account)
+}
 
 pub const PRICE_SCALE: u128 = 1_000_000_000;
 
