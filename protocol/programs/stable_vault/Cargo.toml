@@ -9,11 +9,14 @@ name = "stable_vault"
 
 [features]
 default = []
-no-entrypoint = []
-no-idl = []
 cpi = ["no-entrypoint"]
+no-entrypoint = []
+idl-build = ["anchor-lang/idl-build"]
 
 [dependencies]
 anchor-lang = { workspace = true }
-anchor-spl = { workspace = true }
-thiserror = { workspace = true }
+anchor-spl  = { workspace = true }
+
+[target.'cfg(not(target_arch = "bpf"))'.dependencies]
+try_from = { path = "../../shims/try_from" }
+try_from_unchecked = { path = "../../shims/try_from_unchecked" }

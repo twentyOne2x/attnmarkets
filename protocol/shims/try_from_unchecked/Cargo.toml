@@ -1,0 +1,7 @@
+[package]
+name = "try_from_unchecked"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+try_from = { path = "../try_from" }
