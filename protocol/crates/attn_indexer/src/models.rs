@@ -79,6 +79,7 @@ pub struct RewardsPoolSummary {
     pub admin: String,
     pub allowed_funder: String,
     pub treasury_balance_sol: f64,
+    pub paused: bool,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -110,4 +111,42 @@ pub struct RewardsPoolDetail {
     pub summary: RewardsPoolSummary,
     pub total_stakers: u64,
     pub events: Vec<RewardEvent>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CreatorGovernance {
+    pub creator_vault: String,
+    pub pump_mint: String,
+    pub admin: String,
+    pub sol_rewards_bps: u16,
+    pub paused: bool,
+    pub sy_mint: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RewardsGovernance {
+    pub rewards_pool: String,
+    pub creator_vault: String,
+    pub admin: String,
+    pub allowed_funder: String,
+    pub reward_bps: u16,
+    pub paused: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct StableVaultGovernance {
+    pub stable_vault: String,
+    pub admin: String,
+    pub keeper_authority: String,
+    pub authority_seed: String,
+    pub share_mint: String,
+    pub stable_mint: String,
+    pub pending_sol_lamports: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GovernanceState {
+    pub creator_vaults: Vec<CreatorGovernance>,
+    pub rewards_pools: Vec<RewardsGovernance>,
+    pub stable_vault: Option<StableVaultGovernance>,
 }

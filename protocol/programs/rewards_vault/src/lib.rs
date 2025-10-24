@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_lang::system_program;
 use anchor_spl::token::{self, Burn, Mint, MintTo, Token, TokenAccount, Transfer};
+use creator_vault::CreatorVault as CreatorVaultAccount;
 
 pub const INDEX_SCALE: u128 = 1_000_000_000;
 const TOTAL_BPS: u64 = 10_000;
@@ -46,7 +47,8 @@ pub mod rewards_vault {
         pool.reward_bps = reward_bps;
         pool.allowed_funder = allowed_funder;
         pool.last_treasury_balance = 0;
-        pool.padding = [0; 6];
+        pool.is_paused = false;
+        pool.padding = [0; 5];
 
         let payer_info = ctx.accounts.payer.to_account_info();
         let treasury_info = ctx.accounts.sol_treasury.to_account_info();
@@ -77,6 +79,7 @@ pub mod rewards_vault {
         require!(amount > 0, RewardsError::InvalidAmount);
 
         let pool = &mut ctx.accounts.rewards_pool;
+        require!(!pool.is_paused, RewardsError::PoolPaused);
         distribute_pending(pool)?;
 
         let position = &mut ctx.accounts.stake_position;
@@ -170,6 +173,7 @@ pub mod rewards_vault {
     pub fn unstake_attnusd(ctx: Context<UnstakeAttnUsd>, amount: u64) -> Result<()> {
         require!(amount > 0, RewardsError::InvalidAmount);
         let pool = &mut ctx.accounts.rewards_pool;
+        require!(!pool.is_paused, RewardsError::PoolPaused);
         let position = &mut ctx.accounts.stake_position;
 
         require_keys_eq!(
@@ -254,6 +258,7 @@ pub mod rewards_vault {
 
     pub fn claim_rewards(ctx: Context<ClaimRewards>) -> Result<()> {
         let pool = &mut ctx.accounts.rewards_pool;
+        require!(!pool.is_paused, RewardsError::PoolPaused);
         let position = &mut ctx.accounts.stake_position;
 
         require_keys_eq!(
@@ -293,22 +298,9 @@ pub mod rewards_vault {
 
     pub fn fund_rewards(ctx: Context<FundRewards>, amount: u64) -> Result<()> {
         require!(amount > 0, RewardsError::InvalidAmount);
-        require_keys_eq!(
-            ctx.accounts.rewards_pool.creator_vault,
-            ctx.accounts.creator_vault.key(),
-            RewardsError::UnauthorizedCreatorVault
-        );
-        require_keys_eq!(
-            ctx.accounts.rewards_pool.allowed_funder,
-            ctx.accounts.funding_source.key(),
-            RewardsError::UnauthorizedFunder
-        );
-        require!(
-            ctx.accounts.funding_source.to_account_info().is_signer,
-            RewardsError::UnauthorizedFunder
-        );
 
         let pool = &mut ctx.accounts.rewards_pool;
+        require!(!pool.is_paused, RewardsError::PoolPaused);
         let pre_balance = ctx.accounts.sol_treasury.to_account_info().lamports();
         require!(
             pre_balance >= pool.last_treasury_balance,
@@ -320,7 +312,7 @@ pub mod rewards_vault {
             CpiContext::new(
                 ctx.accounts.system_program.to_account_info(),
                 system_program::Transfer {
-                    from: ctx.accounts.funding_source.to_account_info(),
+                    from: ctx.accounts.allowed_funder.to_account_info(),
                     to: ctx.accounts.sol_treasury.to_account_info(),
                 },
             ),
@@ -335,9 +327,24 @@ pub mod rewards_vault {
                 .ok_or(RewardsError::MathOverflow)?;
             pool.pending_rewards = 0;
         }
+        let previous_index = pool.sol_per_share;
+        let previous_pending = pool.pending_rewards;
         accrue_rewards(pool, total_amount)?;
         pool.last_treasury_balance = ctx.accounts.sol_treasury.to_account_info().lamports();
         if !had_stakers {
+            let expected_pending = previous_pending
+                .checked_add(amount)
+                .ok_or(RewardsError::MathOverflow)?;
+            require_eq!(
+                pool.sol_per_share,
+                previous_index,
+                RewardsError::IndexInvariant
+            );
+            require_eq!(
+                pool.pending_rewards,
+                expected_pending,
+                RewardsError::PendingRewardsInvariant
+            );
             total_amount = 0;
         }
 
@@ -349,6 +356,77 @@ pub mod rewards_vault {
             treasury_balance: pool.last_treasury_balance,
         });
 
+        Ok(())
+    }
+
+    pub fn update_allowed_funder(
+        ctx: Context<UpdateAllowedFunder>,
+        new_allowed_funder: Pubkey,
+    ) -> Result<()> {
+        require!(
+            new_allowed_funder != Pubkey::default(),
+            RewardsError::InvalidAllowedFunder
+        );
+        let pool = &mut ctx.accounts.rewards_pool;
+        require_keys_eq!(
+            pool.admin,
+            ctx.accounts.admin.key(),
+            RewardsError::UnauthorizedAdmin
+        );
+        pool.allowed_funder = new_allowed_funder;
+        emit!(AllowedFunderUpdated {
+            pool: pool.key(),
+            allowed_funder: new_allowed_funder,
+        });
+        Ok(())
+    }
+
+    pub fn update_reward_bps(ctx: Context<UpdateRewardBps>, new_reward_bps: u16) -> Result<()> {
+        require!(new_reward_bps as u64 <= TOTAL_BPS, RewardsError::InvalidBps);
+        let pool = &mut ctx.accounts.rewards_pool;
+        require_keys_eq!(
+            pool.admin,
+            ctx.accounts.admin.key(),
+            RewardsError::UnauthorizedAdmin
+        );
+        pool.reward_bps = new_reward_bps;
+        emit!(RewardBpsUpdated {
+            pool: pool.key(),
+            reward_bps: new_reward_bps,
+        });
+        Ok(())
+    }
+
+    pub fn update_admin(ctx: Context<UpdateAdmin>, new_admin: Pubkey) -> Result<()> {
+        require!(new_admin != Pubkey::default(), RewardsError::InvalidAdmin);
+        let pool = &mut ctx.accounts.rewards_pool;
+        require_keys_eq!(
+            pool.admin,
+            ctx.accounts.admin.key(),
+            RewardsError::UnauthorizedAdmin
+        );
+        let previous_admin = pool.admin;
+        pool.admin = new_admin;
+        emit!(RewardsAdminUpdated {
+            pool: pool.key(),
+            previous_admin,
+            new_admin,
+        });
+        Ok(())
+    }
+
+    pub fn set_pause(ctx: Context<SetPause>, paused: bool) -> Result<()> {
+        let pool = &mut ctx.accounts.rewards_pool;
+        require_keys_eq!(
+            pool.admin,
+            ctx.accounts.admin.key(),
+            RewardsError::UnauthorizedAdmin
+        );
+        pool.is_paused = paused;
+        emit!(RewardsPoolPaused {
+            pool: pool.key(),
+            paused,
+        });
         Ok(())
     }
 }
@@ -585,12 +663,11 @@ pub struct ClaimRewards<'info> {
 
 #[derive(Accounts)]
 pub struct FundRewards<'info> {
-    /// CHECK: validated against pool state
-    pub creator_vault: UncheckedAccount<'info>,
-    #[account(mut)]
+    pub creator_vault: Account<'info, CreatorVaultAccount>,
+    #[account(mut, has_one = creator_vault, has_one = allowed_funder)]
     pub rewards_pool: Account<'info, RewardsPool>,
     #[account(mut)]
-    pub funding_source: SystemAccount<'info>,
+    pub allowed_funder: Signer<'info>,
     #[account(
         mut,
         seeds = [b"sol-treasury", rewards_pool.key().as_ref()],
@@ -598,6 +675,34 @@ pub struct FundRewards<'info> {
     )]
     pub sol_treasury: SystemAccount<'info>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateAllowedFunder<'info> {
+    #[account(mut, has_one = admin)]
+    pub rewards_pool: Account<'info, RewardsPool>,
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateRewardBps<'info> {
+    #[account(mut, has_one = admin)]
+    pub rewards_pool: Account<'info, RewardsPool>,
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateAdmin<'info> {
+    #[account(mut, has_one = admin)]
+    pub rewards_pool: Account<'info, RewardsPool>,
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct SetPause<'info> {
+    #[account(mut, has_one = admin)]
+    pub rewards_pool: Account<'info, RewardsPool>,
+    pub admin: Signer<'info>,
 }
 
 #[account]
@@ -616,11 +721,13 @@ pub struct RewardsPool {
     pub reward_bps: u16,
     pub allowed_funder: Pubkey,
     pub last_treasury_balance: u64,
-    pub padding: [u8; 6],
+    pub is_paused: bool,
+    pub padding: [u8; 5],
 }
 
 impl RewardsPool {
-    pub const SPACE: usize = 8 + 1 + 1 + 1 + 32 + 32 + 32 + 32 + 32 + 8 + 16 + 8 + 2 + 32 + 8 + 6;
+    pub const SPACE: usize =
+        8 + 1 + 1 + 1 + 32 + 32 + 32 + 32 + 32 + 8 + 16 + 8 + 2 + 32 + 8 + 1 + 5;
 }
 
 #[account]
@@ -682,6 +789,31 @@ pub struct RewardsClaimed {
     pub amount: u64,
 }
 
+#[event]
+pub struct AllowedFunderUpdated {
+    pub pool: Pubkey,
+    pub allowed_funder: Pubkey,
+}
+
+#[event]
+pub struct RewardBpsUpdated {
+    pub pool: Pubkey,
+    pub reward_bps: u16,
+}
+
+#[event]
+pub struct RewardsAdminUpdated {
+    pub pool: Pubkey,
+    pub previous_admin: Pubkey,
+    pub new_admin: Pubkey,
+}
+
+#[event]
+pub struct RewardsPoolPaused {
+    pub pool: Pubkey,
+    pub paused: bool,
+}
+
 #[error_code]
 pub enum RewardsError {
     #[msg("Amount must be greater than zero")]
@@ -710,6 +842,16 @@ pub enum RewardsError {
     InvalidAllowedFunder,
     #[msg("Treasury PDA mismatch")]
     InvalidTreasuryAccount,
+    #[msg("Unauthorized admin")]
+    UnauthorizedAdmin,
+    #[msg("Invalid admin public key")]
+    InvalidAdmin,
+    #[msg("Rewards pool is paused")]
+    PoolPaused,
+    #[msg("Index must remain unchanged when no stake is present")]
+    IndexInvariant,
+    #[msg("Pending rewards must accumulate when no stake is present")]
+    PendingRewardsInvariant,
 }
 
 fn distribute_pending(pool: &mut RewardsPool) -> Result<()> {
@@ -820,7 +962,8 @@ mod tests {
                 reward_bps: 0,
                 allowed_funder: Pubkey::new_unique(),
                 last_treasury_balance: 0,
-                padding: [0; 6],
+                is_paused: false,
+                padding: [0; 5],
             },
         )
     }
@@ -855,6 +998,16 @@ mod tests {
         accrue_rewards(&mut pool, 2_000).unwrap();
         assert_eq!(pool.sol_per_share, 1_000);
         assert_eq!(pool.pending_rewards, 2_000);
+    }
+
+    #[test]
+    fn fund_rewards_without_stake_keeps_index() {
+        let (_key, mut pool) = mock_pool(0, 5_000, 250);
+        let previous_index = pool.sol_per_share;
+        let previous_pending = pool.pending_rewards;
+        accrue_rewards(&mut pool, 750).unwrap();
+        assert_eq!(pool.sol_per_share, previous_index);
+        assert_eq!(pool.pending_rewards, previous_pending + 750);
     }
 
     #[test]

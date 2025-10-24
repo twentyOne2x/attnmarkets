@@ -9,8 +9,9 @@ use sqlx::postgres::PgPoolOptions;
 use sqlx::{PgPool, Row};
 
 use crate::models::{
-    AttnUsdStats, MarketDetail, MarketStatus, MarketSummary, Overview, Portfolio, RewardEvent,
-    RewardEventKind, RewardsPoolDetail, RewardsPoolSummary,
+    AttnUsdStats, CreatorGovernance, GovernanceState, MarketDetail, MarketStatus, MarketSummary,
+    Overview, Portfolio, RewardEvent, RewardEventKind, RewardsGovernance, RewardsPoolDetail,
+    RewardsPoolSummary, StableVaultGovernance,
 };
 
 #[async_trait]
@@ -22,6 +23,7 @@ pub trait ReadStore: Send + Sync {
     async fn attnusd(&self) -> Result<AttnUsdStats>;
     async fn rewards(&self, cursor: Option<String>, limit: u16) -> Result<RewardsPage>;
     async fn rewards_pool(&self, pool: &str) -> Result<Option<RewardsPoolDetail>>;
+    async fn governance(&self) -> Result<GovernanceState>;
 }
 
 pub type DynStore = Arc<dyn ReadStore>;
@@ -286,6 +288,7 @@ impl ReadStore for SqlxStore {
                        admin,
                        allowed_funder,
                        treasury_balance_lamports,
+                       paused,
                        updated_at
                 from rewards_pools
                 where rewards_pool > $1
@@ -310,6 +313,7 @@ impl ReadStore for SqlxStore {
                        admin,
                        allowed_funder,
                        treasury_balance_lamports,
+                       paused,
                        updated_at
                 from rewards_pools
                 order by rewards_pool asc
@@ -336,6 +340,7 @@ impl ReadStore for SqlxStore {
                 allowed_funder: row.get("allowed_funder"),
                 treasury_balance_sol: row.get::<f64, _>("treasury_balance_lamports")
                     / 1_000_000_000_f64,
+                paused: row.get::<bool, _>("paused"),
                 updated_at: row.get("updated_at"),
             })
             .collect();
@@ -369,6 +374,7 @@ impl ReadStore for SqlxStore {
                    admin,
                    allowed_funder,
                    treasury_balance_lamports,
+                   paused,
                    updated_at
             from rewards_pools
             where rewards_pool = $1
@@ -394,6 +400,7 @@ impl ReadStore for SqlxStore {
             allowed_funder: row.get("allowed_funder"),
             treasury_balance_sol: row.get::<f64, _>("treasury_balance_lamports")
                 / 1_000_000_000_f64,
+            paused: row.get::<bool, _>("paused"),
             updated_at: row.get("updated_at"),
         };
 
@@ -486,6 +493,79 @@ impl ReadStore for SqlxStore {
             events,
         }))
     }
+
+    async fn governance(&self) -> Result<GovernanceState> {
+        let creator_rows = sqlx::query(
+            r#"
+            select vault_pubkey, pump_mint, admin, sol_rewards_bps, paused, sy_mint
+            from creator_vaults
+            order by pump_mint asc
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        let creator_vaults = creator_rows
+            .into_iter()
+            .map(|row| CreatorGovernance {
+                creator_vault: row.get("vault_pubkey"),
+                pump_mint: row.get("pump_mint"),
+                admin: row.get("admin"),
+                sol_rewards_bps: row.get::<i32, _>("sol_rewards_bps").max(0) as u16,
+                paused: row.get::<bool, _>("paused"),
+                sy_mint: row.get("sy_mint"),
+            })
+            .collect();
+
+        let rewards_rows = sqlx::query(
+            r#"
+            select rewards_pool, creator_vault, admin, allowed_funder, reward_bps, paused
+            from rewards_pools
+            order by rewards_pool asc
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        let rewards_pools = rewards_rows
+            .into_iter()
+            .map(|row| RewardsGovernance {
+                rewards_pool: row.get("rewards_pool"),
+                creator_vault: row.get("creator_vault"),
+                admin: row.get("admin"),
+                allowed_funder: row.get("allowed_funder"),
+                reward_bps: row.get::<i32, _>("reward_bps").max(0) as u16,
+                paused: row.get::<bool, _>("paused"),
+            })
+            .collect();
+
+        let stable_row = sqlx::query(
+            r#"
+            select stable_vault, authority_seed, admin, keeper_authority, share_mint, stable_mint, pending_sol_lamports
+            from stable_vaults
+            order by stable_vault asc
+            limit 1
+            "#,
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        let stable_vault = stable_row.map(|row| StableVaultGovernance {
+            stable_vault: row.get("stable_vault"),
+            admin: row.get("admin"),
+            keeper_authority: row.get("keeper_authority"),
+            authority_seed: row.get("authority_seed"),
+            share_mint: row.get("share_mint"),
+            stable_mint: row.get("stable_mint"),
+            pending_sol_lamports: row.get::<f64, _>("pending_sol_lamports"),
+        });
+
+        Ok(GovernanceState {
+            creator_vaults,
+            rewards_pools,
+            stable_vault,
+        })
+    }
 }
 
 #[async_trait]
@@ -564,6 +644,10 @@ impl ReadStore for MockStore {
             .find(|detail| detail.summary.pool == pool)
             .cloned())
     }
+
+    async fn governance(&self) -> Result<GovernanceState> {
+        Ok(self.inner.governance.clone())
+    }
 }
 
 #[derive(Clone)]
@@ -573,6 +657,7 @@ pub struct MockData {
     pub portfolios: HashMap<String, Portfolio>,
     pub attnusd: AttnUsdStats,
     pub rewards: Vec<RewardsPoolDetail>,
+    pub governance: GovernanceState,
 }
 
 impl Default for MockData {
@@ -682,6 +767,7 @@ impl MockData {
             admin: "Admin1111111111111111111111111111111111".into(),
             allowed_funder: "Funder111111111111111111111111111111111".into(),
             treasury_balance_sol: 12.5,
+            paused: false,
             updated_at: now,
         };
 
@@ -716,12 +802,41 @@ impl MockData {
             events: rewards_events,
         }];
 
+        let governance = GovernanceState {
+            creator_vaults: vec![CreatorGovernance {
+                creator_vault: "CreatorVault1111111111111111111111111111111".into(),
+                pump_mint: "PumpMint11111111111111111111111111111111".into(),
+                admin: "Admin11111111111111111111111111111111111".into(),
+                sol_rewards_bps: 500,
+                paused: false,
+                sy_mint: "SyMint111111111111111111111111111111111".into(),
+            }],
+            rewards_pools: vec![RewardsGovernance {
+                rewards_pool: "RewardsPool111111111111111111111111111111".into(),
+                creator_vault: "CreatorVault1111111111111111111111111111111".into(),
+                admin: "Admin11111111111111111111111111111111111".into(),
+                allowed_funder: "Funder111111111111111111111111111111111".into(),
+                reward_bps: 300,
+                paused: false,
+            }],
+            stable_vault: Some(StableVaultGovernance {
+                stable_vault: "StableVault111111111111111111111111111111".into(),
+                admin: "StableAdmin11111111111111111111111111111".into(),
+                keeper_authority: "Keeper11111111111111111111111111111111".into(),
+                authority_seed: "Keeper11111111111111111111111111111111".into(),
+                share_mint: "ShareMint111111111111111111111111111111".into(),
+                stable_mint: "StableMint111111111111111111111111111111".into(),
+                pending_sol_lamports: 0.0,
+            }),
+        };
+
         Self {
             overview,
             markets,
             portfolios,
             attnusd,
             rewards,
+            governance,
         }
     }
 }
@@ -766,15 +881,15 @@ mod tests {
     #[tokio::test]
     async fn mock_store_lists_rewards() {
         let store = MockStore::default();
-        let pools = store.rewards().await.unwrap();
-        assert!(!pools.is_empty());
+        let pools = store.rewards(None, 50).await.unwrap();
+        assert!(!pools.items.is_empty());
     }
 
     #[tokio::test]
     async fn mock_store_fetches_reward_detail() {
         let store = MockStore::default();
-        let pools = store.rewards().await.unwrap();
-        let first = &pools[0];
+        let pools = store.rewards(None, 50).await.unwrap();
+        let first = &pools.items[0];
         let detail = store.rewards_pool(&first.pool).await.unwrap();
         assert!(detail.is_some());
         assert!(!detail.unwrap().events.is_empty());
