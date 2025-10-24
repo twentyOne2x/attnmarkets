@@ -8,10 +8,10 @@ Ship the minimum set of contracts and tooling that turn a Pump.fun creator-fee P
 2. **Fee Custody** – CreatorVault PDA receives all future fees (SOL/USDC). Existing balances are swept via `collectCreatorFee`.
 3. **SY Mint** – Users deposit Pump tokens or raw fees into CreatorVault, receiving SY that represents “1 unit” of that fee stream.
 4. **PT/YT Split** – SY is burned and equal amounts of PT (principal) and YT (yield) SPL tokens are minted for a chosen maturity.
-5. **Stable Yield Routing** – LPs deposit approved stablecoins (USDC/USDT/USDe, etc.) into the Stable Yield Vault to mint `attnUSD` shares. Creator fees arriving in SOL are swapped into the same basket so NAV grows and depositors capture protocol yield.
-6. **Rewards Staking (optional)** – `attnUSD` holders stake into the RewardsVault to receive sAttnUSD and accrue SOL rewards distributed from a configurable slice of creator fees while NAV remains dollar-denominated.
+5. **Stable Yield Routing** – LPs deposit approved stablecoins (USDC/USDT/USDe, etc.) into the Stable Yield Vault to mint `attnUSD` shares. `sweep_creator_fees` splits incoming SOL: a configured basis-point slice funds RewardsVault, the remainder converts into the stable basket so attnUSD NAV grows.
+6. **SOL Rewards Staking (optional)** – `attnUSD` holders stake into the RewardsVault to receive sAttnUSD and accrue SOL rewards from the funded slice while attnUSD NAV remains USD-denominated.
 7. **Trading & LP (v0)** – Users hold PT/YT, swap manually, or provide liquidity to a minimal PT/YT AMM (based on Pendle v2 math). Liquidity can also focus on PT/quote and `attnUSD`/quote pairs.
-8. **Redemption** – YT or `attnUSD` holders `redeem_yield` to pull accrued fees, sAttnUSD stakers claim SOL, and PT holders `redeem_principal` after maturity to recover Pump tokens or remaining fees.
+8. **Redemption** – YT holders `redeem_yield` for fees, attnUSD holders exit via `redeem_attnusd` (yield realized through NAV), sAttnUSD stakers `claim_rewards` for SOL, and PT holders `redeem_principal` after maturity to recover Pump tokens or remaining fees.
 
 ## Smart-Contract Components
 ### 1. CreatorVault Program
@@ -20,10 +20,12 @@ Ship the minimum set of contracts and tooling that turn a Pump.fun creator-fee P
   - Pump creator-fee PDA address
   - Accepted quote mint (SOL via wSOL wrapper or USDC)
   - Maturity schedule array (default daily/weekly/monthly)
+  - Admin multisig (Squads `creator_admin`) and optional allowed funder override
 - Instructions:
   - `initialize_vault(admin, pump_creator_pda, quote_mint)`
   - `collect_fees()` – pulls funds from Pump PDA (requires `set_creator_authority` executed).
   - `wrap_fees(amount, maturity)` – mints SY SPL token.
+  - `set_rewards_split(sol_rewards_bps)` – configures default basis points for SOL rewards sweep.
   - `sweep_unassigned()` – admin recovers dust/fees if creator opts out.
 
 ### 2. SY Token Mint
@@ -48,22 +50,22 @@ Ship the minimum set of contracts and tooling that turn a Pump.fun creator-fee P
 - User position stores `last_index` to compute owed fees lazily.
 
 ### 4. Stable Yield Vault (`attnUSD`)
-- Custodies aggregated YT cash flows; converts incoming SOL into protocol-selected stablecoins (e.g., USDC, stables via Jupiter routes).
-- Mints `attnUSD`, a yield-bearing stablecoin representing a pro-rata share of the aggregated creator-fee yield.
-- Maintains share index so deposits/withdrawals don’t dilute existing holders.
-- Exposes `deposit_yt(yield_amount)`, `mint_attnusd(user, amount)`, `redeem_attnusd(user, shares)`.
-- Optional staking adapter so protocols can integrate `attnUSD` as collateral.
+- Custodies aggregated creator fees and LP deposits; converts the non-reward SOL slice into protocol-selected stablecoins (USDC/USDT/USDe) via Jupiter.
+- Mints `attnUSD`, a yield-bearing stablecoin whose returns accrue via NAV (no manual claim).
+- Maintains share index so deposits/withdrawals remain fair; `sweep_creator_fees` accepts `sol_rewards_bps` and CPI-calls RewardsVault before topping up the stable basket.
+- Core instructions: `initialize_stable_vault`, `deposit_stable`, `redeem_attnusd`, `process_conversion`, `set_conversion_strategy`.
+- Emits events for fee sweeps and conversions so indexer tracks NAV changes.
 
 ### 5. RewardsVault (sAttnUSD)
-- Accepts `attnUSD` deposits and mints a staking receipt token (sAttnUSD).
-- Tracks `total_staked` and `sol_per_share` so SOL rewards are indexed rather than streamed.
+- Accepts `attnUSD` deposits, mints staking receipt token sAttnUSD, and pays SOL rewards from funded slices.
+- Tracks `total_staked`, `sol_per_share`, `pending_rewards`, and enforces allowed funder (CreatorVault PDA or keeper) with admin set to Squads.
 - Instructions:
-  - `initialize_pool(admin, reward_bps)` – configures the reward distribution share.
-  - `stake_attnusd(user, amount)` – transfers `attnUSD` and mints sAttnUSD 1:1.
-  - `unstake_attnusd(user, amount)` – burns sAttnUSD and returns `attnUSD`.
-  - `fund_rewards(amount_sol)` – CPI target for CreatorVault sweeps.
-  - `claim_rewards(user)` – withdraws accrued SOL.
-- Requires CPI authority from CreatorVault so only configured sweeps fund the pool.
+  - `initialize_pool(admin, reward_bps, allowed_funder)` – sets pool config and seeds PDAs (sAttn mint, attn vault, SOL treasury).
+  - `stake_attnusd(user, amount)` – transfers `attnUSD`, mints sAttnUSD 1:1, settles pending SOL.
+  - `unstake_attnusd(user, amount)` – burns sAttnUSD, returns `attnUSD`, settles SOL.
+  - `claim_rewards(user)` – withdraws accrued SOL without unstaking.
+  - `fund_rewards(amount_sol)` – requires allowed funder signer; updates SOL/share index and folds pending rewards when no stakers.
+- Future governance hooks: update allowed funder, adjust reward bps, pause/resume (timelocked via Squads).
 
 ### 6. AMM v0 (Optional early, mandatory before mainnet)
 - Minimal concentrated pool for PT/quote and `attnUSD`/quote pairs (YT/quote optional).
@@ -75,46 +77,50 @@ Ship the minimum set of contracts and tooling that turn a Pump.fun creator-fee P
 - For MVP we can hardcode a single liquidity range with protocol LP to prove swaps work.
 
 ### 7. Frontend + CLI
-- **Web** (React/Next or existing attn UI):
-  - CTO handoff instructions checklist.
-  - “Wrap & Split” page (deposit Pump tokens/fees → mint SY → split into PT/YT).
-  - Portfolio dashboard (PT/YT balances, accrued yield, maturity countdown).
-  - Redeem modals for YT (claim fees) and PT (post-maturity unwrap).
-  - Basic liquidity tab if AMM v0 launched.
-- **CLI** (TypeScript or Rust):
-  - `attn-cto request <pump_mint> <vault_pda>`
-  - `attn-wrap --mint <pump_mint> --amount ...`
-  - `attn-split --market <market_pubkey> --amount ...`
-  - `attn-redeem-yt`, `attn-redeem-pt`
+- **Web (Next.js)**:
+  - App shell with Demo (default) / Live (devnet) toggle persisted in `localStorage`.
+  - CTO handoff checklist, including CreatorVault PDA + Squads multisig note.
+  - Markets explorer (`/v1/markets`), portfolio dashboard (PT, YT, attnUSD NAV, sAttnUSD claimable SOL).
+  - Rewards page showing pool stats, stake/unstake/claim actions gated behind wallet+devnet check.
+  - Live mode health check (`/readyz`, `/version`) with automatic fallback to Demo if unhealthy; Live banner when on.
+  - Stub liquidity tab for PT/attnUSD once AMM v0 lands.
+- **CLI (Rust `attn_cli`)**:
+  - `rewards initialize|stake|unstake|claim|fund`.
+  - `stable sweep-fees --sol-rewards-bps ...`, `wrap`, `split`, `redeem`.
+  - CTO helpers (`attn-cli cto submit|update`).
+  - Flags for devnet vs localnet plus API calls for smoke tests.
 
 ### 8. Indexer / Analytics
-- Runs off Solana RPC (Helius/Jito).
+- Runs off Solana RPC/WebSocket (Helius/Jito) with signature dedupe checkpoints.
 - Tracks:
-  - Fees collected per Pump token.
-  - SY / PT / YT supply per market.
-  - Outstanding yield owed (per user, aggregated).
-  - Redemption events.
-- Exposes GraphQL/REST endpoints for frontend usage.
-- Can reuse existing attn indexer skeleton or Anchor events.
+  - Fees collected per Pump token and sweep transactions.
+  - SY / PT / YT supply per market plus maturities.
+  - attnUSD NAV (total assets, price-per-share).
+  - Rewards pools (total_staked, sol_per_share, pending) and user positions/claims.
+  - Redemption, funding, staking events with slot/signature metadata.
+- Stores data in Postgres (SQLx migrations 001–003) with indexes on wallet/pool/slot.
+- Powers REST endpoints `/v1/overview`, `/v1/markets`, `/v1/markets/:id`, `/v1/portfolio/:wallet`, `/v1/attnusd`, `/v1/rewards`, `/v1/rewards/:pool` plus `/readyz`, `/version`.
 
 ### Current On-Chain & Backend Progress (Q4 2025 snapshot)
-- **CreatorVault**: `initialize_vault`, `wrap_fees`, plus CPI helpers `mint_for_splitter` / `transfer_fees_for_splitter` deployed. Vault stores the authorized `splitter_program` and only honours CPIs signed by the `splitter-authority` PDA.
-- **Splitter**: Markets derive and persist a `splitter-authority` PDA per CreatorVault. `mint_pt_yt`, `redeem_yield`, and `redeem_principal` CPIs into CreatorVault for SPL minting and fee transfers; Anchor integration test (`cargo test -p splitter`) covers mint → accrue → redeem.
-- **StableVault**: attnUSD vault now implements initialize/deposit/redeem/sweep/conversion handlers with PDA docs updated for Anchor 0.32; unit tests exercise share-price math. Localnet builds/tests run via `anchor test -p stable_vault`.
-- **RewardsVault**: Staking wrapper in progress; SOL reward index + CLI wiring targeted for upcoming sprint.
-- **AMM**: crate scaffolded; pricing engine and tests pending.
-- **SDK (`attn_client`)**: StableVault PDA helpers and instruction builders upgraded to Anchor 0.32 generics. CreatorVault/Splitter/AMM modules still TODO.
-- **Indexer/API**: `attn_indexer` exposes domain models and an async mock store; `attn_api` serves `/v1/overview`, `/v1/markets/:market`, `/v1/portfolio/:wallet`, `/v1/attnusd`, and `/health` using that mock feed. Real RPC/Postgres pipeline remains outstanding.
+- **CreatorVault**: `initialize_vault`, `wrap_fees`, CPI helpers, and configurable `sol_rewards_bps` in `sweep_creator_fees`; admin slated for Squads rotation.
+- **Splitter**: Markets derive `splitter-authority` PDA; integration tests cover mint → accrue → redeem workflows.
+- **StableVault**: Initialize/deposit/redeem/sweep/conversion live; sweeps now split SOL rewards and CPI into RewardsVault before conversion.
+- **RewardsVault**: Stake/unstake/claim/fund implemented with admin + allowed-funder checks and proptest coverage (rerun once rust-lld installed).
+- **AMM**: Crate scaffolded; CWAMM math + tests pending.
+- **SDK (`attn_client`)**: StableVault + RewardsVault builders exposed; CLI shares the same module for `rewards` commands.
+- **Indexer/API**: SQLx-backed ingestion with checkpoints, Postgres migrations 001–003, axum REST with pagination, ETags, `/readyz`, `/version`.
+- **Tooling**: `localnet-e2e.sh` orchestrates wrap → split → stake → fund → claim and curls `/v1/rewards`; devnet script variant TODO.
 
 ## Milestones
 | Status | Deliverable | Owner Hints |
 |--------|-------------|-------------|
 | ✅ | CreatorVault program + tests (wrap, collect, SY mint). CLI command to wrap. | Protocol Eng |
-| ❌ | Vault UI skeleton & CTO checklist page. | Frontend |
+| 🟡 | Vault UI skeleton, CTO checklist, Demo/Live mode toggle. | Frontend |
 | ✅ | PT/YT splitter markets (mint, redeem_yield). Unit + integration tests. | Protocol Eng |
-| 🟡 | Indexer ingestion for fees + supply. Basic API. | Backend/Data |
-| 🟡 | RewardsVault staking pool (stake/unstake/claim + funding CPI). | Protocol Eng |
-| ❌ | Frontend: wrap/split flow, balances dashboard. | Frontend |
+| ✅ | Indexer ingestion for fees, rewards, NAV with paginated API. | Backend/Data |
+| ✅ | RewardsVault staking pool (stake/unstake/claim/fund, property tests). | Protocol Eng |
+| 🟡 | Frontend: wrap/split flow, portfolio + rewards dashboard wired to API. | Frontend |
+| 🟡 | Keeper daemon for collect_fees + rewards funding. | DevOps |
 | ✅ | PT redemption logic (post-maturity), state cleanup. | Protocol Eng |
 | ❌ | AMM v0 design + implementation (fork Pendle math). | Protocol Eng |
 | ❌ | Redemption UI (claim YT, redeem PT). Notifications. | Frontend |
@@ -132,7 +138,9 @@ Ship the minimum set of contracts and tooling that turn a Pump.fun creator-fee P
 - Maturity schedule default: fixed maturities per vault or user-defined per market?
 - CTO automation: can we build a helper script that pre-fills Pump’s CTO form?
 - Fee asset hedging: do we auto-swap fees into USDC for smoother YT payouts?
-- Governance in MVP: simple multisig vs full DAO controls?
+- Governance in MVP: Squads only or additional DAO layer? Need router admin split between `creator_admin` and `attn_admin`.
+- Router architecture: integrated vs standalone aggregator for future fee routing.
+- Test infra: resolve rust-lld crash so rewards property tests run in CI.
 
 ## Dependencies & Risks
 - Pump.fun cooperation for CTO approvals (timing uncertain).
@@ -140,11 +148,15 @@ Ship the minimum set of contracts and tooling that turn a Pump.fun creator-fee P
 - Anchor account sizes must leave room for future fields (avoid re-deploy).
 - AMM complexity: ensure compute budget fits in Solana limits (especially YT math).
 - UI/UX education: educate creators on pump takeover + PT/YT meaning.
+- Rust toolchain environment (lld) must be installed on CI to avoid linker crashes.
+- Squads multisig setup and proposal latency may slow config changes—document playbooks.
+- Live frontend must guard against unhealthy API (/readyz) to avoid broken experience.
 
 ## Next Steps
-1. Wire `attn_indexer` to real Solana RPC/WebSocket feeds and persist data in Postgres (SQLx schema, migrations, back-fill jobs).
-2. Switch `attn_api` from mock data to the production store, add pagination/filtering, and document the REST contract for frontend.
-3. Extend `attn_client` with CreatorVault/Splitter/AMM instruction builders and surface them through `attn_cli`.
-4. Implement StableVault conversion/Jupiter mocks for integration tests and specify the on-chain oracle/slippage guards.
-5. Design and implement AMM v0 (math + tests), then hook up frontend wrap/split/LP flows.
-6. Prepare devnet deployment scripts, monitoring/alerting hooks, and draft the audit readiness checklist.
+1. Fix rust-lld toolchain on CI/dev machines and re-run `cargo test -p rewards_vault` / `attn_api` suites.
+2. Finalize frontend DataProvider (Demo vs Live), Rewards page wiring, and Live-mode UX guards (`/readyz` fallback, banners).
+3. Stand up keeper daemon for periodic `collect_fees` + `sweep_creator_fees` + `fund_rewards`, including monitoring + alerting.
+4. Complete devnet rollout plan: Squads safe creation, program admin rotation, Anchor deploy, indexer `--from-slot`, Live frontend smoke tests.
+5. Decide on integrated vs standalone router architecture before AMM v0 implementation.
+6. Implement AMM v0 math/tests and expose CLI+API endpoints for pricing data.
+7. Draft audit scope, security checklist, and documentation for governance proposals.

@@ -22,8 +22,8 @@ PT, attnUSD, and sAttnUSD trade/settle across pools; indexer + SDK expose state 
 |----------------|-------------------------------------------------------------------------|----------------------------------------------------------------|----------------------------------------------------------------------------------------------------|
 | **CreatorVault** | Custodies creator fees, mints Standardized Yield (SY), and exposes CPI hooks for downstream programs. | `creator-vault` (pump mint), `fee-vault` (pump mint), `sy-mint` (pump mint)                      | `initialize_vault`, `wrap_fees`, `mint_for_splitter`, `transfer_fees_for_splitter`                |
 | **Splitter**     | Burns SY and mints PT/YT per maturity, accounts for yield, invokes CreatorVault CPI helpers.            | `market` (pump mint + maturity), `user-position`, `splitter-authority` (creator vault)           | `create_market`, `mint_pt_yt`, `redeem_yield`, `redeem_principal`, `close_market`                 |
-| **StableVault**  | Accepts stablecoin deposits, converts creator-fee inflows to same basket, issues attnUSD shares.         | `stable-vault` (protocol scope), `attnUSD-mint`, per-stable custody PDAs                         | `initialize_stable_vault`, `deposit_stable`, `redeem_attnusd`, `sweep_creator_fees`, `process_conversion` |
-| **RewardsVault** | Lets attnUSD holders stake for SOL rewards while preserving stable NAV.                                  | `rewards-pool` (creator vault), `rewards-authority`, `stake-position`                            | `initialize_pool`, `stake_attnusd`, `unstake_attnusd`, `fund_rewards`, `claim_rewards`             |
+| **StableVault**  | Accepts stablecoin deposits, converts creator-fee inflows to same basket, issues attnUSD shares.         | `stable-vault` (protocol scope), `attnUSD-mint`, per-stable custody PDAs, `sol-vault`            | `initialize_stable_vault`, `deposit_stable`, `redeem_attnusd`, `sweep_creator_fees` (split + CPI), `process_conversion` |
+| **RewardsVault** | Lets attnUSD holders stake for SOL rewards while preserving stable NAV.                                  | `rewards-pool` (creator vault), `rewards-authority`, `stake-position`, `s-attn-mint`, `sol-treasury`, `attn-vault` | `initialize_pool`, `stake_attnusd`, `unstake_attnusd`, `claim_rewards`, `fund_rewards` (allowed funder)   |
 | **AMM**          | Supports PT/quote and attnUSD/quote swaps + liquidity provision.                                          | `pool` (token pair + maturity), `position` PDAs                                                   | `create_pool`, `add_liquidity`, `remove_liquidity`, `swap_exact_in/out`, `collect_fees`           |
 
 ## Interaction Graph
@@ -75,9 +75,14 @@ PT, attnUSD, and sAttnUSD trade/settle across pools; indexer + SDK expose state 
 | `["user-position", market, user]`         | Splitter       | Tracks per-user fee index and accrued yield     |
 | `["stable-vault"]`                        | StableVault    | Global attnUSD vault state                      |
 | `["attnusd-mint"]`                        | StableVault    | attnUSD SPL mint                                |
-| `["rewards-pool", creator_vault]`          | RewardsVault   | SOL reward pool configuration                   |
-| `["rewards-authority", creator_vault]`     | RewardsVault   | PDA signer shared with CreatorVault CPI hooks   |
-| `["stake-position", rewards_pool, user]`   | RewardsVault   | Tracks sAttnUSD stake and reward debt           |
+| `["stable-treasury", stable_vault, mint]` | StableVault    | Custody account per-quote asset                 |
+| `["sol-vault", stable_vault]`             | StableVault    | SOL holding account prior to conversion         |
+| `["rewards-pool", creator_vault]`         | RewardsVault   | SOL reward pool configuration                   |
+| `["rewards-authority", rewards_pool]`     | RewardsVault   | PDA signer over sAttn mint + attn vault         |
+| `["s-attn-mint", rewards_pool]`           | RewardsVault   | sAttnUSD mint (decimals = attnUSD)              |
+| `["attn-vault", rewards_pool]`            | RewardsVault   | AttnUSD custody while staked                    |
+| `["sol-treasury", rewards_pool]`          | RewardsVault   | SOL treasury PDA paying rewards                 |
+| `["stake-position", rewards_pool, user]`  | RewardsVault   | Tracks sAttnUSD stake and reward debt           |
 | `["pool", token_a, token_b, maturity?]`   | AMM            | Liquidity pool state                            |
 | `["position", pool, owner, tick_range]`   | AMM            | Liquidity position metadata                     |
 
@@ -86,29 +91,37 @@ PT, attnUSD, and sAttnUSD trade/settle across pools; indexer + SDK expose state 
 - **Splitter → CreatorVault**
   - `mint_for_splitter`: Splits SY into PT/YT using CreatorVault as mint authority.
   - `transfer_fees_for_splitter`: Moves accrued fees to end-users or to StableVault.
-- **CreatorVault → RewardsVault**
-  - `fund_rewards`: Routes the configured SOL slice into the staking index.
-- **StableVault → CreatorVault** (planned)
-  - `sweep_creator_fees`: Invoked by ops/automation to pull fees from multiple CreatorVault fee vaults.
+- **StableVault → RewardsVault**
+  - `fund_rewards`: CPI invoked inside `sweep_creator_fees` to route the SOL rewards slice.
+- **StableVault → CreatorVault**
+  - `sweep_creator_fees`: Pulls fees from CreatorVault fee vaults, splitting SOL between RewardsVault funding and stable conversions.
 - **AMM → Others**
   - Pools reference PT/YT/attnUSD mints but do not require CPI to CreatorVault; they use standard token program instructions.
 
 ## Supporting Services
 
-- **attn_client (Rust SDK)**: Wraps program IDLs, provides PDA derivation helpers, and orchestrates multi-instruction flows (e.g., wrap → split → deposit/stake). StableVault flows are implemented; RewardsVault + AMM bindings are actively being added.
-- **attn_indexer**: Subscribes to program logs to maintain Postgres state for CreatorVault totals, market indexes, attnUSD NAV, RewardsVault reward indexes, and AMM liquidity snapshots. A mock `ReadStore` implementation currently feeds local development; production ingestion still needs RPC/WebSocket + SQLx pipelines.
-- **attn_api**: Axum-based service exposing `/health`, `/v1/overview`, `/v1/markets/:market`, `/v1/portfolio/:wallet`, `/v1/attnusd`, and upcoming rewards endpoints. The present build serves mock data; swap in the live indexer store prior to launch.
-- **Frontend/CLI**: Uses SDK + API to guide creators through CTO, users through wrap/split/redeem, LPs through attnUSD deposits, and traders through AMM interactions.
+- **attn_client (Rust SDK)**: Wraps program IDLs, exposes PDA helpers, and orchestrates multi-instruction flows (wrap → split → stake). StableVault + RewardsVault builders are live; AMM bindings will land post-liquidity MVP.
+- **attn_cli**: Surface area for initialize/stake/unstake/claim/fund plus wrap/split/cto utilities; used by automation scripts and devnet operators.
+- **attn_indexer**: Streams program logs into Postgres with signature dedupe + resume checkpoints; stores markets, rewards pools/positions, reward events, and aggregates for API pagination.
+- **attn_api**: Axum REST service exposing `/v1/overview`, `/v1/markets`, `/v1/markets/:id`, `/v1/portfolio/:wallet`, `/v1/attnusd`, `/v1/rewards`, `/v1/rewards/:pool`, `/readyz`, `/version`. Supports `?limit=&cursor=` pagination, weak ETags, optional API key, and CORS allowlisting for demo/live frontends.
+- **Frontend**: Next.js app with Demo | Live (devnet) mode switch. Live mode consumes REST APIs, gates write actions behind wallet + devnet check, and falls back to Demo if `/readyz` fails.
 
 ## Implementation Notes (Q4 2025)
-- Toolchain is unified on Anchor 0.32.1 + Solana Agave 2.3.x via AVM; `anchor test -p stable_vault` runs against Localnet without shim dependencies.
-- StableVault now enforces PDA safety comments required by Anchor 0.32 and uses `UncheckedAccount` for PDA init before re-typing.
-- RewardsVault design is staged: staking instructions and SOL index math pending implementation; CreatorVault will forward rewards once the pool is live.
-- Mock data path between `attn_indexer` and `attn_api` unblocks frontend prototyping; replace with Postgres-backed store and add caching once ingestion is live.
+- Toolchain pinned to Anchor 0.32.1 + Solana Agave 2.3.x; install `lld` and set `RUSTFLAGS="-C link-arg=-fuse-ld=lld"` to avoid rust-lld crashes.
+- StableVault sweeps now accept `sol_rewards_bps`, CPI into RewardsVault, and maintain SOL vault balances separately from stable conversions.
+- RewardsVault fully implemented with admin/allowed-funder checks, SOL treasury rent enforcement, and property tests for monotonic indexes.
+- attn_indexer + attn_api operate on SQLx/Postgres with checkpoints, pagination, ETags, `/readyz`, `/version`.
+- `localnet-e2e.sh` automates wrap → split → stake → fund → claim → unstake and curls `/v1/rewards`; adapt for devnet pilot.
+
+## Governance & Operations
+- Program admins rotate to Squads multisigs: `creator_admin` (CreatorVault + RewardsVault pools) and `attn_admin` (StableVault, future router).
+- Keeper daemon (Rust or TS) invokes `collect_fees`, `sweep_creator_fees`, and `fund_rewards` on a schedule with signature dedupe.
+- Devnet go-live checklist: freeze program IDs in Anchor.toml, deploy via Squads, start indexer with `--from-slot`, verify `/readyz` before enabling Live frontend mode.
 
 ## Future Hooks
 
 - **Governance**: DAO control over CreatorVault `admin`, StableVault accepted assets, AMM fee parameters.
+- **Router Choice**: Decide between integrated vs standalone router to mediate future fee splits; update CPI topology once chosen.
 - **Risk/Oracle**: Price feeds (Pyth/Jupiter) for PT discounting, attnUSD NAV reporting, AMM TWAP integration.
 
 ---
