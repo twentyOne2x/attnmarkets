@@ -3,8 +3,17 @@
 ## Objectives
 - Implement all on-chain programs and off-chain services in Rust.
 - Supply indexed data and APIs to the frontend (markets, portfolio, attnUSD metrics).
-- Deliver Rust-based tooling for Pump CTO tracking, fee monitoring, and alerts.
+- Deliver Rust-based tooling for Pump CTO tracking, fee monitoring, SOL reward accrual, and alerts.
 - Establish devnet/testnet pipelines, CI, and production readiness for guarded mainnet.
+
+## Current Status (2025-10-23)
+- Anchor toolchain, Solana Agave 2.3.x, and Rust 1.90 are pinned across the workspace via AVM/Anchor.toml.
+- `stable_vault` program now implements initialize/deposit/redeem/sweep/conversion handlers with unit tests; localnet builds/tests are green.
+- `attn_client` exposes StableVault PDA helpers and instruction builders aligned with Anchor 0.32 generics.
+- RewardsVault staking design finalized; program scaffolding and SOL reward routing are the next focus.
+- `attn_indexer` provides domain models plus an async `ReadStore` trait with a deterministic mock dataset; wiring to real RPC/Postgres is still TODO.
+- `attn_api` runs on axum with `/v1/overview`, `/v1/markets/:market`, `/v1/portfolio/:wallet`, `/v1/attnusd`, and `/health`, backed by the mock store.
+- CLI, notifier, and AMM crates remain stubs pending upcoming milestones.
 
 ## Monorepo Structure (Rust-centric)
 ```
@@ -13,6 +22,7 @@ attnmarkets/
  │   ├─ creator_vault/
  │   ├─ splitter/
  │   ├─ stable_vault/
+ │   ├─ rewards_vault/
  │   └─ amm/
  ├─ crates/
  │   ├─ attn_client/              # Rust SDK (Anchor-generated, helper functions)
@@ -69,10 +79,10 @@ attnmarkets/
   - `DepositRecord`: optional tracking for KYC or big deposits.
 - **Instructions**
   - `initialize_stable_vault { accepted_stable_mints[], conversion_strategy }`
-  - `deposit_stable { stable_vault, user, stable_mint, amount }` – mints attnUSD shares at current NAV.
-  - `redeem_attnusd { stable_vault, user, shares }` – burns shares and returns stables.
+  - `deposit_stable { stable_vault, user, stable_mint, amount }` – mints attnUSD shares at current NAV (implemented).
+  - `redeem_attnusd { stable_vault, user, shares }` – burns shares and returns stables (implemented).
   - `sweep_creator_fees { stable_vault, creator_vault, fee_accounts[] }` – converts incoming SOL to the stable basket and updates NAV.
-  - `process_conversion { stable_vault }` – optional asynchronous SOL→stable swap executor (Jupiter).
+  - `process_conversion { stable_vault }` – optional asynchronous SOL→stable swap executor (Jupiter). Mocked in tests; production flow still pending.
 - **Events**
   - `attnUSD_Minted`, `attnUSD_Redeemed`, `CreatorFeesSwept`, `ConversionExecuted`.
 - **Considerations**
@@ -80,7 +90,25 @@ attnmarkets/
   - Slippage limits, oracle pricing (Pyth/Jupiter quotes) to protect conversions.
   - Option to disable auto-sweep for markets that prefer standalone YT.
 
-### 4. AMM Program
+### 4. RewardsVault Program (sAttnUSD)
+- **Accounts**
+  - `RewardsPool`: PDA storing reward configuration (`reward_bps`, `sol_per_share`, `total_staked`, `bump`).
+  - `RewardsAuthority`: PDA signer shared with CreatorVault for CPI funding.
+  - `StakePosition`: PDA per wallet tracking `staked_amount` and `reward_debt`.
+- **Instructions**
+  - `initialize_pool { creator_vault, reward_bps }` – creates the staking pool and locks the CPI authority.
+  - `stake_attnusd { user, amount }` – transfers `attnUSD` into the pool and mints sAttnUSD 1:1.
+  - `unstake_attnusd { user, amount }` – burns sAttnUSD, returns underlying `attnUSD`, and settles SOL rewards.
+  - `fund_rewards { lamports }` – CPI target for CreatorVault sweeps; updates the SOL/share index.
+  - `claim_rewards { user }` – pays out accrued SOL without touching StableVault NAV.
+- **Events**
+  - `RewardsPoolInitialized`, `RewardsStaked`, `RewardsUnstaked`, `RewardsFunded`, `RewardsClaimed`.
+- **Considerations**
+  - Rewards are distributed purely in SOL, keeping `attnUSD` NAV stable.
+  - Funding path must be CPI-authorized and idempotent (signature dedupe, checkpoint slots).
+  - Index math should remain monotonic; require guard rails for zero-stake edge cases.
+
+### 5. AMM Program
 - **Accounts**
   - `Pool`: stores token mints, liquidity, fee parameters, tick/range data if concentrated.
   - `Position`: PDA representing user LP range.
@@ -97,7 +125,7 @@ attnmarkets/
 
 ## Rust SDK (`attn_client` crate)
 - Generate Anchor IDLs and derive Rust clients via `anchor-client`.
-- Provide wrapper structs/methods for each instruction (CreatorVault, Splitter, StableVault, AMM).
+- Provide wrapper structs/methods for each instruction (CreatorVault, Splitter, StableVault, RewardsVault, AMM).
 - Expose utility modules:
   - PDA derivations (`creator_vault_pda`, `market_pda`, `attnusd_mint_pda`).
   - Jupiter swap helper (via HTTP client) for SOL→USDC conversions.
@@ -110,21 +138,25 @@ attnmarkets/
   - Periodically read account state for derived metrics (total fees, indexes).
   - Ingest Pump.fun CTO approvals manually (if we store status) or via form webhook.
 - **Schema (Postgres)**
-  - `creator_vaults` (pump_mint, status, total_fees, total_sy, last_collected_slot).
-  - `markets` (market_pubkey, pump_mint, maturity_ts, pt_supply, yt_supply, fee_index, apy metrics).
-  - `user_positions` (wallet, market, pt_balance, yt_balance, last_index, accrued_yield).
-  - `attnusd_stats` (total_supply, index, apy_history).
-  - `swaps`, `liquidity_events`.
+- `creator_vaults` (pump_mint, status, total_fees, total_sy, last_collected_slot).
+- `markets` (market_pubkey, pump_mint, maturity_ts, pt_supply, yt_supply, fee_index, apy metrics).
+- `user_positions` (wallet, market, pt_balance, yt_balance, last_index, accrued_yield).
+- `attnusd_stats` (total_supply, index, apy_history).
+- `swaps`, `liquidity_events`.
+- `rewards_pools` (pool_pubkey, pump_mint, reward_bps, total_staked, sol_per_share, updated_at).
+- `rewards_positions` (wallet, pool_pubkey, staked_amount, reward_debt, updated_at).
 - **Processing**
   - Recompute YT APY: `(fees_last_24h / yt_outstanding) * annualization factor`.
   - Compute PT discount from AMM mid-price vs notional.
   - Convert SOL totals to USD via price oracle for UI.
 - **APIs** (GraphQL/REST)
-  - `GET /v1/overview`
-  - `GET /v1/markets`
-  - `GET /v1/markets/{market}`
-  - `GET /v1/portfolio/{wallet}`
-  - `GET /v1/attnusd`
+- `GET /v1/overview`
+- `GET /v1/markets`
+- `GET /v1/markets/{market}`
+- `GET /v1/portfolio/{wallet}`
+- `GET /v1/attnusd`
+- `GET /v1/rewards` and `GET /v1/rewards/{pool}`
+  - Current implementation: `attn_api` exposes these routes using the in-memory mock store; replace with Postgres-backed provider before launch.
 - **Alerting**
   - Fire events if no fees collected for N slots.
   - Monitor attnUSD conversion queues for stuck swaps.
@@ -157,10 +189,11 @@ attnmarkets/
 - [✅] Anchor project skeletons for all programs.
 - [✅] SY→PT/YT mint/redeem integration tests (`cargo test -p splitter`).
 - [ ] StableVault conversion tests with Jupiter mock (Rust integration).
+- [ ] RewardsVault staking program (stake/unstake/claim/fund) with SOL reward index tests.
 - [ ] AMM swap/liquidity tests (unit + integration).
-- [ ] `attn_client` crate with program bindings and helpers.
-- [ ] `attn_indexer` service ingesting events and populating Postgres.
-- [ ] `attn_api` service exposing REST/GraphQL endpoints.
+- [ ] `attn_client` crate with program bindings and helpers *(StableVault module implemented; CreatorVault/Splitter/AMM bindings pending).*
+- [ ] `attn_indexer` service ingesting events and populating Postgres *(mock store + domain models in place; RPC/Postgres pipeline TBD).*
+- [ ] `attn_api` service exposing REST/GraphQL endpoints *(axum service live with mock data; wire to real store and add pagination/auth).*
 - [ ] `attn_cli` commands for CTO logging, wrap/split/redeem, monitoring tasks.
 - [ ] Devnet deployment scripts + environment configuration (.env, keypairs).
 - [ ] Security checklist + external audit handoff.
