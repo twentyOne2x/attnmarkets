@@ -1,22 +1,26 @@
 [toolchain]
-anchor_version = "0.30.1"
+anchor_version = "0.32.1"
+solana_version = "2.3.0"
 
 [features]
 resolution = true
 skip-lint = false
 
 [programs.devnet]
-stable_vault = "FnQ56fWaHuKZ3p1Jvr8TVf6aCr5SEstvjoo5cZQ5WQTz"
+stable_vault = "98jhX2iz4cec2evPKhLwA1HriVEbUAsMBo61bQpSef5Z"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Devnet"
+cluster = "Localnet"
 wallet = "~/.config/solana/id.json"
 
 [workspace]
-members = ["programs/stable_vault"]
-
-[scripts]
-test = "anchor test"
+members = [
+  "programs/stable_vault",
+  "programs/creator_vault",
+  "programs/rewards_vault",
+  "programs/splitter",
+  "programs/amm",
+]

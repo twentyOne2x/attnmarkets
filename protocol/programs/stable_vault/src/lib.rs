@@ -1,50 +1,13 @@
-#![allow(clippy::result_large_err)]
-
-#[cfg(not(target_arch = "bpf"))]
-extern crate try_from as try_from_crate;
-#[cfg(not(target_arch = "bpf"))]
-extern crate try_from_unchecked as try_from_unchecked_crate;
-
 use anchor_lang::prelude::*;
 use anchor_lang::system_program;
 use anchor_spl::token::{self, Burn, Mint, MintTo, Token, TokenAccount, Transfer};
+use rewards_vault::{program::RewardsVault as RewardsProgram, RewardsPool};
 use std::convert::TryInto;
 
-#[cfg(not(target_arch = "bpf"))]
-pub mod try_from {
-    pub use super::try_from_crate::{try_from, try_from_unchecked, TryFromAccountInfo};
-}
-
-#[cfg(not(target_arch = "bpf"))]
-pub mod try_from_unchecked {
-    pub use super::try_from_crate::try_from_unchecked;
-}
-
-#[cfg(not(target_arch = "bpf"))]
-use try_from::TryFromAccountInfo as _TryFromAccountInfo;
-
-#[cfg(not(target_arch = "bpf"))]
-fn try_from<'info, T>(program_id: &Pubkey, account: &'info AccountInfo<'info>) -> Result<T>
-where
-    T: _TryFromAccountInfo<'info>,
-{
-    try_from::try_from(program_id, account)
-}
-
-#[cfg(not(target_arch = "bpf"))]
-fn try_from_unchecked<'info, T>(
-    program_id: &Pubkey,
-    account: &'info AccountInfo<'info>,
-) -> Result<T>
-where
-    T: _TryFromAccountInfo<'info>,
-{
-    try_from::try_from_unchecked(program_id, account)
-}
-
 pub const PRICE_SCALE: u128 = 1_000_000_000;
+const TOTAL_BPS: u64 = 10_000;
 
-declare_id!("FnQ56fWaHuKZ3p1Jvr8TVf6aCr5SEstvjoo5cZQ5WQTz");
+declare_id!("98jhX2iz4cec2evPKhLwA1HriVEbUAsMBo61bQpSef5Z");
 
 #[program]
 pub mod stable_vault {
@@ -202,33 +165,69 @@ pub mod stable_vault {
         Ok(())
     }
 
-    pub fn sweep_creator_fees(ctx: Context<SweepCreatorFees>, amount: u64) -> Result<()> {
+    pub fn sweep_creator_fees(
+        ctx: Context<SweepCreatorFees>,
+        amount: u64,
+        sol_rewards_bps: u16,
+    ) -> Result<()> {
         require!(amount > 0, AttnError::InvalidAmount);
+        require!(sol_rewards_bps as u64 <= TOTAL_BPS, AttnError::InvalidBps);
         let vault = &mut ctx.accounts.stable_vault;
         require_keys_eq!(
             vault.authority,
             ctx.accounts.authority.key(),
             AttnError::Unauthorized
         );
-
-        let transfer_accounts = system_program::Transfer {
-            from: ctx.accounts.fee_source.to_account_info(),
-            to: ctx.accounts.sol_vault.to_account_info(),
-        };
-        let cpi_ctx = CpiContext::new(
-            ctx.accounts.system_program.to_account_info(),
-            transfer_accounts,
+        require_keys_eq!(
+            ctx.accounts.rewards_pool.creator_vault,
+            ctx.accounts.creator_vault.key(),
+            AttnError::Unauthorized
         );
-        system_program::transfer(cpi_ctx, amount)?;
 
-        vault.pending_sol = vault
-            .pending_sol
-            .checked_add(amount)
+        let rewards_amount = (amount as u128)
+            .checked_mul(sol_rewards_bps as u128)
+            .ok_or(AttnError::MathOverflow)?
+            .checked_div(TOTAL_BPS as u128)
+            .ok_or(AttnError::MathOverflow)? as u64;
+        let stable_amount = amount
+            .checked_sub(rewards_amount)
             .ok_or(AttnError::MathOverflow)?;
+
+        if rewards_amount > 0 {
+            let cpi_accounts = rewards_vault::cpi::accounts::FundRewards {
+                creator_vault: ctx.accounts.creator_vault.to_account_info(),
+                rewards_pool: ctx.accounts.rewards_pool.to_account_info(),
+                funding_source: ctx.accounts.fee_source.to_account_info(),
+                sol_treasury: ctx.accounts.rewards_treasury.to_account_info(),
+                system_program: ctx.accounts.system_program.to_account_info(),
+            };
+            let cpi_ctx =
+                CpiContext::new(ctx.accounts.rewards_program.to_account_info(), cpi_accounts);
+            rewards_vault::cpi::fund_rewards(cpi_ctx, rewards_amount)?;
+        }
+
+        if stable_amount > 0 {
+            let transfer_accounts = system_program::Transfer {
+                from: ctx.accounts.fee_source.to_account_info(),
+                to: ctx.accounts.sol_vault.to_account_info(),
+            };
+            let cpi_ctx = CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                transfer_accounts,
+            );
+            system_program::transfer(cpi_ctx, stable_amount)?;
+            vault.pending_sol = vault
+                .pending_sol
+                .checked_add(stable_amount)
+                .ok_or(AttnError::MathOverflow)?;
+        }
 
         emit!(CreatorFeesSwept {
             authority: ctx.accounts.authority.key(),
             amount_lamports: amount,
+            sol_rewards_bps,
+            sol_rewards_lamports: rewards_amount,
+            converted_lamports: stable_amount,
             pending_sol: vault.pending_sol,
         });
 
@@ -348,7 +347,8 @@ pub struct InitializeStableVault<'info> {
         seeds = [b"sol-vault", stable_vault.key().as_ref()],
         bump
     )]
-    pub sol_vault: SystemAccount<'info>,
+    /// CHECK: PDA is initialized during this instruction; no additional data validation required.
+    pub sol_vault: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
     pub rent: Sysvar<'info, Rent>,
@@ -431,12 +431,26 @@ pub struct SweepCreatorFees<'info> {
     pub authority: Signer<'info>,
     #[account(mut)]
     pub fee_source: Signer<'info>,
+    /// CHECK: Forwarded to RewardsVault CPI for validation
+    pub creator_vault: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        constraint = rewards_pool.creator_vault == creator_vault.key()
+    )]
+    pub rewards_pool: Account<'info, RewardsPool>,
+    #[account(
+        mut,
+        seeds = [b"sol-treasury", rewards_pool.key().as_ref()],
+        bump = rewards_pool.treasury_bump
+    )]
+    pub rewards_treasury: SystemAccount<'info>,
     #[account(
         mut,
         seeds = [b"sol-vault", stable_vault.key().as_ref()],
         bump = stable_vault.sol_vault_bump
     )]
     pub sol_vault: SystemAccount<'info>,
+    pub rewards_program: Program<'info, RewardsProgram>,
     pub system_program: Program<'info, System>,
 }
 
@@ -573,6 +587,9 @@ pub struct AttnUsdRedeemed {
 pub struct CreatorFeesSwept {
     pub authority: Pubkey,
     pub amount_lamports: u64,
+    pub sol_rewards_bps: u16,
+    pub sol_rewards_lamports: u64,
+    pub converted_lamports: u64,
     pub pending_sol: u64,
 }
 
@@ -588,6 +605,8 @@ pub struct ConversionProcessed {
 pub enum AttnError {
     #[msg("Amount must be greater than zero")]
     InvalidAmount,
+    #[msg("Invalid basis points")]
+    InvalidBps,
     #[msg("Math overflow")]
     MathOverflow,
     #[msg("Invalid vault state")]

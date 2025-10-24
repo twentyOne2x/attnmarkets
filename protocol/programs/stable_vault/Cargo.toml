@@ -11,12 +11,14 @@ name = "stable_vault"
 default = []
 cpi = ["no-entrypoint"]
 no-entrypoint = []
-idl-build = ["anchor-lang/idl-build"]
+no-idl = []
+no-log-ix-name = []
+custom-heap = []
+custom-panic = []
+anchor-debug = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 
 [dependencies]
 anchor-lang = { workspace = true }
 anchor-spl  = { workspace = true }
-
-[target.'cfg(not(target_arch = "bpf"))'.dependencies]
-try_from = { path = "../../shims/try_from" }
-try_from_unchecked = { path = "../../shims/try_from_unchecked" }
+rewards_vault = { path = "../rewards_vault", features = ["cpi"] }
