@@ -1,0 +1,20 @@
+[
+    {
+      "wallet": "99fd6q7qx1DRok4PfopjHsm2UUMG5AcuyRvM8o52BfaM",
+      "fees7d_usd": 12450,
+      "beta_pct": 0.2,
+      "alpha_pct": 0.7,
+      "gamma_pct": 0.1,
+      "status": "active",
+      "est_beta_next30d_usd": 5300
+    },
+    {
+      "wallet": "A8Kx3f4nY9mZ2pQrS7vBwC1DtE6uI9oL3nM5kJ8hG4fR",
+      "fees7d_usd": 8920,
+      "beta_pct": 0.15,
+      "alpha_pct": 0.75,
+      "gamma_pct": 0.1,
+      "status": "active",
+      "est_beta_next30d_usd": 3840
+    }
+  ]
