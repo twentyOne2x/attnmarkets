@@ -5,11 +5,14 @@ edition = "2021"
 
 [dependencies]
 anchor-lang = { workspace = true }
-anchor-client = "0.30.0"
+anchor-client = "0.32.1"
 anchor-spl = { workspace = true }
-solana-client = "1.18.12"
-solana-sdk = "1.18.12"
+solana-client = "2.3.0"
+solana-sdk = "2.3.0"
 anyhow = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 stable_vault = { path = "../../programs/stable_vault", features = ["no-entrypoint"] }
+rewards_vault = { path = "../../programs/rewards_vault", features = ["no-entrypoint"] }
+creator_vault = { path = "../../programs/creator_vault", features = ["no-entrypoint"] }
+splitter = { path = "../../programs/splitter", features = ["no-entrypoint"] }

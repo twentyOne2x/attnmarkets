@@ -10,4 +10,7 @@ anyhow = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tokio = { workspace = true, features = ["rt", "macros"] }
-solana-sdk = "1.18.12"
+solana-sdk = "2.3.0"
+anchor-client = "0.32.1"
+shellexpand = "3.1.0"
+rewards_vault = { path = "../../programs/rewards_vault", features = ["no-entrypoint"] }
