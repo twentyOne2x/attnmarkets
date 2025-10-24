@@ -25,8 +25,9 @@
 ## Information Architecture
 - **App Shell** (shared navigation):
   - Logo + “attn.markets” brand.
-  - Tabs: `Overview`, `Markets`, `Creator`, `Portfolio`, `attnUSD`, `Docs`.
-  - Wallet connect button with network toggle (devnet/mainnet).
+  - Tabs: `Overview`, `Markets`, `Creator`, `Portfolio`, `attnUSD`, `Rewards`, `Docs`.
+  - Wallet connect button with network toggle (devnet/mainnet) and mode switch (`Demo` default, `Live (devnet)`).
+  - Banner when Live mode is enabled (“Live mode – devnet”) with dismiss + info link.
 
 - **Overview (Landing)**
   - Hero: “Tokenize Pump.fun creator fees into PT/YT.”
@@ -43,21 +44,28 @@
   - **Step 1: CTO Checklist** – instructions, pre-filled template for Pump CTO form (with vault PDA address), status tracker (Manual input: “Pending / Approved / Rejected”).
   - **Step 2: Vault Setup** – once CTO approved, show `collect_fees` status, allow sweeping existing fees.
   - **Step 3: Wrap & Split** – form to enter amount of Pump tokens or raw SOL to wrap, select maturity (1D/1W/1M), preview PT/YT output, confirm split.
-  - **Step 4: Post-Split Actions** – link to auctions, attnUSD staking, and AMM liquidity pages.
-  - Analytics panel: historical fees, maturity schedule, attnUSD yield contributions.
+  - **Step 4: Post-Split Actions** – link to attnUSD vault, sAttnUSD staking (Rewards vault), auctions, and AMM liquidity pages.
+  - Analytics panel: historical fees, maturity schedule, attnUSD yield contributions, SOL reward share (bps).
 
 - **Portfolio (user-specific)**
-  - Summary cards: PT balance, YT balance, attnUSD balance, accrued yield, next maturities.
+  - Summary cards: PT balance, YT balance, attnUSD balance (showing NAV growth), sAttnUSD balance (claimable SOL), next maturities.
   - Positions table grouped by market:
     - For PT: quantity, market price, next maturity, `Redeem` button (enabled post-maturity).
     - For YT: quantity, accrued yield (SOL & USD), `Claim` button.
-    - For attnUSD: balance, current APY, `Redeem` / `Stake` if additional modules exist.
+    - For attnUSD: balance, current APY, NAV delta; no claim actions.
+    - For sAttnUSD: staked balance, pending SOL, `Claim SOL`, `Unstake`.
   - Activity feed: recent wrap/mint/redeem/swap transactions with links to Solscan.
 
 - **attnUSD Hub**
   - Display attnUSD supply, APY, conversion history (SOL→USDC), and risk summary.
-  - `Deposit` (for direct YT contributions) and `Redeem` actions.
+  - `Deposit` (for direct YT contributions) and `Redeem` actions; clarify that yield accrues via NAV.
   - Optionally show external integrations (lending partners once available).
+
+- **Rewards (sAttnUSD)**
+  - Card with total staked attnUSD (`total_staked`), SOL/share index (`sol_per_share`), pending SOL (per vault + per-user).
+  - Actions: `Stake attnUSD`, `Unstake`, `Claim SOL`.
+  - Table of reward events (funded, claimed) sourced from indexer `/v1/rewards*`.
+  - Devnet-only guard: require wallet connected on devnet, otherwise show read-only stats.
 
 - **Market Detail Page**
   - Header: Token symbol + metadata (Pump icon, social links).
@@ -68,6 +76,7 @@
     - `Swap` – embedded AMM interface (PT↔quote, attnUSD↔quote; YT optional if standalone).
     - `Liquidity` – add/remove LP position(s) with range selector (Pendle-style slider).
     - `attnUSD` – view this market’s contribution to vault, optional opt-out toggle.
+    - `Rewards` – view this market’s SOL reward split, stake/claim shortcuts linked to global Rewards page.
   - Activity log: recent splits, swaps, liquidity changes, yield claims.
 
 
@@ -85,9 +94,10 @@
 - confirmation modal summarizing fees, minted PT/YT IDs, estimated gas.
 - Success state with transaction link.
 
-### C. Yield Claim Module
-- For YT/attnUSD positions: show accrued yield, claimable amount, claim button (disabled if < minimum threshold).
+### C. Rewards Staking Module (sAttnUSD)
+- For sAttnUSD positions: show staked balance, accrued SOL, claimable amount, claim button (disabled if < minimum threshold).
 - Claim modal lists markets included, confirmation summary, transaction link.
+- Unstake flow burns sAttnUSD, returns attnUSD 1:1; show impact to SOL rewards.
 
 ### D. PT Redemption Module
 - Visible once current time > maturity timestamp.
@@ -101,13 +111,13 @@
 - Integration with wallet to sign CPI transactions.
 
 ### F. attnUSD Dashboard
-- APY card with breakdown: fee inflows, conversion slippage, vault expenses.
+- APY card with breakdown: fee inflows, conversion slippage, vault expenses; clarify yield accrues via NAV increase (no manual claim).
 - Graph of attnUSD share index over time.
 - Buttons: `Deposit YT`, `Redeem attnUSD`, with warnings about conversion delay if necessary.
 
 ### G. Notifications & Alerts
 - In-app toasts for transaction status (submitted, confirmed, failed).
-- Global banner for system alerts (e.g., “Pump fees delayed – check status.”).
+- Global banner for system alerts (e.g., “Pump fees delayed – check status.”) and Live-mode warning.
 - Portfolio view should highlight upcoming maturities or unclaimed yield.
 
 ### H. Wallet & Network Handling
@@ -115,16 +125,24 @@
 - Detect network mismatch (require devnet for testing vs mainnet).
 - Display SOL/USDC balances.
 
-## Data & API Requirements
-- Backend indexer endpoints for:
-  - `GET /metrics/overview` – total fees, attnUSD supply, APY.
-  - `GET /markets` – list of Pump tokens + stats.
-  - `GET /markets/{id}` – detailed metrics, charts data.
-  - `GET /portfolio/{wallet}` – user positions, accrued yield, maturities.
-  - `GET /attnUSD` – supply, APY, conversion history.
-  - `GET /cto-status/{pumpToken}` – optional pump CTO tracking (if stored off-chain).
+- Backend REST endpoints (all under `/v1/*`, list endpoints support `?limit=&cursor=` and ETag):
+  - `GET /v1/overview` – total fees, attnUSD supply, APY.
+  - `GET /v1/markets` – list of Pump tokens + stats.
+  - `GET /v1/markets/{id}` – detailed metrics, charts data.
+  - `GET /v1/portfolio/{wallet}` – user positions, accrued yield, maturities.
+  - `GET /v1/attnusd` – supply, APY, conversion history.
+  - `GET /v1/rewards` – rewards funding/claim events (paginated).
+  - `GET /v1/rewards/{pool}` – pool detail (paginated events, totals).
+  - `GET /v1/cto-status/{pumpToken}` – optional pump CTO tracking (if stored off-chain).
+  - `GET /readyz`, `GET /version` – health gates for Live mode.
 - On-chain state read via Anchor client for freshness (SY/PT/YT supply, indices).
 - Solscan/Jupiter integrations for transaction links & swap quotes.
+
+## Configuration & Modes
+- Environment vars: `NEXT_PUBLIC_DATA_MODE` (`demo` default), `NEXT_PUBLIC_API_BASE`, `NEXT_PUBLIC_CLUSTER` (devnet), `NEXT_PUBLIC_PROGRAM_IDS` (JSON of program IDs per cluster).
+- Mode toggle persists in `localStorage`. On startup, ping `/readyz`; fallback to Demo if unhealthy.
+- Gate write actions (wrap/split, stake/unstake/claim) behind wallet connect + cluster check (must equal devnet and Live mode).
+- Never expose privileged RPC keys or DB credentials; frontend only accesses public REST.
 
 ## UX Pattern Borrowed from Pendle
 - Markets table with APY, maturity, volume columns.
@@ -142,24 +160,25 @@
 - Show gas estimate and necessary SOL balance.
 - Guard rails if CTO not approved yet (disable split actions).
 - Display health status (vault paused, AMM paused) if governance toggles stop conditions.
+- Validate user cluster before enabling Live actions; surface low SOL warning.
 
 ## Testing Checklist
 - Connect wallet (devnet & mainnet).
 - CTO flow: mark as approved, unlock wrap UI.
-- Wrap → split → claim yield → redeem PT (simulate matured market).
-- attnUSD deposit/redeem flows.
+- Wrap → split → stake → fund (mock) → claim SOL → unstake (devnet flow via RewardsVault).
+- attnUSD deposit/redeem flows (verify NAV increase when oracle/indexer updates).
 - Swap PT/quote, add/remove liquidity, view position updates.
-- Alerts when no fee flow detected (mock indexer response).
+- Rewards page pagination + ETag caching (mock 304).
+- Live mode health fallback when `/readyz` fails.
 
 ## Deliverables
 - Frontend repo with modular React components (Tailwind/Chakra optional).
 - Storybook or component library for wrap/split, swap, liquidity modules.
-- E2E tests (Cypress/Playwright) covering critical flows.
-- Documentation explaining API dependencies and environment variables (RPC endpoints, indexer URLs).
+- E2E tests (Cypress/Playwright) covering critical flows including stake→claim→unstake.
+- Documentation explaining API dependencies, environment variables, and mode configuration.
 
 ## Future Enhancements (Post-MVP)
 - Automated CTO submission helper (pre-fills Pump form).
 - Creator marketplace modules (forward auctions, credit lines) integrated via iframe or dynamic routes.
 - Multi-launchpad selector once migrations expand beyond Pump.fun.
 - Governance UI (proposal list, attnUSD policy toggles).
-
