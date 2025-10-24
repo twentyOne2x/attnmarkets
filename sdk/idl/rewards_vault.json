@@ -1,0 +1,1494 @@
+{
+  "address": "RwdsVaULTxQg7vKQmsG9tPo8mWxryQac1hZ2RKSBv2C",
+  "metadata": {
+    "name": "rewards_vault",
+    "version": "0.1.0",
+    "spec": "0.1.0"
+  },
+  "instructions": [
+    {
+      "name": "claim_rewards",
+      "discriminator": [
+        4,
+        144,
+        132,
+        71,
+        116,
+        23,
+        151,
+        80
+      ],
+      "accounts": [
+        {
+          "name": "rewards_pool",
+          "writable": true
+        },
+        {
+          "name": "staker",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "stake_position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  107,
+                  101,
+                  45,
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "rewards_pool"
+              },
+              {
+                "kind": "account",
+                "path": "staker"
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_treasury",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  45,
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "rewards_pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "fund_rewards",
+      "discriminator": [
+        114,
+        64,
+        163,
+        112,
+        175,
+        167,
+        19,
+        121
+      ],
+      "accounts": [
+        {
+          "name": "creator_vault",
+          "relations": [
+            "rewards_pool"
+          ]
+        },
+        {
+          "name": "rewards_pool",
+          "writable": true
+        },
+        {
+          "name": "allowed_funder",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "rewards_pool"
+          ]
+        },
+        {
+          "name": "sol_treasury",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  45,
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "rewards_pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "operation_id",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initialize_pool",
+      "discriminator": [
+        95,
+        180,
+        10,
+        172,
+        84,
+        174,
+        232,
+        40
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "admin",
+          "signer": true
+        },
+        {
+          "name": "creator_vault"
+        },
+        {
+          "name": "attn_mint"
+        },
+        {
+          "name": "rewards_pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  119,
+                  97,
+                  114,
+                  100,
+                  115,
+                  45,
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creator_vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "rewards_authority",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  119,
+                  97,
+                  114,
+                  100,
+                  115,
+                  45,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "rewards_pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "s_attn_mint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  45,
+                  97,
+                  116,
+                  116,
+                  110,
+                  45,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "rewards_pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "attn_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  116,
+                  116,
+                  110,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "rewards_pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_treasury",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  45,
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "rewards_pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "reward_bps",
+          "type": "u16"
+        },
+        {
+          "name": "allowed_funder",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "set_pause",
+      "discriminator": [
+        63,
+        32,
+        154,
+        2,
+        56,
+        103,
+        79,
+        45
+      ],
+      "accounts": [
+        {
+          "name": "rewards_pool",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "rewards_pool"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "paused",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "stake_attnusd",
+      "discriminator": [
+        227,
+        42,
+        91,
+        173,
+        181,
+        254,
+        122,
+        200
+      ],
+      "accounts": [
+        {
+          "name": "rewards_pool",
+          "writable": true
+        },
+        {
+          "name": "rewards_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  119,
+                  97,
+                  114,
+                  100,
+                  115,
+                  45,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "rewards_pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "staker",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "user_attn_ata",
+          "writable": true
+        },
+        {
+          "name": "user_s_attn_ata",
+          "writable": true
+        },
+        {
+          "name": "attn_vault",
+          "writable": true,
+          "relations": [
+            "rewards_pool"
+          ]
+        },
+        {
+          "name": "attn_mint",
+          "relations": [
+            "rewards_pool"
+          ]
+        },
+        {
+          "name": "s_attn_mint",
+          "writable": true,
+          "relations": [
+            "rewards_pool"
+          ]
+        },
+        {
+          "name": "stake_position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  107,
+                  101,
+                  45,
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "rewards_pool"
+              },
+              {
+                "kind": "account",
+                "path": "staker"
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_treasury",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  45,
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "rewards_pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "unstake_attnusd",
+      "discriminator": [
+        26,
+        111,
+        222,
+        103,
+        93,
+        250,
+        232,
+        200
+      ],
+      "accounts": [
+        {
+          "name": "rewards_pool",
+          "writable": true
+        },
+        {
+          "name": "rewards_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  119,
+                  97,
+                  114,
+                  100,
+                  115,
+                  45,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "rewards_pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "staker",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "user_attn_ata",
+          "writable": true
+        },
+        {
+          "name": "user_s_attn_ata",
+          "writable": true
+        },
+        {
+          "name": "attn_vault",
+          "writable": true,
+          "relations": [
+            "rewards_pool"
+          ]
+        },
+        {
+          "name": "attn_mint",
+          "relations": [
+            "rewards_pool"
+          ]
+        },
+        {
+          "name": "s_attn_mint",
+          "writable": true,
+          "relations": [
+            "rewards_pool"
+          ]
+        },
+        {
+          "name": "stake_position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  107,
+                  101,
+                  45,
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "rewards_pool"
+              },
+              {
+                "kind": "account",
+                "path": "staker"
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_treasury",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  45,
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "rewards_pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "update_admin",
+      "discriminator": [
+        161,
+        176,
+        40,
+        213,
+        60,
+        184,
+        179,
+        228
+      ],
+      "accounts": [
+        {
+          "name": "rewards_pool",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "rewards_pool"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "new_admin",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "update_allowed_funder",
+      "discriminator": [
+        4,
+        131,
+        95,
+        82,
+        230,
+        147,
+        43,
+        214
+      ],
+      "accounts": [
+        {
+          "name": "rewards_pool",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "rewards_pool"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "new_allowed_funder",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "update_reward_bps",
+      "discriminator": [
+        53,
+        156,
+        41,
+        228,
+        190,
+        167,
+        121,
+        120
+      ],
+      "accounts": [
+        {
+          "name": "rewards_pool",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "rewards_pool"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "new_reward_bps",
+          "type": "u16"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "CreatorVault",
+      "discriminator": [
+        200,
+        135,
+        38,
+        98,
+        35,
+        236,
+        238,
+        12
+      ]
+    },
+    {
+      "name": "RewardsPool",
+      "discriminator": [
+        107,
+        36,
+        119,
+        42,
+        181,
+        249,
+        18,
+        37
+      ]
+    },
+    {
+      "name": "StakePosition",
+      "discriminator": [
+        78,
+        165,
+        30,
+        111,
+        171,
+        125,
+        11,
+        220
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "AllowedFunderUpdated",
+      "discriminator": [
+        144,
+        252,
+        126,
+        90,
+        187,
+        50,
+        166,
+        136
+      ]
+    },
+    {
+      "name": "RewardBpsUpdated",
+      "discriminator": [
+        211,
+        46,
+        6,
+        243,
+        105,
+        251,
+        219,
+        198
+      ]
+    },
+    {
+      "name": "RewardsAdminUpdated",
+      "discriminator": [
+        83,
+        68,
+        182,
+        163,
+        47,
+        159,
+        199,
+        96
+      ]
+    },
+    {
+      "name": "RewardsClaimed",
+      "discriminator": [
+        75,
+        98,
+        88,
+        18,
+        219,
+        112,
+        88,
+        121
+      ]
+    },
+    {
+      "name": "RewardsFunded",
+      "discriminator": [
+        84,
+        233,
+        245,
+        203,
+        228,
+        147,
+        165,
+        92
+      ]
+    },
+    {
+      "name": "RewardsPoolInitialized",
+      "discriminator": [
+        105,
+        221,
+        214,
+        239,
+        80,
+        216,
+        120,
+        65
+      ]
+    },
+    {
+      "name": "RewardsPoolPaused",
+      "discriminator": [
+        98,
+        3,
+        79,
+        251,
+        25,
+        224,
+        67,
+        197
+      ]
+    },
+    {
+      "name": "Staked",
+      "discriminator": [
+        11,
+        146,
+        45,
+        205,
+        230,
+        58,
+        213,
+        240
+      ]
+    },
+    {
+      "name": "Unstaked",
+      "discriminator": [
+        27,
+        179,
+        156,
+        215,
+        47,
+        71,
+        195,
+        7
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidAmount",
+      "msg": "Amount must be greater than zero"
+    },
+    {
+      "code": 6001,
+      "name": "MathOverflow",
+      "msg": "Math overflow"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidBps",
+      "msg": "Invalid reward basis points"
+    },
+    {
+      "code": 6003,
+      "name": "PositionPoolMismatch",
+      "msg": "Stake position pool mismatch"
+    },
+    {
+      "code": 6004,
+      "name": "PositionOwnerMismatch",
+      "msg": "Stake position owner mismatch"
+    },
+    {
+      "code": 6005,
+      "name": "InsufficientStake",
+      "msg": "Insufficient staked balance"
+    },
+    {
+      "code": 6006,
+      "name": "UnauthorizedCreatorVault",
+      "msg": "Creator vault mismatch"
+    },
+    {
+      "code": 6007,
+      "name": "InsufficientTreasury",
+      "msg": "Insufficient SOL in treasury"
+    },
+    {
+      "code": 6008,
+      "name": "UnauthorizedFunder",
+      "msg": "Unauthorized funder"
+    },
+    {
+      "code": 6009,
+      "name": "TreasuryBalanceRegression",
+      "msg": "Treasury balance decreased unexpectedly"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidTreasuryOwner",
+      "msg": "Treasury owner must be system program"
+    },
+    {
+      "code": 6011,
+      "name": "InvalidAllowedFunder",
+      "msg": "Allowed funder must be set"
+    },
+    {
+      "code": 6012,
+      "name": "InvalidTreasuryAccount",
+      "msg": "Treasury PDA mismatch"
+    },
+    {
+      "code": 6013,
+      "name": "UnauthorizedAdmin",
+      "msg": "Unauthorized admin"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidAdmin",
+      "msg": "Invalid admin public key"
+    },
+    {
+      "code": 6015,
+      "name": "PoolPaused",
+      "msg": "Rewards pool is paused"
+    },
+    {
+      "code": 6016,
+      "name": "IndexInvariant",
+      "msg": "Index must remain unchanged when no stake is present"
+    },
+    {
+      "code": 6017,
+      "name": "PendingRewardsInvariant",
+      "msg": "Pending rewards must accumulate when no stake is present"
+    },
+    {
+      "code": 6018,
+      "name": "OperationOutOfOrder",
+      "msg": "Operation id out of order"
+    }
+  ],
+  "types": [
+    {
+      "name": "AllowedFunderUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "allowed_funder",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CreatorVault",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "fee_vault_bump",
+            "type": "u8"
+          },
+          {
+            "name": "sy_mint_bump",
+            "type": "u8"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "pump_creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "pump_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "quote_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "sy_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "splitter_program",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_fees_collected",
+            "type": "u64"
+          },
+          {
+            "name": "total_sy_minted",
+            "type": "u64"
+          },
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "sol_rewards_bps",
+            "type": "u16"
+          },
+          {
+            "name": "paused",
+            "type": "bool"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "RewardBpsUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "reward_bps",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RewardsAdminUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "previous_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "new_admin",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RewardsClaimed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RewardsFunded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "source_amount",
+            "type": "u64"
+          },
+          {
+            "name": "sol_per_share",
+            "type": "u128"
+          },
+          {
+            "name": "treasury_balance",
+            "type": "u64"
+          },
+          {
+            "name": "operation_id",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RewardsPool",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "authority_bump",
+            "type": "u8"
+          },
+          {
+            "name": "treasury_bump",
+            "type": "u8"
+          },
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "creator_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "attn_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "s_attn_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "attn_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_staked",
+            "type": "u64"
+          },
+          {
+            "name": "sol_per_share",
+            "type": "u128"
+          },
+          {
+            "name": "pending_rewards",
+            "type": "u64"
+          },
+          {
+            "name": "reward_bps",
+            "type": "u16"
+          },
+          {
+            "name": "allowed_funder",
+            "type": "pubkey"
+          },
+          {
+            "name": "last_treasury_balance",
+            "type": "u64"
+          },
+          {
+            "name": "last_fund_id",
+            "type": "u64"
+          },
+          {
+            "name": "is_paused",
+            "type": "bool"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "RewardsPoolInitialized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "creator_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "attn_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "s_attn_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "reward_bps",
+            "type": "u16"
+          },
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "allowed_funder",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RewardsPoolPaused",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "paused",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "StakePosition",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "staked_amount",
+            "type": "u64"
+          },
+          {
+            "name": "reward_debt",
+            "type": "u128"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Staked",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "total_staked",
+            "type": "u64"
+          },
+          {
+            "name": "claimed",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Unstaked",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool",
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "total_staked",
+            "type": "u64"
+          },
+          {
+            "name": "claimed",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ]
+}
