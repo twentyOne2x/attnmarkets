@@ -4,11 +4,17 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-attn_indexer = { path = "../attn_indexer", optional = true }
+attn_indexer = { path = "../attn_indexer" }
 axum = { workspace = true }
 tokio = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
+serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 anyhow = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tower = { version = "0.4.13", features = ["util"] }
+hyper = "1.2.0"
+http-body-util = "0.1.2"
