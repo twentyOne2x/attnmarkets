@@ -1,0 +1,973 @@
+{
+  "address": "DusRTfShkXozaatx71Qv413RNEXqPNZS8hg9BnBeAQQE",
+  "metadata": {
+    "name": "splitter",
+    "version": "0.1.0",
+    "spec": "0.1.0"
+  },
+  "instructions": [
+    {
+      "name": "close_market",
+      "discriminator": [
+        88,
+        154,
+        248,
+        186,
+        48,
+        14,
+        123,
+        244
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "creator_vault",
+          "relations": [
+            "market"
+          ]
+        },
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "pt_mint",
+          "writable": true
+        },
+        {
+          "name": "yt_mint",
+          "writable": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_market",
+      "discriminator": [
+        103,
+        226,
+        97,
+        235,
+        200,
+        188,
+        251,
+        254
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "creator_vault"
+        },
+        {
+          "name": "splitter_authority",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  112,
+                  108,
+                  105,
+                  116,
+                  116,
+                  101,
+                  114,
+                  45,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creator_vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "pump_mint",
+          "relations": [
+            "creator_vault"
+          ]
+        },
+        {
+          "name": "sy_mint",
+          "relations": [
+            "creator_vault"
+          ]
+        },
+        {
+          "name": "market",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "pt_mint",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "yt_mint",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "maturity_ts",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "mint_pt_yt",
+      "discriminator": [
+        243,
+        42,
+        192,
+        244,
+        56,
+        133,
+        237,
+        59
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "creator_vault",
+          "writable": true
+        },
+        {
+          "name": "splitter_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  112,
+                  108,
+                  105,
+                  116,
+                  116,
+                  101,
+                  114,
+                  45,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creator_vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "user_sy_ata",
+          "writable": true
+        },
+        {
+          "name": "user_pt_ata",
+          "writable": true
+        },
+        {
+          "name": "user_yt_ata",
+          "writable": true
+        },
+        {
+          "name": "sy_mint",
+          "writable": true
+        },
+        {
+          "name": "pt_mint",
+          "writable": true
+        },
+        {
+          "name": "yt_mint",
+          "writable": true
+        },
+        {
+          "name": "user_position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  45,
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "creator_vault_program",
+          "address": "HPjEgPTb7rrBks1oFrscBdJ7TCZ7bARzCT93X9azCK4b"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "redeem_principal",
+      "discriminator": [
+        146,
+        17,
+        79,
+        16,
+        88,
+        228,
+        232,
+        111
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "creator_vault",
+          "writable": true
+        },
+        {
+          "name": "splitter_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  112,
+                  108,
+                  105,
+                  116,
+                  116,
+                  101,
+                  114,
+                  45,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creator_vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "user_pt_ata",
+          "writable": true
+        },
+        {
+          "name": "user_sy_ata",
+          "writable": true
+        },
+        {
+          "name": "pt_mint",
+          "writable": true
+        },
+        {
+          "name": "sy_mint",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "creator_vault_program",
+          "address": "HPjEgPTb7rrBks1oFrscBdJ7TCZ7bARzCT93X9azCK4b"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "redeem_yield",
+      "discriminator": [
+        232,
+        70,
+        202,
+        63,
+        211,
+        113,
+        10,
+        236
+      ],
+      "accounts": [
+        {
+          "name": "market",
+          "writable": true
+        },
+        {
+          "name": "creator_vault",
+          "writable": true
+        },
+        {
+          "name": "splitter_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  112,
+                  108,
+                  105,
+                  116,
+                  116,
+                  101,
+                  114,
+                  45,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creator_vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "user_position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  115,
+                  101,
+                  114,
+                  45,
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "user"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_yt_ata",
+          "writable": true
+        },
+        {
+          "name": "fee_vault",
+          "writable": true
+        },
+        {
+          "name": "user_quote_ata",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "creator_vault_program",
+          "address": "HPjEgPTb7rrBks1oFrscBdJ7TCZ7bARzCT93X9azCK4b"
+        }
+      ],
+      "args": [
+        {
+          "name": "new_fee_index",
+          "type": "u128"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "CreatorVault",
+      "discriminator": [
+        200,
+        135,
+        38,
+        98,
+        35,
+        236,
+        238,
+        12
+      ]
+    },
+    {
+      "name": "Market",
+      "discriminator": [
+        219,
+        190,
+        213,
+        55,
+        0,
+        227,
+        198,
+        154
+      ]
+    },
+    {
+      "name": "SplitterAuthority",
+      "discriminator": [
+        185,
+        243,
+        177,
+        120,
+        39,
+        73,
+        190,
+        108
+      ]
+    },
+    {
+      "name": "UserPosition",
+      "discriminator": [
+        251,
+        248,
+        209,
+        245,
+        83,
+        234,
+        17,
+        27
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "MarketClosed",
+      "discriminator": [
+        86,
+        91,
+        119,
+        43,
+        94,
+        0,
+        217,
+        113
+      ]
+    },
+    {
+      "name": "MarketCreated",
+      "discriminator": [
+        88,
+        184,
+        130,
+        231,
+        226,
+        84,
+        6,
+        58
+      ]
+    },
+    {
+      "name": "PrincipalRedeemed",
+      "discriminator": [
+        114,
+        199,
+        124,
+        179,
+        158,
+        84,
+        242,
+        15
+      ]
+    },
+    {
+      "name": "PtYtMinted",
+      "discriminator": [
+        147,
+        17,
+        51,
+        128,
+        18,
+        106,
+        82,
+        222
+      ]
+    },
+    {
+      "name": "YieldRedeemed",
+      "discriminator": [
+        146,
+        205,
+        76,
+        218,
+        82,
+        193,
+        102,
+        135
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidMaturity",
+      "msg": "Maturity must be positive"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidAmount",
+      "msg": "Amount must be greater than zero"
+    },
+    {
+      "code": 6002,
+      "name": "MathOverflow",
+      "msg": "Math overflow"
+    },
+    {
+      "code": 6003,
+      "name": "InsufficientSyBalance",
+      "msg": "Insufficient SY balance to split"
+    },
+    {
+      "code": 6004,
+      "name": "SplitterProgramMismatch",
+      "msg": "Creator vault not configured for this splitter"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidSplitterAuthority",
+      "msg": "Splitter authority PDA mismatch"
+    },
+    {
+      "code": 6006,
+      "name": "FeeIndexRegression",
+      "msg": "Fee index cannot decrease"
+    },
+    {
+      "code": 6007,
+      "name": "NoYieldPosition",
+      "msg": "User has no YT balance"
+    },
+    {
+      "code": 6008,
+      "name": "InsufficientYieldLiquidity",
+      "msg": "Insufficient liquidity in fee vault"
+    },
+    {
+      "code": 6009,
+      "name": "InvalidFeeVault",
+      "msg": "Fee vault address mismatch"
+    },
+    {
+      "code": 6010,
+      "name": "MarketNotMatured",
+      "msg": "Market has not matured"
+    },
+    {
+      "code": 6011,
+      "name": "InsufficientPtBalance",
+      "msg": "User has insufficient PT balance"
+    },
+    {
+      "code": 6012,
+      "name": "OutstandingPrincipal",
+      "msg": "Outstanding principal prevents closing"
+    },
+    {
+      "code": 6013,
+      "name": "InvalidUserPosition",
+      "msg": "User position PDA mismatch"
+    }
+  ],
+  "types": [
+    {
+      "name": "CreatorVault",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "fee_vault_bump",
+            "type": "u8"
+          },
+          {
+            "name": "sy_mint_bump",
+            "type": "u8"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "pump_creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "pump_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "quote_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "sy_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "splitter_program",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_fees_collected",
+            "type": "u64"
+          },
+          {
+            "name": "total_sy_minted",
+            "type": "u64"
+          },
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "sol_rewards_bps",
+            "type": "u16"
+          },
+          {
+            "name": "paused",
+            "type": "bool"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Market",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "creator_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "pump_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "sy_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "pt_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "yt_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "maturity_ts",
+            "type": "i64"
+          },
+          {
+            "name": "fee_index",
+            "type": "u128"
+          },
+          {
+            "name": "total_pt_issued",
+            "type": "u64"
+          },
+          {
+            "name": "total_yt_issued",
+            "type": "u64"
+          },
+          {
+            "name": "is_closed",
+            "type": "bool"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketClosed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "pump_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "maturity_ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PrincipalRedeemed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PtYtMinted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SplitterAuthority",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UserPosition",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "last_fee_index",
+            "type": "u128"
+          },
+          {
+            "name": "pending_yield_scaled",
+            "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "YieldRedeemed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "claimed_amount",
+            "type": "u64"
+          },
+          {
+            "name": "fee_index",
+            "type": "u128"
+          },
+          {
+            "name": "market_delta",
+            "type": "u128"
+          }
+        ]
+      }
+    }
+  ]
+}

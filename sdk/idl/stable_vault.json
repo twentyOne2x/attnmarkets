@@ -1,0 +1,2058 @@
+{
+  "address": "98jhX2iz4cec2evPKhLwA1HriVEbUAsMBo61bQpSef5Z",
+  "metadata": {
+    "name": "stable_vault",
+    "version": "0.1.0",
+    "spec": "0.1.0"
+  },
+  "instructions": [
+    {
+      "name": "add_accepted_mint",
+      "discriminator": [
+        241,
+        72,
+        208,
+        73,
+        223,
+        58,
+        81,
+        69
+      ],
+      "accounts": [
+        {
+          "name": "stable_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  98,
+                  108,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stable_vault.authority_seed",
+                "account": "StableVault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "mint",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "deposit_stable",
+      "discriminator": [
+        89,
+        248,
+        131,
+        239,
+        11,
+        219,
+        163,
+        160
+      ],
+      "accounts": [
+        {
+          "name": "stable_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  98,
+                  108,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stable_vault.authority_seed",
+                "account": "StableVault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "stable_mint",
+          "writable": true,
+          "relations": [
+            "stable_vault"
+          ]
+        },
+        {
+          "name": "treasury",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  98,
+                  108,
+                  101,
+                  45,
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stable_vault"
+              },
+              {
+                "kind": "account",
+                "path": "stable_mint"
+              }
+            ]
+          },
+          "relations": [
+            "stable_vault"
+          ]
+        },
+        {
+          "name": "user_stable_ata",
+          "writable": true
+        },
+        {
+          "name": "share_mint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  104,
+                  97,
+                  114,
+                  101,
+                  45,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stable_vault"
+              }
+            ]
+          },
+          "relations": [
+            "stable_vault"
+          ]
+        },
+        {
+          "name": "user_share_ata",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initialize_stable_vault",
+      "discriminator": [
+        182,
+        82,
+        51,
+        122,
+        131,
+        231,
+        80,
+        158
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "stable_mint",
+          "writable": true
+        },
+        {
+          "name": "stable_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  98,
+                  108,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  98,
+                  108,
+                  101,
+                  45,
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stable_vault"
+              },
+              {
+                "kind": "account",
+                "path": "stable_mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "share_mint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  104,
+                  97,
+                  114,
+                  101,
+                  45,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stable_vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stable_vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "accepted_mints",
+          "type": {
+            "vec": "pubkey"
+          }
+        },
+        {
+          "name": "admin",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "process_conversion",
+      "discriminator": [
+        39,
+        31,
+        38,
+        31,
+        0,
+        42,
+        50,
+        213
+      ],
+      "accounts": [
+        {
+          "name": "stable_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  98,
+                  108,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stable_vault.authority_seed",
+                "account": "StableVault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "keeper_authority",
+          "signer": true,
+          "relations": [
+            "stable_vault"
+          ]
+        },
+        {
+          "name": "conversion_authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "stable_mint",
+          "writable": true,
+          "relations": [
+            "stable_vault"
+          ]
+        },
+        {
+          "name": "treasury",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  98,
+                  108,
+                  101,
+                  45,
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stable_vault"
+              },
+              {
+                "kind": "account",
+                "path": "stable_mint"
+              }
+            ]
+          },
+          "relations": [
+            "stable_vault"
+          ]
+        },
+        {
+          "name": "conversion_source",
+          "writable": true
+        },
+        {
+          "name": "sol_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stable_vault"
+              }
+            ]
+          },
+          "relations": [
+            "stable_vault"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount_stable",
+          "type": "u64"
+        },
+        {
+          "name": "sol_spent",
+          "type": "u64"
+        },
+        {
+          "name": "operation_id",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "redeem_attnusd",
+      "discriminator": [
+        191,
+        129,
+        110,
+        163,
+        86,
+        204,
+        103,
+        103
+      ],
+      "accounts": [
+        {
+          "name": "stable_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  98,
+                  108,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stable_vault.authority_seed",
+                "account": "StableVault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "stable_mint",
+          "writable": true,
+          "relations": [
+            "stable_vault"
+          ]
+        },
+        {
+          "name": "treasury",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  98,
+                  108,
+                  101,
+                  45,
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stable_vault"
+              },
+              {
+                "kind": "account",
+                "path": "stable_mint"
+              }
+            ]
+          },
+          "relations": [
+            "stable_vault"
+          ]
+        },
+        {
+          "name": "user_stable_ata",
+          "writable": true
+        },
+        {
+          "name": "share_mint",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  104,
+                  97,
+                  114,
+                  101,
+                  45,
+                  109,
+                  105,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stable_vault"
+              }
+            ]
+          },
+          "relations": [
+            "stable_vault"
+          ]
+        },
+        {
+          "name": "user_share_ata",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "shares",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "remove_accepted_mint",
+      "discriminator": [
+        71,
+        204,
+        181,
+        197,
+        187,
+        85,
+        94,
+        99
+      ],
+      "accounts": [
+        {
+          "name": "stable_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  98,
+                  108,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stable_vault.authority_seed",
+                "account": "StableVault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "mint",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "set_pause",
+      "discriminator": [
+        63,
+        32,
+        154,
+        2,
+        56,
+        103,
+        79,
+        45
+      ],
+      "accounts": [
+        {
+          "name": "stable_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  98,
+                  108,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stable_vault.authority_seed",
+                "account": "StableVault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "is_paused",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "sweep_creator_fees",
+      "discriminator": [
+        55,
+        153,
+        74,
+        11,
+        46,
+        80,
+        131,
+        136
+      ],
+      "accounts": [
+        {
+          "name": "stable_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  98,
+                  108,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stable_vault.authority_seed",
+                "account": "StableVault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "keeper_authority",
+          "signer": true,
+          "relations": [
+            "stable_vault"
+          ]
+        },
+        {
+          "name": "allowed_funder",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "creator_vault",
+          "relations": [
+            "rewards_pool"
+          ]
+        },
+        {
+          "name": "rewards_pool",
+          "writable": true
+        },
+        {
+          "name": "rewards_treasury",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  45,
+                  116,
+                  114,
+                  101,
+                  97,
+                  115,
+                  117,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "rewards_pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "sol_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stable_vault"
+              }
+            ]
+          },
+          "relations": [
+            "stable_vault"
+          ]
+        },
+        {
+          "name": "rewards_program",
+          "address": "RwdsVaULTxQg7vKQmsG9tPo8mWxryQac1hZ2RKSBv2C"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "operation_id",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "update_admin",
+      "discriminator": [
+        161,
+        176,
+        40,
+        213,
+        60,
+        184,
+        179,
+        228
+      ],
+      "accounts": [
+        {
+          "name": "stable_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  98,
+                  108,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stable_vault.authority_seed",
+                "account": "StableVault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "new_admin",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "update_emergency_admin",
+      "discriminator": [
+        0,
+        151,
+        135,
+        77,
+        222,
+        186,
+        220,
+        9
+      ],
+      "accounts": [
+        {
+          "name": "stable_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  98,
+                  108,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stable_vault.authority_seed",
+                "account": "StableVault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "new_emergency_admin",
+          "type": {
+            "option": "pubkey"
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_keeper_authority",
+      "discriminator": [
+        21,
+        157,
+        181,
+        31,
+        82,
+        153,
+        235,
+        112
+      ],
+      "accounts": [
+        {
+          "name": "stable_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  98,
+                  108,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stable_vault.authority_seed",
+                "account": "StableVault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "new_keeper",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "withdraw_sol_dust",
+      "discriminator": [
+        243,
+        29,
+        75,
+        32,
+        65,
+        63,
+        113,
+        154
+      ],
+      "accounts": [
+        {
+          "name": "stable_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  98,
+                  108,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stable_vault.authority_seed",
+                "account": "StableVault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "sol_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  111,
+                  108,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stable_vault"
+              }
+            ]
+          },
+          "relations": [
+            "stable_vault"
+          ]
+        },
+        {
+          "name": "destination",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "CreatorVault",
+      "discriminator": [
+        200,
+        135,
+        38,
+        98,
+        35,
+        236,
+        238,
+        12
+      ]
+    },
+    {
+      "name": "RewardsPool",
+      "discriminator": [
+        107,
+        36,
+        119,
+        42,
+        181,
+        249,
+        18,
+        37
+      ]
+    },
+    {
+      "name": "StableVault",
+      "discriminator": [
+        193,
+        22,
+        242,
+        61,
+        43,
+        22,
+        160,
+        118
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "AcceptedMintAdded",
+      "discriminator": [
+        186,
+        69,
+        25,
+        108,
+        217,
+        85,
+        27,
+        8
+      ]
+    },
+    {
+      "name": "AcceptedMintRemoved",
+      "discriminator": [
+        178,
+        1,
+        210,
+        96,
+        61,
+        190,
+        27,
+        235
+      ]
+    },
+    {
+      "name": "AttnUsdMinted",
+      "discriminator": [
+        211,
+        59,
+        101,
+        32,
+        112,
+        190,
+        56,
+        61
+      ]
+    },
+    {
+      "name": "AttnUsdRedeemed",
+      "discriminator": [
+        29,
+        164,
+        74,
+        63,
+        211,
+        81,
+        202,
+        137
+      ]
+    },
+    {
+      "name": "ConversionProcessed",
+      "discriminator": [
+        60,
+        137,
+        141,
+        48,
+        141,
+        75,
+        235,
+        157
+      ]
+    },
+    {
+      "name": "CreatorFeesSwept",
+      "discriminator": [
+        136,
+        130,
+        101,
+        166,
+        125,
+        35,
+        133,
+        25
+      ]
+    },
+    {
+      "name": "EmergencyAdminUpdated",
+      "discriminator": [
+        81,
+        240,
+        0,
+        255,
+        45,
+        130,
+        71,
+        244
+      ]
+    },
+    {
+      "name": "KeeperAuthorityUpdated",
+      "discriminator": [
+        117,
+        210,
+        216,
+        152,
+        224,
+        97,
+        65,
+        228
+      ]
+    },
+    {
+      "name": "SolDustWithdrawn",
+      "discriminator": [
+        124,
+        14,
+        95,
+        68,
+        211,
+        179,
+        10,
+        170
+      ]
+    },
+    {
+      "name": "StableVaultAdminUpdated",
+      "discriminator": [
+        22,
+        31,
+        17,
+        204,
+        153,
+        89,
+        130,
+        128
+      ]
+    },
+    {
+      "name": "StableVaultInitialized",
+      "discriminator": [
+        47,
+        206,
+        127,
+        129,
+        91,
+        178,
+        96,
+        219
+      ]
+    },
+    {
+      "name": "StableVaultPauseToggled",
+      "discriminator": [
+        132,
+        50,
+        190,
+        128,
+        182,
+        77,
+        250,
+        75
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidAmount",
+      "msg": "Amount must be greater than zero"
+    },
+    {
+      "code": 6001,
+      "name": "VaultPaused",
+      "msg": "Vault is paused"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidBps",
+      "msg": "Invalid basis points"
+    },
+    {
+      "code": 6003,
+      "name": "MathOverflow",
+      "msg": "Math overflow"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidVaultState",
+      "msg": "Invalid vault state"
+    },
+    {
+      "code": 6005,
+      "name": "AmountTooSmall",
+      "msg": "Deposit amount too small for share precision"
+    },
+    {
+      "code": 6006,
+      "name": "UnsupportedMint",
+      "msg": "Unsupported mint for this vault"
+    },
+    {
+      "code": 6007,
+      "name": "NoAcceptedMints",
+      "msg": "No accepted mints provided"
+    },
+    {
+      "code": 6008,
+      "name": "TooManyAcceptedMints",
+      "msg": "Too many accepted mints provided"
+    },
+    {
+      "code": 6009,
+      "name": "MintAlreadyAccepted",
+      "msg": "Mint already accepted"
+    },
+    {
+      "code": 6010,
+      "name": "MintNotAccepted",
+      "msg": "Mint not accepted"
+    },
+    {
+      "code": 6011,
+      "name": "OperationOutOfOrder",
+      "msg": "Operation id out of order"
+    },
+    {
+      "code": 6012,
+      "name": "InsufficientDustBalance",
+      "msg": "Insufficient SOL available outside pending balance"
+    },
+    {
+      "code": 6013,
+      "name": "Unauthorized",
+      "msg": "Unauthorized caller"
+    },
+    {
+      "code": 6014,
+      "name": "UnauthorizedKeeper",
+      "msg": "Unauthorized keeper"
+    },
+    {
+      "code": 6015,
+      "name": "UnauthorizedAdmin",
+      "msg": "Unauthorized admin"
+    },
+    {
+      "code": 6016,
+      "name": "InvalidAdmin",
+      "msg": "Invalid admin public key"
+    },
+    {
+      "code": 6017,
+      "name": "InvalidKeeper",
+      "msg": "Invalid keeper public key"
+    },
+    {
+      "code": 6018,
+      "name": "InsufficientShares",
+      "msg": "Insufficient shares to redeem"
+    },
+    {
+      "code": 6019,
+      "name": "InsufficientPendingSol",
+      "msg": "Insufficient pending SOL for conversion"
+    },
+    {
+      "code": 6020,
+      "name": "CreatorVaultPaused",
+      "msg": "Creator vault is paused"
+    },
+    {
+      "code": 6021,
+      "name": "CannotRemovePrimaryMint",
+      "msg": "Cannot remove primary stable mint"
+    },
+    {
+      "code": 6022,
+      "name": "InvalidMint",
+      "msg": "Invalid mint"
+    },
+    {
+      "code": 6023,
+      "name": "InvalidStableVaultPda",
+      "msg": "Stable vault PDA mismatch"
+    },
+    {
+      "code": 6024,
+      "name": "InvalidTreasuryPda",
+      "msg": "Treasury PDA mismatch"
+    },
+    {
+      "code": 6025,
+      "name": "InvalidShareMintPda",
+      "msg": "Share mint PDA mismatch"
+    },
+    {
+      "code": 6026,
+      "name": "InvalidSolVaultPda",
+      "msg": "SOL vault PDA mismatch"
+    }
+  ],
+  "types": [
+    {
+      "name": "AcceptedMintAdded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "stable_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AcceptedMintRemoved",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "stable_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AttnUsdMinted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "deposited_amount",
+            "type": "u64"
+          },
+          {
+            "name": "minted_shares",
+            "type": "u64"
+          },
+          {
+            "name": "price_per_share",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AttnUsdRedeemed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "user",
+            "type": "pubkey"
+          },
+          {
+            "name": "redeemed_shares",
+            "type": "u64"
+          },
+          {
+            "name": "returned_amount",
+            "type": "u64"
+          },
+          {
+            "name": "price_per_share",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ConversionProcessed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "stable_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "executor",
+            "type": "pubkey"
+          },
+          {
+            "name": "stable_received",
+            "type": "u64"
+          },
+          {
+            "name": "sol_spent",
+            "type": "u64"
+          },
+          {
+            "name": "pending_sol",
+            "type": "u64"
+          },
+          {
+            "name": "operation_id",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CreatorFeesSwept",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "stable_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "keeper_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "sol_rewards_bps",
+            "type": "u16"
+          },
+          {
+            "name": "sol_rewards_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "converted_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "pending_sol",
+            "type": "u64"
+          },
+          {
+            "name": "operation_id",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CreatorVault",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "fee_vault_bump",
+            "type": "u8"
+          },
+          {
+            "name": "sy_mint_bump",
+            "type": "u8"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "pump_creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "pump_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "quote_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "sy_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "splitter_program",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_fees_collected",
+            "type": "u64"
+          },
+          {
+            "name": "total_sy_minted",
+            "type": "u64"
+          },
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "sol_rewards_bps",
+            "type": "u16"
+          },
+          {
+            "name": "paused",
+            "type": "bool"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "EmergencyAdminUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "stable_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "previous_emergency_admin",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "new_emergency_admin",
+            "type": {
+              "option": "pubkey"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "KeeperAuthorityUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "stable_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "keeper_authority",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RewardsPool",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "authority_bump",
+            "type": "u8"
+          },
+          {
+            "name": "treasury_bump",
+            "type": "u8"
+          },
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "creator_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "attn_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "s_attn_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "attn_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_staked",
+            "type": "u64"
+          },
+          {
+            "name": "sol_per_share",
+            "type": "u128"
+          },
+          {
+            "name": "pending_rewards",
+            "type": "u64"
+          },
+          {
+            "name": "reward_bps",
+            "type": "u16"
+          },
+          {
+            "name": "allowed_funder",
+            "type": "pubkey"
+          },
+          {
+            "name": "last_treasury_balance",
+            "type": "u64"
+          },
+          {
+            "name": "last_fund_id",
+            "type": "u64"
+          },
+          {
+            "name": "is_paused",
+            "type": "bool"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SolDustWithdrawn",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "stable_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "remaining_dust",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "StableVault",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "treasury_bump",
+            "type": "u8"
+          },
+          {
+            "name": "sol_vault_bump",
+            "type": "u8"
+          },
+          {
+            "name": "share_mint_bump",
+            "type": "u8"
+          },
+          {
+            "name": "authority_seed",
+            "type": "pubkey"
+          },
+          {
+            "name": "keeper_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "emergency_admin",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "share_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "stable_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "type": "pubkey"
+          },
+          {
+            "name": "sol_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_assets",
+            "type": "u64"
+          },
+          {
+            "name": "total_shares",
+            "type": "u64"
+          },
+          {
+            "name": "pending_sol",
+            "type": "u64"
+          },
+          {
+            "name": "last_sweep_id",
+            "type": "u64"
+          },
+          {
+            "name": "last_conversion_id",
+            "type": "u64"
+          },
+          {
+            "name": "paused",
+            "type": "bool"
+          },
+          {
+            "name": "accepted_mints",
+            "type": {
+              "vec": "pubkey"
+            }
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "StableVaultAdminUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "stable_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "previous_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "new_admin",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "StableVaultInitialized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "stable_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority_seed",
+            "type": "pubkey"
+          },
+          {
+            "name": "share_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "stable_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "admin",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "StableVaultPauseToggled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "stable_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "is_paused",
+            "type": "bool"
+          }
+        ]
+      }
+    }
+  ]
+}
