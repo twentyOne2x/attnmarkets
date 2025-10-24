@@ -1,4 +1,4 @@
-# attn.markets Program Architecture
+# attn Program Architecture
 
 > Executive summary: keeper-facing instructions are now idempotent and every vault exposes pause controls so governance can halt flows safely while creators & LPs stay protected.
 

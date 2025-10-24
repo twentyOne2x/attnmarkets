@@ -1,7 +1,34 @@
-# attn.markets Pump.fun Executive Summary
+# attn.markets
+
+## Fast links
+- Site/Demo: https://attn.markets
+- X: https://x.com/attndotmarkets
+- Founder: https://x.com/twentyOne2x
+- Forum post: https://arena.colosseum.org/posts/3308
+
+## TL;DR
+- Tokenize Pump.fun creator fees into SY → PT/YT, `attnUSD`, SOL rewards.
+- Dual-control via Squads 2-of-2; pause + idempotent keeper ops.
+- Devnet live; AMM v0 pending. Details below.
+
+## Why now (creator payouts) — **as of 2025-10-25**
+- Pump.fun creator fees: **~$300M annualized** from last 30 days. [[1]]
+- YouTube: **~$70B** to creators over last 3 years (**~$23B/yr avg**). [[2]]
+- TikTok LIVE gifts: **~$1.5B** in **2023**. [[3]]
+- OnlyFans: **$5.32B** paid in **FY2023**. [[4]]
+- Twitch: **>$1B** to streamers in **2023**. [[5]]
+
+*Notes:* Pump.fun is a 30-day run-rate; others are fiscal-year totals or program subsets. All USD.
+
+[1]: https://earnings.wtf
+[2]: https://blog.youtube/inside-youtube/2024-letter-from-neal/
+[3]: https://www.fxcintel.com/research/press-releases/new-data-analysis-shows-tiktok-takes-77-cut-of-gift-payments-sent-to-creators
+[4]: https://www.upmarket.co/blog/onlyfans-official-revenue-net-profit-creator-and-subscriber-data-updated-september-2024/
+[5]: https://blog.twitch.tv/en/2024/01/10/a-difficult-update-about-our-workforce/
+
 
 ## What We’re Building
-attn.markets tokenises Solana fee streams (ICM, creator token) into Pendle-style Principal and Yield tokens. Pump.fun’s CTO flow is the first on-ramp: once fees point to CreatorVault PDA governed by a Squads Safe (2 of 2 creator + attn), we wrap them into Standardized Yield (SY) and split into Principal (PT) and Yield (YT) tokens, rails we can reuse wherever fee authority can be reassigned.
+attn.markets tokenises Solana fee streams (ICM, creator token) into Pendle-style Principal and Yield tokens. Pump.fun’s CTO flow is the first on-ramp: once fees point to the CreatorVault PDA (admin = Squads 2-of-2: creator+attn), we wrap them into Standardized Yield (SY) and split into Principal (PT) and Yield (YT) tokens, rails we can reuse wherever fee authority can be reassigned.
 
 ### What this unlocks
 - **Creators & builders** – Package fee rights into PT/YT to pre-sell cash flows, hedge volatility, or sell perpetual claims.
@@ -23,7 +50,7 @@ attn.markets tokenises Solana fee streams (ICM, creator token) into Pendle-style
 7. **Indexer & Monitoring** – Tracks fee inflows, SY/PT/YT supply, reward indexes, maturity events, and raises alerts on flow disruption.
 
 ## End-to-End User Flow
-1. Community submits a Pump.fun CTO request naming the attn CreatorVault PDA as the new fee authority.
+1. A sponsor (creator, business, or DAO) submits a Pump.fun CTO request naming the CreatorVault PDA (Squads 2-of-2: creator+attn) as the new fee authority.
 2. Pump executes `set_creator`, redirecting fees into the CreatorVault PDA. Set **`CreatorVault.admin` to a Squads Safe with members `{creator, attn}` and threshold `2`**; optionally set an `emergency_admin` Squads Safe. All admin ops (pause, config) require both creator and attn signatures via Squads.
 3. Users wrap Pump tokens or fee balances to mint SY, then split into PT + YT via Splitter.
 4. Fees stream into the vault; YT holders redeem yield directly or route it into `attnUSD`. A configured SOL slice funds RewardsVault so `attnUSD` stakers earn SOL outside the stablecoin NAV. Splitter CPIs into CreatorVault for both minting and fee transfers to keep mint authority centralised.
@@ -162,6 +189,8 @@ curl -s -H 'If-None-Match: W/"demo"' http://localhost:8787/v1/rewards?limit=5
 ## Security & Governance
 - **CreatorVault.admin is a Squads Safe with members `{creator, attn}` and threshold `2`.** StableVault/RewardsVault admins can be separate Squads Safes; mirror the same members/threshold if dual control is desired. `emergency_admin` is optional. `toggle_pause` and config updates execute only via Squads approvals.
 - Keeper flows must supply `operation_id` so sweeps/conversions/funding are replay-safe; paused vaults block writes until governance resumes.
+- Neither creator nor attn can change admin, pause, or redirect fees unilaterally; all privileged ops require Squads 2-of-2 approval.
+
 
 ## Built on Solana
 - Toolchain: Anchor 0.32.x, Solana Agave 2.3.x, rust-lld

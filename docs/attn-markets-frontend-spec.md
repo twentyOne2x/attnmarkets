@@ -1,4 +1,4 @@
-# attn.markets Frontend Specification (Pump.fun MVP)
+# attn Frontend Specification (Pump.fun MVP)
 
 ## Objectives
 - Deliver a web experience that guides Pump.fun creators through the CTO handover, vault setup, and PT/YT issuance.
@@ -25,10 +25,10 @@
 ## Information Architecture
 - Two Next.js targets now live in the repo:
   - `apps/dapp` — legacy, demo-only experience kept stable for existing flows.
-  - `apps/dapp-prod` — experimental build with Demo↔Live toggle, health checks, and API-backed providers intended for prod.attn.markets once validated.
+  - `apps/dapp-prod` — experimental build with Demo↔Live toggle, health checks, and API-backed providers intended for prod.attn once validated.
 
 - **App Shell** (shared navigation):
-  - Logo + “attn.markets” brand.
+  - Logo + “attn” brand.
   - Tabs: `Overview`, `Markets`, `Creator`, `Portfolio`, `attnUSD`, `Rewards`, `Docs`.
   - Wallet connect button with network toggle (devnet/mainnet) and mode switch (`Demo` default, `Live (devnet)`).
   - Banners: (1) Live mode (“Live mode – devnet”) with dismiss + info link, (2) Pause alerts when any vault reports `paused` via `/v1/governance` (disables write actions globally).
