@@ -14,8 +14,8 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-anchor-lang = "0.32.1"
-anchor-spl  = "0.32.1"
+anchor-lang = { version = "=0.32.0", features = ["init-if-needed"] }
+anchor-spl  = "=0.32.0"
 anyhow = "1.0.100"
 async-trait = "0.1.83"
 axum = { version = "0.7.5", features = ["json", "macros"] }

@@ -47,6 +47,7 @@ pub mod rewards_vault {
         pool.reward_bps = reward_bps;
         pool.allowed_funder = allowed_funder;
         pool.last_treasury_balance = 0;
+        pool.last_fund_id = 0;
         pool.is_paused = false;
         pool.padding = [0; 5];
 
@@ -79,7 +80,7 @@ pub mod rewards_vault {
         require!(amount > 0, RewardsError::InvalidAmount);
 
         let pool = &mut ctx.accounts.rewards_pool;
-        require!(!pool.is_paused, RewardsError::PoolPaused);
+        pool.ensure_active()?;
         distribute_pending(pool)?;
 
         let position = &mut ctx.accounts.stake_position;
@@ -173,7 +174,7 @@ pub mod rewards_vault {
     pub fn unstake_attnusd(ctx: Context<UnstakeAttnUsd>, amount: u64) -> Result<()> {
         require!(amount > 0, RewardsError::InvalidAmount);
         let pool = &mut ctx.accounts.rewards_pool;
-        require!(!pool.is_paused, RewardsError::PoolPaused);
+        pool.ensure_active()?;
         let position = &mut ctx.accounts.stake_position;
 
         require_keys_eq!(
@@ -258,7 +259,7 @@ pub mod rewards_vault {
 
     pub fn claim_rewards(ctx: Context<ClaimRewards>) -> Result<()> {
         let pool = &mut ctx.accounts.rewards_pool;
-        require!(!pool.is_paused, RewardsError::PoolPaused);
+        pool.ensure_active()?;
         let position = &mut ctx.accounts.stake_position;
 
         require_keys_eq!(
@@ -296,11 +297,18 @@ pub mod rewards_vault {
         Ok(())
     }
 
-    pub fn fund_rewards(ctx: Context<FundRewards>, amount: u64) -> Result<()> {
+    pub fn fund_rewards(ctx: Context<FundRewards>, amount: u64, operation_id: u64) -> Result<()> {
         require!(amount > 0, RewardsError::InvalidAmount);
 
         let pool = &mut ctx.accounts.rewards_pool;
-        require!(!pool.is_paused, RewardsError::PoolPaused);
+        pool.ensure_active()?;
+        if operation_id == pool.last_fund_id {
+            return Ok(());
+        }
+        require!(
+            operation_id > pool.last_fund_id,
+            RewardsError::OperationOutOfOrder
+        );
         let pre_balance = ctx.accounts.sol_treasury.to_account_info().lamports();
         require!(
             pre_balance >= pool.last_treasury_balance,
@@ -354,7 +362,10 @@ pub mod rewards_vault {
             source_amount: amount,
             sol_per_share: pool.sol_per_share,
             treasury_balance: pool.last_treasury_balance,
+            operation_id,
         });
+
+        pool.last_fund_id = operation_id;
 
         Ok(())
     }
@@ -721,13 +732,19 @@ pub struct RewardsPool {
     pub reward_bps: u16,
     pub allowed_funder: Pubkey,
     pub last_treasury_balance: u64,
+    pub last_fund_id: u64,
     pub is_paused: bool,
     pub padding: [u8; 5],
 }
 
 impl RewardsPool {
     pub const SPACE: usize =
-        8 + 1 + 1 + 1 + 32 + 32 + 32 + 32 + 32 + 8 + 16 + 8 + 2 + 32 + 8 + 1 + 5;
+        8 + 1 + 1 + 1 + 32 + 32 + 32 + 32 + 32 + 8 + 16 + 8 + 2 + 32 + 8 + 8 + 1 + 5;
+
+    fn ensure_active(&self) -> Result<()> {
+        require!(!self.is_paused, RewardsError::PoolPaused);
+        Ok(())
+    }
 }
 
 #[account]
@@ -762,6 +779,7 @@ pub struct RewardsFunded {
     pub source_amount: u64,
     pub sol_per_share: u128,
     pub treasury_balance: u64,
+    pub operation_id: u64,
 }
 
 #[event]
@@ -852,6 +870,8 @@ pub enum RewardsError {
     IndexInvariant,
     #[msg("Pending rewards must accumulate when no stake is present")]
     PendingRewardsInvariant,
+    #[msg("Operation id out of order")]
+    OperationOutOfOrder,
 }
 
 fn distribute_pending(pool: &mut RewardsPool) -> Result<()> {
@@ -962,6 +982,7 @@ mod tests {
                 reward_bps: 0,
                 allowed_funder: Pubkey::new_unique(),
                 last_treasury_balance: 0,
+                last_fund_id: 0,
                 is_paused: false,
                 padding: [0; 5],
             },
@@ -998,6 +1019,17 @@ mod tests {
         accrue_rewards(&mut pool, 2_000).unwrap();
         assert_eq!(pool.sol_per_share, 1_000);
         assert_eq!(pool.pending_rewards, 2_000);
+    }
+
+    #[test]
+    fn ensure_active_errors_when_paused() {
+        let (_key, mut pool) = mock_pool(0, 0, 0);
+        assert!(pool.ensure_active().is_ok());
+        pool.is_paused = true;
+        assert_eq!(
+            pool.ensure_active().unwrap_err(),
+            RewardsError::PoolPaused.into()
+        );
     }
 
     #[test]

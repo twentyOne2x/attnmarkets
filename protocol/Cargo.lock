@@ -271,9 +271,9 @@ dependencies = [
 
 [[package]]
 name = "anchor-client"
-version = "0.32.1"
+version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a03f35d3cb6b26508da163e4f9bc7adc2a5445a1cf38bb1da6e6e3919c7d53d"
+checksum = "e1669d2987f099831a07c1665bc05498587dc20028025996a3bdfa4e5b50efc1"
 dependencies = [
  "anchor-lang",
  "anyhow",
@@ -327,9 +327,9 @@ dependencies = [
 
 [[package]]
 name = "anchor-lang"
-version = "0.32.1"
+version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e67d85d5376578f12d840c29ff323190f6eecd65b00a0b5f2b2f232751d049cc"
+checksum = "adaac61a10510384d0f1c9c5f45249ed3fc3d7783716f156e2224f56d68872fb"
 dependencies = [
  "anchor-attribute-access-control",
  "anchor-attribute-account",
@@ -395,9 +395,9 @@ dependencies = [
 
 [[package]]
 name = "anchor-spl"
-version = "0.32.1"
+version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3397ab3fc5b198bbfe55d827ff58bd69f2a8d3f9f71c3732c23c2093fec4d3ef"
+checksum = "e8435f15f4b61d23aa71e72c14fe0a759413b97c252683fd694cfd29fe48fd6e"
 dependencies = [
  "anchor-lang",
  "spl-associated-token-account",
@@ -755,10 +755,12 @@ dependencies = [
  "attn_indexer",
  "axum",
  "chrono",
+ "hex",
  "http-body-util",
  "hyper 1.7.0",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "tokio",
  "tower 0.4.13",
  "tracing",
@@ -770,12 +772,16 @@ name = "attn_cli"
 version = "0.1.0"
 dependencies = [
  "anchor-client",
+ "anchor-spl",
  "anyhow",
  "attn_client",
  "clap",
+ "creator_vault",
  "rewards_vault",
  "shellexpand",
  "solana-sdk",
+ "splitter",
+ "stable_vault",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -4325,6 +4331,7 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
+ "creator_vault",
  "proptest",
  "solana-program",
  "solana-program-test",

@@ -27,8 +27,23 @@ pub mod splitter {
             SplitterError::SplitterProgramMismatch
         );
 
-        let splitter_bump = ctx.bumps.splitter_authority;
-        ctx.accounts.splitter_authority.bump = splitter_bump;
+        let creator_vault_key = ctx.accounts.creator_vault.key();
+        let (expected_authority, splitter_bump) = Pubkey::find_program_address(
+            &[b"splitter-authority", creator_vault_key.as_ref()],
+            &crate::ID,
+        );
+        require_keys_eq!(
+            expected_authority,
+            ctx.accounts.splitter_authority.key(),
+            SplitterError::InvalidSplitterAuthority
+        );
+        let bumps = &ctx.bumps;
+        require_eq!(
+            splitter_bump,
+            bumps.splitter_authority,
+            SplitterError::InvalidSplitterAuthority
+        );
+        ctx.accounts.splitter_authority.bump = bumps.splitter_authority;
 
         let market = &mut ctx.accounts.market;
         market.creator_vault = ctx.accounts.creator_vault.key();
@@ -77,8 +92,17 @@ pub mod splitter {
         token::burn(cpi_ctx, amount)?;
 
         // mint PT
-        let splitter_bump = ctx.bumps.splitter_authority;
         let creator_vault_key = ctx.accounts.creator_vault.key();
+        let (expected_authority, _) = Pubkey::find_program_address(
+            &[b"splitter-authority", creator_vault_key.as_ref()],
+            &crate::ID,
+        );
+        require_keys_eq!(
+            expected_authority,
+            ctx.accounts.splitter_authority.key(),
+            SplitterError::InvalidSplitterAuthority
+        );
+        let splitter_bump = ctx.bumps.splitter_authority;
         let bump_seed = [splitter_bump];
         let splitter_seeds: [&[u8]; 3] = [
             b"splitter-authority",
@@ -121,10 +145,19 @@ pub mod splitter {
             .checked_add(amount)
             .ok_or(SplitterError::MathOverflow)?;
 
+        let (expected_position, position_bump) = Pubkey::find_program_address(
+            &[b"user-position", market.key().as_ref(), ctx.accounts.user.key().as_ref()],
+            &crate::ID,
+        );
+        require_keys_eq!(
+            expected_position,
+            ctx.accounts.user_position.key(),
+            SplitterError::InvalidUserPosition
+        );
+
         let position = &mut ctx.accounts.user_position;
         if position.market == Pubkey::default() {
-            let bump = ctx.bumps.user_position;
-            position.bump = bump;
+            position.bump = position_bump;
             position.market = market.key();
             position.user = ctx.accounts.user.key();
             position.last_fee_index = market.fee_index;
@@ -203,8 +236,17 @@ pub mod splitter {
             SplitterError::InsufficientYieldLiquidity
         );
 
-        let splitter_bump = ctx.bumps.splitter_authority;
         let creator_vault_key = ctx.accounts.creator_vault.key();
+        let (expected_authority, _) = Pubkey::find_program_address(
+            &[b"splitter-authority", creator_vault_key.as_ref()],
+            &crate::ID,
+        );
+        require_keys_eq!(
+            expected_authority,
+            ctx.accounts.splitter_authority.key(),
+            SplitterError::InvalidSplitterAuthority
+        );
+        let splitter_bump = ctx.bumps.splitter_authority;
         let bump_seed = [splitter_bump];
         let splitter_seeds: [&[u8]; 3] = [
             b"splitter-authority",
@@ -259,8 +301,17 @@ pub mod splitter {
         let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), burn_accounts);
         token::burn(cpi_ctx, amount)?;
 
-        let splitter_bump = ctx.bumps.splitter_authority;
         let creator_vault_key = ctx.accounts.creator_vault.key();
+        let (expected_authority, _) = Pubkey::find_program_address(
+            &[b"splitter-authority", creator_vault_key.as_ref()],
+            &crate::ID,
+        );
+        require_keys_eq!(
+            expected_authority,
+            ctx.accounts.splitter_authority.key(),
+            SplitterError::InvalidSplitterAuthority
+        );
+        let splitter_bump = ctx.bumps.splitter_authority;
         let bump_seed = [splitter_bump];
         let splitter_seeds: [&[u8]; 3] = [
             b"splitter-authority",
@@ -449,7 +500,7 @@ pub struct RedeemYield<'info> {
     #[account(
         mut,
         seeds = [b"user-position", market.key().as_ref(), user.key().as_ref()],
-        bump = user_position.bump
+        bump
     )]
     pub user_position: Account<'info, UserPosition>,
     #[account(mut, constraint = user_yt_ata.owner == user.key(), constraint = user_yt_ata.mint == market.yt_mint)]
@@ -541,6 +592,8 @@ impl UserPosition {
     pub const INIT_SPACE: usize = 32 + 32 + 1 + 16 + 16;
 }
 
+
+
 #[event]
 pub struct MarketCreated {
     pub market: Pubkey,
@@ -587,10 +640,10 @@ pub enum SplitterError {
     MathOverflow,
     #[msg("Insufficient SY balance to split")]
     InsufficientSyBalance,
-    #[msg("PDA bump missing for position init")]
-    MissingBump,
     #[msg("Creator vault not configured for this splitter")]
     SplitterProgramMismatch,
+    #[msg("Splitter authority PDA mismatch")]
+    InvalidSplitterAuthority,
     #[msg("Fee index cannot decrease")]
     FeeIndexRegression,
     #[msg("User has no YT balance")]
@@ -605,4 +658,6 @@ pub enum SplitterError {
     InsufficientPtBalance,
     #[msg("Outstanding principal prevents closing")]
     OutstandingPrincipal,
+    #[msg("User position PDA mismatch")]
+    InvalidUserPosition,
 }

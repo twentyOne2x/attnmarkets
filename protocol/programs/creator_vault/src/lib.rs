@@ -44,7 +44,8 @@ pub mod creator_vault {
     pub fn wrap_fees(ctx: Context<WrapFees>, amount: u64) -> Result<()> {
         require!(amount > 0, AttnError::InvalidAmount);
 
-        require!(!ctx.accounts.creator_vault.paused, AttnError::VaultPaused);
+        let vault = &mut ctx.accounts.creator_vault;
+        vault.assert_not_paused()?;
 
         let transfer_accounts = Transfer {
             from: ctx.accounts.user_quote_ata.to_account_info(),
@@ -57,22 +58,19 @@ pub mod creator_vault {
         );
         token::transfer(cpi_ctx, amount)?;
 
-        {
-            let vault = &mut ctx.accounts.creator_vault;
-            vault.total_fees_collected = vault
-                .total_fees_collected
-                .checked_add(amount)
-                .ok_or(AttnError::MathOverflow)?;
-        }
+        vault.total_fees_collected = vault
+            .total_fees_collected
+            .checked_add(amount)
+            .ok_or(AttnError::MathOverflow)?;
 
         let pump_mint_key = ctx.accounts.pump_mint.key();
-        let bump = ctx.accounts.creator_vault.bump;
+        let bump = vault.bump;
         let seeds: [&[u8]; 3] = [b"creator-vault", pump_mint_key.as_ref(), &[bump]];
         let signer_seeds = &[&seeds[..]];
         let mint_accounts = MintTo {
             mint: ctx.accounts.sy_mint.to_account_info(),
             to: ctx.accounts.user_sy_ata.to_account_info(),
-            authority: ctx.accounts.creator_vault.to_account_info(),
+            authority: vault.to_account_info(),
         };
         let cpi_ctx = CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
@@ -81,13 +79,10 @@ pub mod creator_vault {
         );
         token::mint_to(cpi_ctx, amount)?;
 
-        {
-            let vault = &mut ctx.accounts.creator_vault;
-            vault.total_sy_minted = vault
-                .total_sy_minted
-                .checked_add(amount)
-                .ok_or(AttnError::MathOverflow)?;
-        }
+        vault.total_sy_minted = vault
+            .total_sy_minted
+            .checked_add(amount)
+            .ok_or(AttnError::MathOverflow)?;
 
         emit!(SyMinted {
             user: ctx.accounts.user.key(),
@@ -106,7 +101,7 @@ pub mod creator_vault {
             vault.splitter_program != Pubkey::default(),
             AttnError::SplitterProgramUnset
         );
-        require!(!vault.paused, AttnError::VaultPaused);
+        vault.assert_not_paused()?;
 
         msg!(
             "mint_for_splitter: vault={}, amount={}, authority={}",
@@ -158,7 +153,7 @@ pub mod creator_vault {
             vault.splitter_program != Pubkey::default(),
             AttnError::SplitterProgramUnset
         );
-        require!(!vault.paused, AttnError::VaultPaused);
+        vault.assert_not_paused()?;
 
         let expected_authority = Pubkey::find_program_address(
             &[b"splitter-authority", vault.key().as_ref()],
@@ -200,11 +195,7 @@ pub mod creator_vault {
     pub fn set_rewards_split(ctx: Context<SetRewardsSplit>, sol_rewards_bps: u16) -> Result<()> {
         require!(sol_rewards_bps as u64 <= TOTAL_BPS, AttnError::InvalidBps);
         let vault = &mut ctx.accounts.creator_vault;
-        require_keys_eq!(
-            vault.admin,
-            ctx.accounts.admin.key(),
-            AttnError::UnauthorizedAdmin
-        );
+        vault.assert_admin(&ctx.accounts.admin.key())?;
         vault.sol_rewards_bps = sol_rewards_bps;
         emit!(RewardsSplitUpdated {
             creator_vault: vault.key(),
@@ -216,11 +207,7 @@ pub mod creator_vault {
     pub fn update_admin(ctx: Context<UpdateAdmin>, new_admin: Pubkey) -> Result<()> {
         require!(new_admin != Pubkey::default(), AttnError::InvalidAdmin);
         let vault = &mut ctx.accounts.creator_vault;
-        require_keys_eq!(
-            vault.admin,
-            ctx.accounts.admin.key(),
-            AttnError::UnauthorizedAdmin
-        );
+        vault.assert_admin(&ctx.accounts.admin.key())?;
         let previous_admin = vault.admin;
         vault.admin = new_admin;
         emit!(AdminUpdated {
@@ -233,11 +220,7 @@ pub mod creator_vault {
 
     pub fn set_pause(ctx: Context<SetPause>, paused: bool) -> Result<()> {
         let vault = &mut ctx.accounts.creator_vault;
-        require_keys_eq!(
-            vault.admin,
-            ctx.accounts.admin.key(),
-            AttnError::UnauthorizedAdmin
-        );
+        vault.assert_admin(&ctx.accounts.admin.key())?;
         vault.paused = paused;
         emit!(VaultPauseToggled {
             creator_vault: vault.key(),
@@ -381,6 +364,16 @@ pub struct CreatorVault {
 
 impl CreatorVault {
     pub const INIT_SPACE: usize = 1 + 1 + 1 + 32 + 32 + 32 + 32 + 32 + 32 + 8 + 8 + 32 + 2 + 1 + 5;
+
+    fn assert_admin(&self, signer: &Pubkey) -> Result<()> {
+        require_keys_eq!(self.admin, *signer, AttnError::UnauthorizedAdmin);
+        Ok(())
+    }
+
+    fn assert_not_paused(&self) -> Result<()> {
+        require!(!self.paused, AttnError::VaultPaused);
+        Ok(())
+    }
 }
 
 #[event]
@@ -438,4 +431,46 @@ pub enum AttnError {
     InvalidBps,
     #[msg("Vault is paused")]
     VaultPaused,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn mock_creator_vault() -> CreatorVault {
+        CreatorVault {
+            bump: 1,
+            fee_vault_bump: 1,
+            sy_mint_bump: 1,
+            authority: Pubkey::new_unique(),
+            pump_creator: Pubkey::new_unique(),
+            pump_mint: Pubkey::new_unique(),
+            quote_mint: Pubkey::new_unique(),
+            sy_mint: Pubkey::new_unique(),
+            splitter_program: Pubkey::new_unique(),
+            total_fees_collected: 0,
+            total_sy_minted: 0,
+            admin: Pubkey::new_unique(),
+            sol_rewards_bps: 0,
+            paused: false,
+            padding: [0; 5],
+        }
+    }
+
+    #[test]
+    fn assert_admin_enforces_signer() {
+        let vault = mock_creator_vault();
+        assert!(vault.assert_admin(&vault.admin).is_ok());
+        let err = vault.assert_admin(&Pubkey::new_unique()).unwrap_err();
+        assert_eq!(err, AttnError::UnauthorizedAdmin.into());
+    }
+
+    #[test]
+    fn assert_not_paused_checks_flag() {
+        let mut vault = mock_creator_vault();
+        assert!(vault.assert_not_paused().is_ok());
+        vault.paused = true;
+        let err = vault.assert_not_paused().unwrap_err();
+        assert_eq!(err, AttnError::VaultPaused.into());
+    }
 }
