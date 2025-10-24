@@ -5,17 +5,16 @@ use std::sync::Arc;
 use anyhow::{anyhow, Context, Result};
 use attn_indexer::{
     connect_pool, mock_store, run_migrations, AttnUsdStats, DynStore, GovernanceState,
-    MarketDetail, MarketSummary, Overview, Portfolio, RewardsPoolDetail, RewardsPoolSummary,
-    SqlxStore,
+    MarketDetail, MarketSummary, Overview, Portfolio, RewardsPoolSummary, SqlxStore,
 };
 use axum::{
-    extract::{Path, Query, State, TypedHeader},
-    headers::{EntityTag, IfNoneMatch},
-    http::{header::ETAG, HeaderValue, StatusCode},
+    extract::{Path, Query, State},
+    http::{header::{ETAG, IF_NONE_MATCH}, HeaderMap, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
     routing::get,
     Json, Router,
 };
+use sha2::{Digest, Sha256};
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
 use tracing::{error, info, warn, Level};
@@ -28,6 +27,23 @@ struct HealthResponse {
 #[derive(Clone)]
 struct AppState {
     store: DynStore,
+}
+
+fn make_weak_etag(input: &[u8]) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(input);
+    let digest = hasher.finalize();
+    format!("W/\"{}\"", hex::encode(digest))
+}
+
+fn header_matches_if_none(value: &HeaderValue, etag: &str) -> bool {
+    match value.to_str() {
+        Ok(raw) => raw
+            .split(',')
+            .map(|segment| segment.trim())
+            .any(|tag| tag == "*" || tag == etag),
+        Err(_) => false,
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -224,17 +240,19 @@ async fn get_attnusd(State(state): State<AppState>) -> ApiResult<AttnUsdStats> {
 async fn list_rewards(
     State(state): State<AppState>,
     Query(query): Query<RewardsQuery>,
-    if_none_match: Option<TypedHeader<IfNoneMatch>>,
+    headers: HeaderMap,
 ) -> Result<Response, ApiError> {
     let limit = query.limit.unwrap_or(20);
     let page = state.store.rewards(query.cursor.clone(), limit).await?;
-    let etag = EntityTag::weak(format!(
-        "{}:{}",
+    let etag_key = format!(
+        "{}:{}:{}",
+        limit,
         page.updated_at.map(|ts| ts.timestamp()).unwrap_or_default(),
         page.next_cursor.as_deref().unwrap_or("")
-    ));
-    if let Some(TypedHeader(header)) = if_none_match {
-        if header.precondition_matches(&etag) {
+    );
+    let etag = make_weak_etag(etag_key.as_bytes());
+    if let Some(value) = headers.get(IF_NONE_MATCH) {
+        if header_matches_if_none(value, &etag) {
             return Ok(StatusCode::NOT_MODIFIED.into_response());
         }
     }
@@ -246,30 +264,31 @@ async fn list_rewards(
     let mut response = Json(body).into_response();
     response
         .headers_mut()
-        .insert(ETAG, HeaderValue::from_str(&etag.to_string()).unwrap());
+        .insert(ETAG, HeaderValue::from_str(&etag).unwrap());
     Ok(response)
 }
 
 async fn get_rewards_pool(
     Path(pool): Path<String>,
     State(state): State<AppState>,
-    if_none_match: Option<TypedHeader<IfNoneMatch>>,
+    headers: HeaderMap,
 ) -> Result<Response, ApiError> {
     let detail = state
         .store
         .rewards_pool(&pool)
         .await?
         .ok_or_else(|| ApiError::not_found("rewards_pool", pool.clone()))?;
-    let etag = EntityTag::weak(detail.summary.updated_at.timestamp().to_string());
-    if let Some(TypedHeader(header)) = if_none_match {
-        if header.precondition_matches(&etag) {
+    let etag_key = detail.summary.updated_at.timestamp().to_string();
+    let etag = make_weak_etag(etag_key.as_bytes());
+    if let Some(value) = headers.get(IF_NONE_MATCH) {
+        if header_matches_if_none(value, &etag) {
             return Ok(StatusCode::NOT_MODIFIED.into_response());
         }
     }
     let mut response = Json(detail).into_response();
     response
         .headers_mut()
-        .insert(ETAG, HeaderValue::from_str(&etag.to_string()).unwrap());
+        .insert(ETAG, HeaderValue::from_str(&etag).unwrap());
     Ok(response)
 }
 

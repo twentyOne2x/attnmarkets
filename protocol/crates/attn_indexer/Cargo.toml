@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 attn_client = { path = "../attn_client" }
-anchor-client = "0.32.1"
+anchor-client = "=0.32.0"
 solana-client = "2.3.0"
 solana-sdk = "2.3.0"
 tokio = { workspace = true }
