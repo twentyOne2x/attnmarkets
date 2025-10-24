@@ -23,6 +23,10 @@
    - Surface alerts (fee flow disruptions, maturities pending) in UI.
 
 ## Information Architecture
+- Two Next.js targets now live in the repo:
+  - `apps/dapp` — legacy, demo-only experience kept stable for existing flows.
+  - `apps/dapp-prod` — experimental build with Demo↔Live toggle, health checks, and API-backed providers intended for prod.attn.markets once validated.
+
 - **App Shell** (shared navigation):
   - Logo + “attn.markets” brand.
   - Tabs: `Overview`, `Markets`, `Creator`, `Portfolio`, `attnUSD`, `Rewards`, `Docs`.
@@ -161,6 +165,29 @@
 - Guard rails if CTO not approved yet (disable split actions).
 - Display health status (vault paused, AMM paused) if governance toggles stop conditions.
 - Validate user cluster before enabling Live actions; surface low SOL warning.
+
+## Demo vs Live Modes
+- The frontend boots in **Demo** mode with local mock data so new contributors can explore safely.
+- A header toggle promotes **Live (devnet)**. Switching to Live performs `/readyz` and `/version` checks against `NEXT_PUBLIC_API_BASE`.
+- If either health check fails, the UI automatically reverts to Demo, keeps the toggle off, and surfaces a toast.
+- Live mode surfaces a banner reminding users that health failures fall back to Demo automatically.
+
+### Environment Variables
+Configure the legacy demo-only app via `apps/dapp/.env.example` and the new demo/live build via `apps/dapp-prod/.env.example`.
+
+```
+NEXT_PUBLIC_DATA_MODE=demo               # demo | live, defaults to demo when invalid
+NEXT_PUBLIC_API_BASE=https://...         # REST origin queried for /readyz, /version, /v1/*
+NEXT_PUBLIC_CLUSTER=devnet               # Cluster label surfaced in the header
+NEXT_PUBLIC_PROGRAM_IDS={"devnet":{...}} # JSON map of program IDs keyed by cluster
+```
+
+All keys are validated on boot. Missing or malformed values force Demo mode and log a single console warning.
+
+### Troubleshooting
+- **Live toggle fails:** Inspect console for the logged error from `/readyz` or `/version`. The header will stay in Demo and display the latest error toast.
+- **Program ID validation fails:** Ensure the JSON map contains base58 addresses for the active cluster.
+- **Cached data mismatch:** Clear `localStorage['attn-market-app-state']` (Demo data) and `localStorage['attn.mode']` (mode toggle) before retrying.
 
 ## Testing Checklist
 - Connect wallet (devnet & mainnet).
