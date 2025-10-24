@@ -12,6 +12,7 @@ default = []
 no-entrypoint = []
 no-idl = []
 cpi = ["no-entrypoint"]
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 
 [dependencies]
 anchor-lang = { workspace = true }

@@ -421,8 +421,12 @@ async fn seed_creator_vault_accounts(
         splitter_program: splitter::id(),
         total_fees_collected: 0,
         total_sy_minted: 0,
+        admin: context.payer.pubkey(),
+        sol_rewards_bps: 0,
+        paused: false,
+        padding: [0; 5],
     };
-    let mut state_data = CreatorVault::discriminator().to_vec();
+    let mut state_data = CreatorVault::DISCRIMINATOR.to_vec();
     let mut creator_bytes = creator_state.try_to_vec().unwrap();
     state_data.append(&mut creator_bytes);
     state_data.resize(8 + CreatorVault::INIT_SPACE, 0);
@@ -484,7 +488,7 @@ async fn seed_user_sy_balance(
     let mut state = CreatorVault::try_deserialize(&mut cursor).unwrap();
     state.total_fees_collected = amount;
     state.total_sy_minted = amount;
-    let mut data = CreatorVault::discriminator().to_vec();
+    let mut data = CreatorVault::DISCRIMINATOR.to_vec();
     let mut state_bytes = state.try_to_vec().unwrap();
     data.append(&mut state_bytes);
     data.resize(8 + CreatorVault::INIT_SPACE, 0);

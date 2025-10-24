@@ -39,12 +39,52 @@ pub mod stable_vault {
             AttnError::UnsupportedMint
         );
 
-        let bumps = &ctx.bumps;
+        let authority_key = ctx.accounts.authority.key();
+        let stable_mint_key = ctx.accounts.stable_mint.key();
+
+        let (expected_vault, stable_bump) =
+            Pubkey::find_program_address(&[b"stable-vault", authority_key.as_ref()], &crate::ID);
+        require_keys_eq!(
+            expected_vault,
+            ctx.accounts.stable_vault.key(),
+            AttnError::InvalidStableVaultPda
+        );
+
+        let (expected_treasury, treasury_bump) = Pubkey::find_program_address(
+            &[
+                b"stable-treasury",
+                expected_vault.as_ref(),
+                stable_mint_key.as_ref(),
+            ],
+            &crate::ID,
+        );
+        require_keys_eq!(
+            expected_treasury,
+            ctx.accounts.treasury.key(),
+            AttnError::InvalidTreasuryPda
+        );
+
+        let (expected_share_mint, share_mint_bump) =
+            Pubkey::find_program_address(&[b"share-mint", expected_vault.as_ref()], &crate::ID);
+        require_keys_eq!(
+            expected_share_mint,
+            ctx.accounts.share_mint.key(),
+            AttnError::InvalidShareMintPda
+        );
+
+        let (expected_sol_vault, sol_vault_bump) =
+            Pubkey::find_program_address(&[b"sol-vault", expected_vault.as_ref()], &crate::ID);
+        require_keys_eq!(
+            expected_sol_vault,
+            ctx.accounts.sol_vault.key(),
+            AttnError::InvalidSolVaultPda
+        );
+
         let vault = &mut ctx.accounts.stable_vault;
-        vault.bump = bumps.stable_vault;
-        vault.treasury_bump = bumps.treasury;
-        vault.sol_vault_bump = bumps.sol_vault;
-        vault.share_mint_bump = bumps.share_mint;
+        vault.bump = stable_bump;
+        vault.treasury_bump = treasury_bump;
+        vault.sol_vault_bump = sol_vault_bump;
+        vault.share_mint_bump = share_mint_bump;
         require!(admin != Pubkey::default(), AttnError::InvalidAdmin);
         vault.authority_seed = ctx.accounts.authority.key();
         vault.keeper_authority = ctx.accounts.authority.key();
@@ -57,6 +97,9 @@ pub mod stable_vault {
         vault.total_assets = 0;
         vault.total_shares = 0;
         vault.pending_sol = 0;
+        vault.last_sweep_id = 0;
+        vault.last_conversion_id = 0;
+        vault.paused = false;
         vault.accepted_mints = accepted_mints;
         vault.padding = [0u8; 32];
 
@@ -73,6 +116,7 @@ pub mod stable_vault {
 
     pub fn deposit_stable(ctx: Context<DepositStable>, amount: u64) -> Result<()> {
         require!(amount > 0, AttnError::InvalidAmount);
+        require!(!ctx.accounts.stable_vault.paused, AttnError::VaultPaused);
 
         require!(
             ctx.accounts
@@ -135,6 +179,7 @@ pub mod stable_vault {
 
     pub fn redeem_attnusd(ctx: Context<RedeemAttnUsd>, shares: u64) -> Result<()> {
         require!(shares > 0, AttnError::InvalidAmount);
+        require!(!ctx.accounts.stable_vault.paused, AttnError::VaultPaused);
         let assets_to_return = ctx.accounts.stable_vault.preview_redeem(shares)?;
         let authority_key = ctx.accounts.stable_vault.authority_seed;
         let vault_bump = ctx.accounts.stable_vault.bump;
@@ -183,10 +228,22 @@ pub mod stable_vault {
         Ok(())
     }
 
-    pub fn sweep_creator_fees(ctx: Context<SweepCreatorFees>, amount: u64) -> Result<()> {
+    pub fn sweep_creator_fees(
+        ctx: Context<SweepCreatorFees>,
+        amount: u64,
+        operation_id: u64,
+    ) -> Result<()> {
         require!(amount > 0, AttnError::InvalidAmount);
         let vault = &mut ctx.accounts.stable_vault;
         only_keeper!(vault, ctx.accounts.keeper_authority.key());
+        require!(!vault.paused, AttnError::VaultPaused);
+        if operation_id == vault.last_sweep_id {
+            return Ok(());
+        }
+        require!(
+            operation_id > vault.last_sweep_id,
+            AttnError::OperationOutOfOrder
+        );
         let creator_vault = &ctx.accounts.creator_vault;
         require!(!creator_vault.paused, AttnError::CreatorVaultPaused);
         let sol_rewards_bps = creator_vault.sol_rewards_bps;
@@ -210,18 +267,18 @@ pub mod stable_vault {
             let cpi_accounts = rewards_vault::cpi::accounts::FundRewards {
                 creator_vault: ctx.accounts.creator_vault.to_account_info(),
                 rewards_pool: ctx.accounts.rewards_pool.to_account_info(),
-                funding_source: ctx.accounts.fee_source.to_account_info(),
+                allowed_funder: ctx.accounts.allowed_funder.to_account_info(),
                 sol_treasury: ctx.accounts.rewards_treasury.to_account_info(),
                 system_program: ctx.accounts.system_program.to_account_info(),
             };
             let cpi_ctx =
                 CpiContext::new(ctx.accounts.rewards_program.to_account_info(), cpi_accounts);
-            rewards_vault::cpi::fund_rewards(cpi_ctx, rewards_amount)?;
+            rewards_vault::cpi::fund_rewards(cpi_ctx, rewards_amount, operation_id)?;
         }
 
         if stable_amount > 0 {
             let transfer_accounts = system_program::Transfer {
-                from: ctx.accounts.fee_source.to_account_info(),
+                from: ctx.accounts.allowed_funder.to_account_info(),
                 to: ctx.accounts.sol_vault.to_account_info(),
             };
             let cpi_ctx = CpiContext::new(
@@ -238,13 +295,15 @@ pub mod stable_vault {
         emit!(CreatorFeesSwept {
             stable_vault: vault.key(),
             keeper_authority: ctx.accounts.keeper_authority.key(),
-            admin: vault.admin,
             amount_lamports: amount,
             sol_rewards_bps,
             sol_rewards_lamports: rewards_amount,
             converted_lamports: stable_amount,
             pending_sol: vault.pending_sol,
+            operation_id,
         });
+
+        vault.last_sweep_id = operation_id;
 
         Ok(())
     }
@@ -253,10 +312,19 @@ pub mod stable_vault {
         ctx: Context<ProcessConversion>,
         amount_stable: u64,
         sol_spent: u64,
+        operation_id: u64,
     ) -> Result<()> {
+        require!(!ctx.accounts.stable_vault.paused, AttnError::VaultPaused);
         require!(amount_stable > 0, AttnError::InvalidAmount);
         let vault = &mut ctx.accounts.stable_vault;
         only_keeper!(vault, ctx.accounts.keeper_authority.key());
+        if operation_id == vault.last_conversion_id {
+            return Ok(());
+        }
+        require!(
+            operation_id > vault.last_conversion_id,
+            AttnError::OperationOutOfOrder
+        );
         require!(
             vault
                 .accepted_mints
@@ -314,7 +382,10 @@ pub mod stable_vault {
             stable_received: amount_stable,
             sol_spent,
             pending_sol: vault.pending_sol,
+            operation_id,
         });
+
+        vault.last_conversion_id = operation_id;
 
         Ok(())
     }
@@ -366,9 +437,88 @@ pub mod stable_vault {
         });
         Ok(())
     }
+
+    pub fn set_pause(ctx: Context<SetStableVaultPause>, is_paused: bool) -> Result<()> {
+        let vault = &mut ctx.accounts.stable_vault;
+        let signer = ctx.accounts.authority.key();
+        if is_paused {
+            vault.assert_admin_or_emergency(&signer)?;
+        } else {
+            vault.assert_admin(&signer)?;
+        }
+        if vault.paused == is_paused {
+            return Ok(());
+        }
+        vault.paused = is_paused;
+        emit!(StableVaultPauseToggled {
+            stable_vault: vault.key(),
+            authority: signer,
+            is_paused,
+        });
+        Ok(())
+    }
+
+    pub fn add_accepted_mint(ctx: Context<ManageAcceptedMint>, mint: Pubkey) -> Result<()> {
+        let vault = &mut ctx.accounts.stable_vault;
+        vault.assert_admin_or_emergency(&ctx.accounts.authority.key())?;
+        vault.add_accepted_mint(mint)?;
+        emit!(AcceptedMintAdded {
+            stable_vault: vault.key(),
+            mint,
+        });
+        Ok(())
+    }
+
+    pub fn remove_accepted_mint(ctx: Context<ManageAcceptedMint>, mint: Pubkey) -> Result<()> {
+        let vault = &mut ctx.accounts.stable_vault;
+        vault.assert_admin_or_emergency(&ctx.accounts.authority.key())?;
+        vault.remove_accepted_mint(mint)?;
+        emit!(AcceptedMintRemoved {
+            stable_vault: vault.key(),
+            mint,
+        });
+        Ok(())
+    }
+
+    pub fn withdraw_sol_dust(ctx: Context<WithdrawSolDust>, amount: u64) -> Result<()> {
+        require!(amount > 0, AttnError::InvalidAmount);
+        let vault = &mut ctx.accounts.stable_vault;
+        vault.assert_admin_or_emergency(&ctx.accounts.authority.key())?;
+        let sol_vault_info = ctx.accounts.sol_vault.to_account_info();
+        let available = sol_vault_info
+            .lamports()
+            .checked_sub(vault.pending_sol)
+            .ok_or(AttnError::InsufficientDustBalance)?;
+        require!(available >= amount, AttnError::InsufficientDustBalance);
+
+        let destination_info = ctx.accounts.destination.to_account_info();
+        let sol_balance = sol_vault_info.lamports();
+        let destination_balance = destination_info.lamports();
+
+        **sol_vault_info.try_borrow_mut_lamports()? = sol_balance
+            .checked_sub(amount)
+            .ok_or(AttnError::MathOverflow)?;
+        **destination_info.try_borrow_mut_lamports()? = destination_balance
+            .checked_add(amount)
+            .ok_or(AttnError::MathOverflow)?;
+
+        let remaining = available
+            .checked_sub(amount)
+            .ok_or(AttnError::MathOverflow)?;
+
+        emit!(SolDustWithdrawn {
+            stable_vault: vault.key(),
+            authority: ctx.accounts.authority.key(),
+            amount,
+            remaining_dust: remaining,
+        });
+
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
+#[instruction(accepted_mints: Vec<Pubkey>, admin: Pubkey)]
 pub struct InitializeStableVault<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
@@ -377,7 +527,7 @@ pub struct InitializeStableVault<'info> {
     #[account(
         init,
         payer = authority,
-        space = StableVault::space(StableVault::MAX_ACCEPTED_MINTS),
+        space = StableVault::INIT_SPACE,
         seeds = [b"stable-vault", authority.key().as_ref()],
         bump
     )]
@@ -405,9 +555,11 @@ pub struct InitializeStableVault<'info> {
         payer = authority,
         space = 0,
         seeds = [b"sol-vault", stable_vault.key().as_ref()],
-        bump
+        bump,
+        owner = system_program::ID
     )]
-    pub sol_vault: SystemAccount<'info>,
+    /// CHECK: created here as an empty system-owned account; later treated as lamport vault
+    pub sol_vault: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
     pub token_program: Program<'info, Token>,
     pub rent: Sysvar<'info, Rent>,
@@ -509,7 +661,7 @@ pub struct SweepCreatorFees<'info> {
     pub stable_vault: Account<'info, StableVault>,
     pub keeper_authority: Signer<'info>,
     #[account(mut)]
-    pub fee_source: Signer<'info>,
+    pub allowed_funder: Signer<'info>,
     pub creator_vault: Account<'info, CreatorVaultAccount>,
     #[account(mut, has_one = creator_vault)]
     pub rewards_pool: Account<'info, RewardsPool>,
@@ -524,7 +676,8 @@ pub struct SweepCreatorFees<'info> {
         seeds = [b"sol-vault", stable_vault.key().as_ref()],
         bump = stable_vault.sol_vault_bump
     )]
-    pub sol_vault: SystemAccount<'info>,
+    /// CHECK: lamport vault controlled by PDA; balance checked before transfers
+    pub sol_vault: UncheckedAccount<'info>,
     pub rewards_program: Program<'info, RewardsProgram>,
     pub system_program: Program<'info, System>,
 }
@@ -563,7 +716,8 @@ pub struct ProcessConversion<'info> {
         seeds = [b"sol-vault", stable_vault.key().as_ref()],
         bump = stable_vault.sol_vault_bump
     )]
-    pub sol_vault: SystemAccount<'info>,
+    /// CHECK: lamport vault controlled by PDA; balance validated before transfers
+    pub sol_vault: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
@@ -601,6 +755,50 @@ pub struct UpdateEmergencyAdmin<'info> {
     pub admin: Signer<'info>,
 }
 
+#[derive(Accounts)]
+pub struct SetStableVaultPause<'info> {
+    #[account(
+        mut,
+        seeds = [b"stable-vault", stable_vault.authority_seed.as_ref()],
+        bump = stable_vault.bump
+    )]
+    pub stable_vault: Account<'info, StableVault>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ManageAcceptedMint<'info> {
+    #[account(
+        mut,
+        seeds = [b"stable-vault", stable_vault.authority_seed.as_ref()],
+        bump = stable_vault.bump
+    )]
+    pub stable_vault: Account<'info, StableVault>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawSolDust<'info> {
+    #[account(
+        mut,
+        seeds = [b"stable-vault", stable_vault.authority_seed.as_ref()],
+        bump = stable_vault.bump,
+        has_one = sol_vault
+    )]
+    pub stable_vault: Account<'info, StableVault>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"sol-vault", stable_vault.key().as_ref()],
+        bump = stable_vault.sol_vault_bump
+    )]
+    /// CHECK: lamport vault; withdrawals bounded by pending_sol
+    pub sol_vault: UncheckedAccount<'info>,
+    /// CHECK: destination for dust withdrawal
+    #[account(mut)]
+    pub destination: UncheckedAccount<'info>,
+}
+
 #[account]
 pub struct StableVault {
     pub bump: u8,
@@ -618,14 +816,20 @@ pub struct StableVault {
     pub total_assets: u64,
     pub total_shares: u64,
     pub pending_sol: u64,
+    pub last_sweep_id: u64,
+    pub last_conversion_id: u64,
+    pub paused: bool,
     pub accepted_mints: Vec<Pubkey>,
     pub padding: [u8; 32],
 }
 
 impl StableVault {
     pub const MAX_ACCEPTED_MINTS: usize = 8;
-    pub const BASE_SIZE: usize = 1 + 1 + 1 + 1 + (32 * 7) + (8 * 3) + 1 + 32;
+    pub const BASE_SIZE: usize = 1 + 1 + 1 + 1 + (32 * 7) + (8 * 5) + 1 + 1 + 32;
     pub const PADDING_SIZE: usize = 32;
+
+    pub const INIT_SPACE: usize =
+        8 + Self::BASE_SIZE + 4 + (Self::MAX_ACCEPTED_MINTS * 32) + Self::PADDING_SIZE;
 
     pub fn space(max_mints: usize) -> usize {
         8 + Self::BASE_SIZE + 4 + (max_mints * 32) + Self::PADDING_SIZE
@@ -700,6 +904,30 @@ impl StableVault {
         );
         Ok(())
     }
+
+    fn add_accepted_mint(&mut self, mint: Pubkey) -> Result<()> {
+        require!(mint != Pubkey::default(), AttnError::InvalidMint);
+        require!(
+            !self.accepted_mints.contains(&mint),
+            AttnError::MintAlreadyAccepted
+        );
+        require!(
+            self.accepted_mints.len() < Self::MAX_ACCEPTED_MINTS,
+            AttnError::TooManyAcceptedMints
+        );
+        self.accepted_mints.push(mint);
+        Ok(())
+    }
+
+    fn remove_accepted_mint(&mut self, mint: Pubkey) -> Result<()> {
+        require!(
+            self.accepted_mints.contains(&mint),
+            AttnError::MintNotAccepted
+        );
+        require!(mint != self.stable_mint, AttnError::CannotRemovePrimaryMint);
+        self.accepted_mints.retain(|m| m != &mint);
+        Ok(())
+    }
 }
 
 #[event]
@@ -731,12 +959,12 @@ pub struct AttnUsdRedeemed {
 pub struct CreatorFeesSwept {
     pub stable_vault: Pubkey,
     pub keeper_authority: Pubkey,
-    pub admin: Pubkey,
     pub amount_lamports: u64,
     pub sol_rewards_bps: u16,
     pub sol_rewards_lamports: u64,
     pub converted_lamports: u64,
     pub pending_sol: u64,
+    pub operation_id: u64,
 }
 
 #[event]
@@ -746,6 +974,7 @@ pub struct ConversionProcessed {
     pub stable_received: u64,
     pub sol_spent: u64,
     pub pending_sol: u64,
+    pub operation_id: u64,
 }
 
 #[event]
@@ -768,10 +997,39 @@ pub struct EmergencyAdminUpdated {
     pub new_emergency_admin: Option<Pubkey>,
 }
 
+#[event]
+pub struct StableVaultPauseToggled {
+    pub stable_vault: Pubkey,
+    pub authority: Pubkey,
+    pub is_paused: bool,
+}
+
+#[event]
+pub struct AcceptedMintAdded {
+    pub stable_vault: Pubkey,
+    pub mint: Pubkey,
+}
+
+#[event]
+pub struct AcceptedMintRemoved {
+    pub stable_vault: Pubkey,
+    pub mint: Pubkey,
+}
+
+#[event]
+pub struct SolDustWithdrawn {
+    pub stable_vault: Pubkey,
+    pub authority: Pubkey,
+    pub amount: u64,
+    pub remaining_dust: u64,
+}
+
 #[error_code]
 pub enum AttnError {
     #[msg("Amount must be greater than zero")]
     InvalidAmount,
+    #[msg("Vault is paused")]
+    VaultPaused,
     #[msg("Invalid basis points")]
     InvalidBps,
     #[msg("Math overflow")]
@@ -786,6 +1044,14 @@ pub enum AttnError {
     NoAcceptedMints,
     #[msg("Too many accepted mints provided")]
     TooManyAcceptedMints,
+    #[msg("Mint already accepted")]
+    MintAlreadyAccepted,
+    #[msg("Mint not accepted")]
+    MintNotAccepted,
+    #[msg("Operation id out of order")]
+    OperationOutOfOrder,
+    #[msg("Insufficient SOL available outside pending balance")]
+    InsufficientDustBalance,
     #[msg("Unauthorized caller")]
     Unauthorized,
     #[msg("Unauthorized keeper")]
@@ -802,6 +1068,18 @@ pub enum AttnError {
     InsufficientPendingSol,
     #[msg("Creator vault is paused")]
     CreatorVaultPaused,
+    #[msg("Cannot remove primary stable mint")]
+    CannotRemovePrimaryMint,
+    #[msg("Invalid mint")]
+    InvalidMint,
+    #[msg("Stable vault PDA mismatch")]
+    InvalidStableVaultPda,
+    #[msg("Treasury PDA mismatch")]
+    InvalidTreasuryPda,
+    #[msg("Share mint PDA mismatch")]
+    InvalidShareMintPda,
+    #[msg("SOL vault PDA mismatch")]
+    InvalidSolVaultPda,
 }
 
 #[cfg(test)]
@@ -825,6 +1103,9 @@ mod tests {
             total_assets,
             total_shares,
             pending_sol: 0,
+            last_sweep_id: 0,
+            last_conversion_id: 0,
+            paused: false,
             accepted_mints: vec![],
             padding: [0u8; 32],
         }
@@ -856,5 +1137,22 @@ mod tests {
         let vault = mock_vault(2_000_000, 1_000_000);
         let redeemed = vault.preview_redeem(250_000).unwrap();
         assert_eq!(redeemed, 500_000);
+    }
+
+    #[test]
+    fn manage_accepted_mints() {
+        let mut vault = mock_vault(0, 0);
+        let mint = Pubkey::new_unique();
+        assert!(vault.add_accepted_mint(mint).is_ok());
+        assert!(vault.accepted_mints.contains(&mint));
+
+        let duplicate_err = vault.add_accepted_mint(mint).unwrap_err();
+        assert_eq!(duplicate_err, AttnError::MintAlreadyAccepted.into());
+
+        let primary_err = vault.remove_accepted_mint(vault.stable_mint).unwrap_err();
+        assert_eq!(primary_err, AttnError::CannotRemovePrimaryMint.into());
+
+        assert!(vault.remove_accepted_mint(mint).is_ok());
+        assert!(!vault.accepted_mints.contains(&mint));
     }
 }
