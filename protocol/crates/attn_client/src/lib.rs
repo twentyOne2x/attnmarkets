@@ -105,6 +105,7 @@ pub mod stable {
         authority: Pubkey,
         stable_mint: Pubkey,
         accepted_mints: Vec<Pubkey>,
+        admin: Pubkey,
     ) -> (Instruction, StableVaultPdas) {
         let pdas = derive_pdas(&authority, &stable_mint);
         let accounts = stable_accounts::InitializeStableVault {
@@ -118,7 +119,11 @@ pub mod stable {
             token_program: token::ID,
             rent: sysvar::rent::ID,
         };
-        let data = stable_ix::InitializeStableVault { accepted_mints }.data();
+        let data = stable_ix::InitializeStableVault {
+            accepted_mints,
+            admin,
+        }
+        .data();
         let ix = Instruction {
             program_id: stable_vault::ID,
             accounts: accounts.to_account_metas(None),
@@ -181,17 +186,16 @@ pub mod stable {
 
     pub fn build_sweep_creator_fees_ix(
         pdas: &StableVaultPdas,
-        authority: Pubkey,
+        keeper_authority: Pubkey,
         fee_source: Pubkey,
         creator_vault: Pubkey,
         rewards_pool: Pubkey,
         rewards_treasury: Pubkey,
         amount: u64,
-        sol_rewards_bps: u16,
     ) -> Instruction {
         let accounts = stable_accounts::SweepCreatorFees {
             stable_vault: pdas.stable_vault,
-            authority,
+            keeper_authority,
             fee_source,
             creator_vault,
             rewards_pool,
@@ -200,11 +204,7 @@ pub mod stable {
             rewards_program: rewards_vault::ID,
             system_program: system_program::ID,
         };
-        let data = stable_ix::SweepCreatorFees {
-            amount,
-            sol_rewards_bps,
-        }
-        .data();
+        let data = stable_ix::SweepCreatorFees { amount }.data();
         Instruction {
             program_id: stable_vault::ID,
             accounts: accounts.to_account_metas(None),
@@ -214,7 +214,7 @@ pub mod stable {
 
     pub fn build_process_conversion_ix(
         pdas: &StableVaultPdas,
-        authority: Pubkey,
+        keeper_authority: Pubkey,
         conversion_authority: Pubkey,
         stable_mint: Pubkey,
         conversion_source: Pubkey,
@@ -223,7 +223,7 @@ pub mod stable {
     ) -> Instruction {
         let accounts = stable_accounts::ProcessConversion {
             stable_vault: pdas.stable_vault,
-            authority,
+            keeper_authority,
             conversion_authority,
             stable_mint,
             treasury: pdas.treasury,
@@ -270,9 +270,10 @@ pub mod stable {
             authority: &Keypair,
             stable_mint: Pubkey,
             accepted_mints: Vec<Pubkey>,
+            admin: Pubkey,
         ) -> Result<StableVaultPdas> {
             let (ix, pdas) =
-                build_initialize_vault_ix(authority.pubkey(), stable_mint, accepted_mints);
+                build_initialize_vault_ix(authority.pubkey(), stable_mint, accepted_mints, admin);
             self.program
                 .request()
                 .instruction(ix)
@@ -325,29 +326,27 @@ pub mod stable {
 
         pub fn sweep_creator_fees(
             &self,
-            authority: &Keypair,
+            keeper_authority: &Keypair,
             fee_source: &Keypair,
             pdas: &StableVaultPdas,
             creator_vault: Pubkey,
             rewards_pool: Pubkey,
             rewards_treasury: Pubkey,
             amount: u64,
-            sol_rewards_bps: u16,
         ) -> Result<()> {
             let ix = build_sweep_creator_fees_ix(
                 pdas,
-                authority.pubkey(),
+                keeper_authority.pubkey(),
                 fee_source.pubkey(),
                 creator_vault,
                 rewards_pool,
                 rewards_treasury,
                 amount,
-                sol_rewards_bps,
             );
             self.program
                 .request()
                 .instruction(ix)
-                .signer(authority)
+                .signer(keeper_authority)
                 .signer(fee_source)
                 .send()?;
             Ok(())
@@ -355,7 +354,7 @@ pub mod stable {
 
         pub fn process_conversion(
             &self,
-            authority: &Keypair,
+            keeper_authority: &Keypair,
             conversion_authority: &Keypair,
             pdas: &StableVaultPdas,
             stable_mint: Pubkey,
@@ -365,7 +364,7 @@ pub mod stable {
         ) -> Result<()> {
             let ix = build_process_conversion_ix(
                 pdas,
-                authority.pubkey(),
+                keeper_authority.pubkey(),
                 conversion_authority.pubkey(),
                 stable_mint,
                 conversion_source,
@@ -375,8 +374,83 @@ pub mod stable {
             self.program
                 .request()
                 .instruction(ix)
-                .signer(authority)
+                .signer(keeper_authority)
                 .signer(conversion_authority)
+                .send()?;
+            Ok(())
+        }
+
+        pub fn update_admin(
+            &self,
+            admin: &Keypair,
+            pdas: &StableVaultPdas,
+            new_admin: Pubkey,
+        ) -> Result<()> {
+            let accounts = stable_accounts::UpdateAdmin {
+                stable_vault: pdas.stable_vault,
+                admin: admin.pubkey(),
+            };
+            let data = stable_ix::UpdateAdmin { new_admin }.data();
+            let ix = Instruction {
+                program_id: stable_vault::ID,
+                accounts: accounts.to_account_metas(None),
+                data,
+            };
+            self.program
+                .request()
+                .instruction(ix)
+                .signer(admin)
+                .send()?;
+            Ok(())
+        }
+
+        pub fn update_keeper_authority(
+            &self,
+            authority: &Keypair,
+            pdas: &StableVaultPdas,
+            new_keeper: Pubkey,
+        ) -> Result<()> {
+            let accounts = stable_accounts::UpdateKeeperAuthority {
+                stable_vault: pdas.stable_vault,
+                authority: authority.pubkey(),
+            };
+            let data = stable_ix::UpdateKeeperAuthority { new_keeper }.data();
+            let ix = Instruction {
+                program_id: stable_vault::ID,
+                accounts: accounts.to_account_metas(None),
+                data,
+            };
+            self.program
+                .request()
+                .instruction(ix)
+                .signer(authority)
+                .send()?;
+            Ok(())
+        }
+
+        pub fn update_emergency_admin(
+            &self,
+            admin: &Keypair,
+            pdas: &StableVaultPdas,
+            new_emergency_admin: Option<Pubkey>,
+        ) -> Result<()> {
+            let accounts = stable_accounts::UpdateEmergencyAdmin {
+                stable_vault: pdas.stable_vault,
+                admin: admin.pubkey(),
+            };
+            let data = stable_ix::UpdateEmergencyAdmin {
+                new_emergency_admin,
+            }
+            .data();
+            let ix = Instruction {
+                program_id: stable_vault::ID,
+                accounts: accounts.to_account_metas(None),
+                data,
+            };
+            self.program
+                .request()
+                .instruction(ix)
+                .signer(admin)
                 .send()?;
             Ok(())
         }
@@ -523,14 +597,14 @@ pub mod rewards {
     pub fn build_fund_rewards_ix(
         creator_vault: Pubkey,
         rewards_pool: Pubkey,
-        funding_source: Pubkey,
+        allowed_funder: Pubkey,
         sol_treasury: Pubkey,
         amount: u64,
     ) -> Instruction {
         let accounts = rewards_accounts::FundRewards {
             creator_vault,
             rewards_pool,
-            funding_source,
+            allowed_funder,
             sol_treasury,
             system_program: system_program::ID,
         };
@@ -591,6 +665,73 @@ pub mod rewards {
             system_program: system_program::ID,
         };
         let data = rewards_ix::ClaimRewards {}.data();
+        Instruction {
+            program_id: rewards_vault::ID,
+            accounts: accounts.to_account_metas(None),
+            data,
+        }
+    }
+
+    pub fn build_update_allowed_funder_ix(
+        rewards_pool: Pubkey,
+        admin: Pubkey,
+        new_allowed_funder: Pubkey,
+    ) -> Instruction {
+        let accounts = rewards_accounts::UpdateAllowedFunder {
+            rewards_pool,
+            admin,
+        };
+        let data = rewards_ix::UpdateAllowedFunder { new_allowed_funder }.data();
+        Instruction {
+            program_id: rewards_vault::ID,
+            accounts: accounts.to_account_metas(None),
+            data,
+        }
+    }
+
+    pub fn build_update_reward_bps_ix(
+        rewards_pool: Pubkey,
+        admin: Pubkey,
+        reward_bps: u16,
+    ) -> Instruction {
+        let accounts = rewards_accounts::UpdateRewardBps {
+            rewards_pool,
+            admin,
+        };
+        let data = rewards_ix::UpdateRewardBps {
+            new_reward_bps: reward_bps,
+        }
+        .data();
+        Instruction {
+            program_id: rewards_vault::ID,
+            accounts: accounts.to_account_metas(None),
+            data,
+        }
+    }
+
+    pub fn build_update_admin_ix(
+        rewards_pool: Pubkey,
+        admin: Pubkey,
+        new_admin: Pubkey,
+    ) -> Instruction {
+        let accounts = rewards_accounts::UpdateAdmin {
+            rewards_pool,
+            admin,
+        };
+        let data = rewards_ix::UpdateAdmin { new_admin }.data();
+        Instruction {
+            program_id: rewards_vault::ID,
+            accounts: accounts.to_account_metas(None),
+            data,
+        }
+    }
+
+    pub fn build_set_pause_ix(rewards_pool: Pubkey, admin: Pubkey, paused: bool) -> Instruction {
+        let accounts = rewards_accounts::SetPause {
+            rewards_pool,
+            admin,
+        };
+        let data = rewards_ix::SetPause { paused }.data();
         Instruction {
             program_id: rewards_vault::ID,
             accounts: accounts.to_account_metas(None),
@@ -733,20 +874,84 @@ pub mod rewards {
             &self,
             creator_vault: Pubkey,
             pdas: &RewardsVaultPdas,
-            funding_source: &Keypair,
+            allowed_funder: &Keypair,
             amount: u64,
         ) -> Result<()> {
             let ix = build_fund_rewards_ix(
                 creator_vault,
                 pdas.rewards_pool,
-                funding_source.pubkey(),
+                allowed_funder.pubkey(),
                 pdas.sol_treasury,
                 amount,
             );
             self.program
                 .request()
                 .instruction(ix)
-                .signer(funding_source)
+                .signer(allowed_funder)
+                .send()?;
+            Ok(())
+        }
+
+        pub fn update_allowed_funder(
+            &self,
+            admin: &Keypair,
+            pdas: &RewardsVaultPdas,
+            new_allowed_funder: Pubkey,
+        ) -> Result<()> {
+            let ix = build_update_allowed_funder_ix(
+                pdas.rewards_pool,
+                admin.pubkey(),
+                new_allowed_funder,
+            );
+            self.program
+                .request()
+                .instruction(ix)
+                .signer(admin)
+                .send()?;
+            Ok(())
+        }
+
+        pub fn update_reward_bps(
+            &self,
+            admin: &Keypair,
+            pdas: &RewardsVaultPdas,
+            reward_bps: u16,
+        ) -> Result<()> {
+            let ix = build_update_reward_bps_ix(pdas.rewards_pool, admin.pubkey(), reward_bps);
+            self.program
+                .request()
+                .instruction(ix)
+                .signer(admin)
+                .send()?;
+            Ok(())
+        }
+
+        pub fn update_admin(
+            &self,
+            admin: &Keypair,
+            pdas: &RewardsVaultPdas,
+            new_admin: Pubkey,
+        ) -> Result<()> {
+            let ix = build_update_admin_ix(pdas.rewards_pool, admin.pubkey(), new_admin);
+            self.program
+                .request()
+                .instruction(ix)
+                .signer(admin)
+                .send()?;
+            Ok(())
+        }
+
+        pub fn set_pause(
+            &self,
+            admin: &Keypair,
+            pdas: &RewardsVaultPdas,
+            paused: bool,
+        ) -> Result<()> {
+            let ix = build_set_pause_ix(pdas.rewards_pool, admin.pubkey(), paused);
+            self.program
+                .request()
+                .instruction(ix)
+                .signer(admin)
                 .send()?;
             Ok(())
         }
@@ -774,6 +979,10 @@ pub mod creator {
         pub splitter_program: Pubkey,
         pub total_fees_collected: u64,
         pub total_sy_minted: u64,
+        pub admin: Pubkey,
+        pub sol_rewards_bps: u16,
+        pub paused: bool,
+        pub padding: [u8; 5],
     }
 
     #[derive(Debug, Clone)]
@@ -824,6 +1033,7 @@ pub mod creator {
         pump_mint: Pubkey,
         quote_mint: Pubkey,
         splitter_program: Pubkey,
+        admin: Pubkey,
     ) -> (Instruction, CreatorVaultPdas) {
         let pdas = derive_pdas(&pump_mint);
         let accounts = creator_accounts::InitializeVault {
@@ -838,7 +1048,11 @@ pub mod creator {
             token_program: token::ID,
             rent: sysvar::rent::ID,
         };
-        let data = creator_ix::InitializeVault { splitter_program }.data();
+        let data = creator_ix::InitializeVault {
+            splitter_program,
+            admin,
+        }
+        .data();
         (
             Instruction {
                 program_id: creator_vault::ID,
@@ -847,6 +1061,53 @@ pub mod creator {
             },
             pdas,
         )
+    }
+
+    pub fn build_set_rewards_split_ix(
+        creator_vault: Pubkey,
+        admin: Pubkey,
+        sol_rewards_bps: u16,
+    ) -> Instruction {
+        let accounts = creator_accounts::SetRewardsSplit {
+            creator_vault,
+            admin,
+        };
+        let data = creator_ix::SetRewardsSplit { sol_rewards_bps }.data();
+        Instruction {
+            program_id: creator_vault::ID,
+            accounts: accounts.to_account_metas(None),
+            data,
+        }
+    }
+
+    pub fn build_update_admin_ix(
+        creator_vault: Pubkey,
+        admin: Pubkey,
+        new_admin: Pubkey,
+    ) -> Instruction {
+        let accounts = creator_accounts::UpdateAdmin {
+            creator_vault,
+            admin,
+        };
+        let data = creator_ix::UpdateAdmin { new_admin }.data();
+        Instruction {
+            program_id: creator_vault::ID,
+            accounts: accounts.to_account_metas(None),
+            data,
+        }
+    }
+
+    pub fn build_set_pause_ix(creator_vault: Pubkey, admin: Pubkey, paused: bool) -> Instruction {
+        let accounts = creator_accounts::SetPause {
+            creator_vault,
+            admin,
+        };
+        let data = creator_ix::SetPause { paused }.data();
+        Instruction {
+            program_id: creator_vault::ID,
+            accounts: accounts.to_account_metas(None),
+            data,
+        }
     }
 
     pub fn build_wrap_fees_ix(

@@ -3,11 +3,17 @@ use anchor_spl::token::{self, Mint, MintTo, Token, TokenAccount, Transfer};
 
 declare_id!("HPjEgPTb7rrBks1oFrscBdJ7TCZ7bARzCT93X9azCK4b");
 
+const TOTAL_BPS: u64 = 10_000;
+
 #[program]
 pub mod creator_vault {
     use super::*;
 
-    pub fn initialize_vault(ctx: Context<InitializeVault>, splitter_program: Pubkey) -> Result<()> {
+    pub fn initialize_vault(
+        ctx: Context<InitializeVault>,
+        splitter_program: Pubkey,
+        admin: Pubkey,
+    ) -> Result<()> {
         let vault = &mut ctx.accounts.creator_vault;
         let bumps = &ctx.bumps;
         vault.bump = bumps.creator_vault;
@@ -21,16 +27,24 @@ pub mod creator_vault {
         vault.splitter_program = splitter_program;
         vault.total_fees_collected = 0;
         vault.total_sy_minted = 0;
+        require!(admin != Pubkey::default(), AttnError::InvalidAdmin);
+        vault.admin = admin;
+        vault.sol_rewards_bps = 0;
+        vault.paused = false;
         emit!(VaultInitialized {
+            creator_vault: vault.key(),
             pump_mint: vault.pump_mint,
             quote_mint: vault.quote_mint,
             sy_mint: vault.sy_mint,
+            admin,
         });
         Ok(())
     }
 
     pub fn wrap_fees(ctx: Context<WrapFees>, amount: u64) -> Result<()> {
         require!(amount > 0, AttnError::InvalidAmount);
+
+        require!(!ctx.accounts.creator_vault.paused, AttnError::VaultPaused);
 
         let transfer_accounts = Transfer {
             from: ctx.accounts.user_quote_ata.to_account_info(),
@@ -92,6 +106,7 @@ pub mod creator_vault {
             vault.splitter_program != Pubkey::default(),
             AttnError::SplitterProgramUnset
         );
+        require!(!vault.paused, AttnError::VaultPaused);
 
         msg!(
             "mint_for_splitter: vault={}, amount={}, authority={}",
@@ -143,6 +158,7 @@ pub mod creator_vault {
             vault.splitter_program != Pubkey::default(),
             AttnError::SplitterProgramUnset
         );
+        require!(!vault.paused, AttnError::VaultPaused);
 
         let expected_authority = Pubkey::find_program_address(
             &[b"splitter-authority", vault.key().as_ref()],
@@ -178,6 +194,55 @@ pub mod creator_vault {
         );
         token::transfer(cpi_ctx, amount)?;
 
+        Ok(())
+    }
+
+    pub fn set_rewards_split(ctx: Context<SetRewardsSplit>, sol_rewards_bps: u16) -> Result<()> {
+        require!(sol_rewards_bps as u64 <= TOTAL_BPS, AttnError::InvalidBps);
+        let vault = &mut ctx.accounts.creator_vault;
+        require_keys_eq!(
+            vault.admin,
+            ctx.accounts.admin.key(),
+            AttnError::UnauthorizedAdmin
+        );
+        vault.sol_rewards_bps = sol_rewards_bps;
+        emit!(RewardsSplitUpdated {
+            creator_vault: vault.key(),
+            sol_rewards_bps,
+        });
+        Ok(())
+    }
+
+    pub fn update_admin(ctx: Context<UpdateAdmin>, new_admin: Pubkey) -> Result<()> {
+        require!(new_admin != Pubkey::default(), AttnError::InvalidAdmin);
+        let vault = &mut ctx.accounts.creator_vault;
+        require_keys_eq!(
+            vault.admin,
+            ctx.accounts.admin.key(),
+            AttnError::UnauthorizedAdmin
+        );
+        let previous_admin = vault.admin;
+        vault.admin = new_admin;
+        emit!(AdminUpdated {
+            creator_vault: vault.key(),
+            previous_admin,
+            new_admin,
+        });
+        Ok(())
+    }
+
+    pub fn set_pause(ctx: Context<SetPause>, paused: bool) -> Result<()> {
+        let vault = &mut ctx.accounts.creator_vault;
+        require_keys_eq!(
+            vault.admin,
+            ctx.accounts.admin.key(),
+            AttnError::UnauthorizedAdmin
+        );
+        vault.paused = paused;
+        emit!(VaultPauseToggled {
+            creator_vault: vault.key(),
+            paused,
+        });
         Ok(())
     }
 }
@@ -274,6 +339,27 @@ pub struct TransferFeesForSplitter<'info> {
     pub token_program: Program<'info, Token>,
 }
 
+#[derive(Accounts)]
+pub struct SetRewardsSplit<'info> {
+    #[account(mut, has_one = admin)]
+    pub creator_vault: Account<'info, CreatorVault>,
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateAdmin<'info> {
+    #[account(mut, has_one = admin)]
+    pub creator_vault: Account<'info, CreatorVault>,
+    pub admin: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct SetPause<'info> {
+    #[account(mut, has_one = admin)]
+    pub creator_vault: Account<'info, CreatorVault>,
+    pub admin: Signer<'info>,
+}
+
 #[account]
 pub struct CreatorVault {
     pub bump: u8,
@@ -287,17 +373,23 @@ pub struct CreatorVault {
     pub splitter_program: Pubkey,
     pub total_fees_collected: u64,
     pub total_sy_minted: u64,
+    pub admin: Pubkey,
+    pub sol_rewards_bps: u16,
+    pub paused: bool,
+    pub padding: [u8; 5],
 }
 
 impl CreatorVault {
-    pub const INIT_SPACE: usize = 1 + 1 + 1 + 32 + 32 + 32 + 32 + 32 + 32 + 8 + 8;
+    pub const INIT_SPACE: usize = 1 + 1 + 1 + 32 + 32 + 32 + 32 + 32 + 32 + 8 + 8 + 32 + 2 + 1 + 5;
 }
 
 #[event]
 pub struct VaultInitialized {
+    pub creator_vault: Pubkey,
     pub pump_mint: Pubkey,
     pub quote_mint: Pubkey,
     pub sy_mint: Pubkey,
+    pub admin: Pubkey,
 }
 
 #[event]
@@ -305,6 +397,25 @@ pub struct SyMinted {
     pub user: Pubkey,
     pub pump_mint: Pubkey,
     pub amount: u64,
+}
+
+#[event]
+pub struct RewardsSplitUpdated {
+    pub creator_vault: Pubkey,
+    pub sol_rewards_bps: u16,
+}
+
+#[event]
+pub struct AdminUpdated {
+    pub creator_vault: Pubkey,
+    pub previous_admin: Pubkey,
+    pub new_admin: Pubkey,
+}
+
+#[event]
+pub struct VaultPauseToggled {
+    pub creator_vault: Pubkey,
+    pub paused: bool,
 }
 
 #[error_code]
@@ -319,4 +430,12 @@ pub enum AttnError {
     UnauthorizedSplitter,
     #[msg("Fee vault address mismatch")]
     InvalidFeeVault,
+    #[msg("Unauthorized admin")]
+    UnauthorizedAdmin,
+    #[msg("Invalid admin public key")]
+    InvalidAdmin,
+    #[msg("Invalid basis points")]
+    InvalidBps,
+    #[msg("Vault is paused")]
+    VaultPaused,
 }

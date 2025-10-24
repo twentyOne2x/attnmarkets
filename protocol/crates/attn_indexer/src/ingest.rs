@@ -102,6 +102,42 @@ async fn handle_logs(
                     persist_fee_collected(pool.clone(), event.signature.clone(), slot, data)
                         .await?;
             }
+            "VaultInitialized" => {
+                let data: VaultInitializedEvent = serde_json::from_value(event.data.clone())?;
+                processed |= persist_creator_vault_initialized(
+                    pool.clone(),
+                    event.signature.clone(),
+                    slot,
+                    data,
+                )
+                .await?;
+            }
+            "RewardsSplitUpdated" => {
+                let data: RewardsSplitUpdatedEvent = serde_json::from_value(event.data.clone())?;
+                processed |= persist_creator_rewards_split(
+                    pool.clone(),
+                    event.signature.clone(),
+                    slot,
+                    data,
+                )
+                .await?;
+            }
+            "AdminUpdated" => {
+                let data: CreatorAdminUpdatedEvent = serde_json::from_value(event.data.clone())?;
+                processed |= persist_creator_admin_updated(
+                    pool.clone(),
+                    event.signature.clone(),
+                    slot,
+                    data,
+                )
+                .await?;
+            }
+            "VaultPauseToggled" => {
+                let data: VaultPauseToggledEvent = serde_json::from_value(event.data.clone())?;
+                processed |=
+                    persist_creator_pause(pool.clone(), event.signature.clone(), slot, data)
+                        .await?;
+            }
             "RewardsPoolInitialized" => {
                 let data: RewardsPoolInitializedEvent = serde_json::from_value(event.data.clone())?;
                 processed |= persist_rewards_pool_initialized(
@@ -134,6 +170,77 @@ async fn handle_logs(
                 let data: RewardsClaimedEvent = serde_json::from_value(event.data.clone())?;
                 processed |=
                     persist_rewards_claimed(pool.clone(), event.signature.clone(), slot, data)
+                        .await?;
+            }
+            "AllowedFunderUpdated" => {
+                let data: AllowedFunderUpdatedEvent = serde_json::from_value(event.data.clone())?;
+                processed |= persist_rewards_allowed_funder(
+                    pool.clone(),
+                    event.signature.clone(),
+                    slot,
+                    data,
+                )
+                .await?;
+            }
+            "RewardBpsUpdated" => {
+                let data: RewardBpsUpdatedEvent = serde_json::from_value(event.data.clone())?;
+                processed |=
+                    persist_rewards_reward_bps(pool.clone(), event.signature.clone(), slot, data)
+                        .await?;
+            }
+            "RewardsAdminUpdated" => {
+                let data: RewardsAdminUpdatedEvent = serde_json::from_value(event.data.clone())?;
+                processed |= persist_rewards_admin_updated(
+                    pool.clone(),
+                    event.signature.clone(),
+                    slot,
+                    data,
+                )
+                .await?;
+            }
+            "RewardsPoolPaused" => {
+                let data: RewardsPoolPausedEvent = serde_json::from_value(event.data.clone())?;
+                processed |=
+                    persist_rewards_paused(pool.clone(), event.signature.clone(), slot, data)
+                        .await?;
+            }
+            "StableVaultInitialized" => {
+                let data: StableVaultInitializedEvent = serde_json::from_value(event.data.clone())?;
+                processed |= persist_stable_vault_initialized(
+                    pool.clone(),
+                    event.signature.clone(),
+                    slot,
+                    data,
+                )
+                .await?;
+            }
+            "StableVaultAdminUpdated" => {
+                let data: StableVaultAdminUpdatedEvent =
+                    serde_json::from_value(event.data.clone())?;
+                processed |=
+                    persist_stable_admin_updated(pool.clone(), event.signature.clone(), slot, data)
+                        .await?;
+            }
+            "KeeperAuthorityUpdated" => {
+                let data: KeeperAuthorityUpdatedEvent = serde_json::from_value(event.data.clone())?;
+                processed |= persist_keeper_authority_updated(
+                    pool.clone(),
+                    event.signature.clone(),
+                    slot,
+                    data,
+                )
+                .await?;
+            }
+            "CreatorFeesSwept" => {
+                let data: CreatorFeesSweptEvent = serde_json::from_value(event.data.clone())?;
+                processed |=
+                    persist_creator_fees_swept(pool.clone(), event.signature.clone(), slot, data)
+                        .await?;
+            }
+            "ConversionProcessed" => {
+                let data: ConversionProcessedEvent = serde_json::from_value(event.data.clone())?;
+                processed |=
+                    persist_conversion_processed(pool.clone(), event.signature.clone(), slot, data)
                         .await?;
             }
             _ => {}
@@ -269,6 +376,93 @@ struct RewardsClaimedEvent {
     pub pool: String,
     pub user: String,
     pub amount: u64,
+}
+
+#[derive(Debug, Deserialize)]
+struct VaultInitializedEvent {
+    pub creator_vault: String,
+    pub pump_mint: String,
+    pub quote_mint: String,
+    pub sy_mint: String,
+    pub admin: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct RewardsSplitUpdatedEvent {
+    pub creator_vault: String,
+    pub sol_rewards_bps: u16,
+}
+
+#[derive(Debug, Deserialize)]
+struct CreatorAdminUpdatedEvent {
+    pub creator_vault: String,
+    pub previous_admin: String,
+    pub new_admin: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct VaultPauseToggledEvent {
+    pub creator_vault: String,
+    pub paused: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct AllowedFunderUpdatedEvent {
+    pub pool: String,
+    pub allowed_funder: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct RewardBpsUpdatedEvent {
+    pub pool: String,
+    pub reward_bps: u16,
+}
+
+#[derive(Debug, Deserialize)]
+struct RewardsAdminUpdatedEvent {
+    pub pool: String,
+    pub previous_admin: String,
+    pub new_admin: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct RewardsPoolPausedEvent {
+    pub pool: String,
+    pub paused: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct StableVaultInitializedEvent {
+    pub stable_vault: String,
+    pub authority: String,
+    pub share_mint: String,
+    pub stable_mint: String,
+    pub admin: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct StableVaultAdminUpdatedEvent {
+    pub stable_vault: String,
+    pub previous_admin: String,
+    pub new_admin: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct KeeperAuthorityUpdatedEvent {
+    pub stable_vault: String,
+    pub keeper_authority: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct CreatorFeesSweptEvent {
+    pub stable_vault: String,
+    pub pending_sol: u64,
+}
+
+#[derive(Debug, Deserialize)]
+struct ConversionProcessedEvent {
+    pub stable_vault: String,
+    pub pending_sol: u64,
 }
 
 fn decode_sol_index(value: &str) -> Result<f64> {
@@ -621,4 +815,583 @@ async fn persist_rewards_claimed(
     .await?;
 
     Ok(insert_result.rows_affected() > 0)
+}
+
+async fn persist_creator_vault_initialized(
+    pool: Arc<PgPool>,
+    signature: String,
+    slot: u64,
+    event: VaultInitializedEvent,
+) -> Result<bool> {
+    let insert_result = sqlx::query(
+        r#"
+        insert into events (sig, slot, program, kind, payload)
+        values ($1, $2, $3, $4, $5)
+        on conflict (sig) do nothing
+        "#,
+    )
+    .bind(&signature)
+    .bind(slot as i64)
+    .bind("creator_vault")
+    .bind("creator_initialized")
+    .bind(json!({
+        "creator_vault": event.creator_vault,
+        "pump_mint": event.pump_mint,
+        "quote_mint": event.quote_mint,
+        "sy_mint": event.sy_mint,
+        "admin": event.admin,
+    }))
+    .execute(pool.as_ref())
+    .await?;
+
+    if insert_result.rows_affected() == 0 {
+        return Ok(false);
+    }
+
+    sqlx::query(
+        r#"
+        insert into creator_vaults (pump_mint, vault_pubkey, total_fees_lamports, total_sy, last_slot, admin, sol_rewards_bps, paused, sy_mint, updated_at)
+        values ($1, $2, 0, 0, $3, $4, 0, false, $5, now())
+        on conflict (pump_mint)
+        do update set
+            vault_pubkey = EXCLUDED.vault_pubkey,
+            admin = EXCLUDED.admin,
+            sy_mint = EXCLUDED.sy_mint,
+            updated_at = now()
+        "#,
+    )
+    .bind(&event.pump_mint)
+    .bind(&event.creator_vault)
+    .bind(slot as i64)
+    .bind(&event.admin)
+    .bind(&event.sy_mint)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(true)
+}
+
+async fn persist_creator_rewards_split(
+    pool: Arc<PgPool>,
+    signature: String,
+    slot: u64,
+    event: RewardsSplitUpdatedEvent,
+) -> Result<bool> {
+    let insert_result = sqlx::query(
+        r#"
+        insert into events (sig, slot, program, kind, payload)
+        values ($1, $2, $3, $4, $5)
+        on conflict (sig) do nothing
+        "#,
+    )
+    .bind(&signature)
+    .bind(slot as i64)
+    .bind("creator_vault")
+    .bind("creator_rewards_split")
+    .bind(json!({
+        "creator_vault": event.creator_vault,
+        "sol_rewards_bps": event.sol_rewards_bps,
+    }))
+    .execute(pool.as_ref())
+    .await?;
+
+    if insert_result.rows_affected() == 0 {
+        return Ok(false);
+    }
+
+    sqlx::query(
+        r#"
+        update creator_vaults
+        set sol_rewards_bps = $1, updated_at = now()
+        where vault_pubkey = $2
+        "#,
+    )
+    .bind(event.sol_rewards_bps as i32)
+    .bind(&event.creator_vault)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(true)
+}
+
+async fn persist_creator_admin_updated(
+    pool: Arc<PgPool>,
+    signature: String,
+    slot: u64,
+    event: CreatorAdminUpdatedEvent,
+) -> Result<bool> {
+    let insert_result = sqlx::query(
+        r#"
+        insert into events (sig, slot, program, kind, payload)
+        values ($1, $2, $3, $4, $5)
+        on conflict (sig) do nothing
+        "#,
+    )
+    .bind(&signature)
+    .bind(slot as i64)
+    .bind("creator_vault")
+    .bind("creator_admin_updated")
+    .bind(json!({
+        "creator_vault": event.creator_vault,
+        "previous_admin": event.previous_admin,
+        "new_admin": event.new_admin,
+    }))
+    .execute(pool.as_ref())
+    .await?;
+
+    if insert_result.rows_affected() == 0 {
+        return Ok(false);
+    }
+
+    sqlx::query(
+        r#"
+        update creator_vaults
+        set admin = $1, updated_at = now()
+        where vault_pubkey = $2
+        "#,
+    )
+    .bind(&event.new_admin)
+    .bind(&event.creator_vault)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(true)
+}
+
+async fn persist_creator_pause(
+    pool: Arc<PgPool>,
+    signature: String,
+    slot: u64,
+    event: VaultPauseToggledEvent,
+) -> Result<bool> {
+    let insert_result = sqlx::query(
+        r#"
+        insert into events (sig, slot, program, kind, payload)
+        values ($1, $2, $3, $4, $5)
+        on conflict (sig) do nothing
+        "#,
+    )
+    .bind(&signature)
+    .bind(slot as i64)
+    .bind("creator_vault")
+    .bind("creator_paused")
+    .bind(json!({
+        "creator_vault": event.creator_vault,
+        "paused": event.paused,
+    }))
+    .execute(pool.as_ref())
+    .await?;
+
+    if insert_result.rows_affected() == 0 {
+        return Ok(false);
+    }
+
+    sqlx::query(
+        r#"
+        update creator_vaults
+        set paused = $1, updated_at = now()
+        where vault_pubkey = $2
+        "#,
+    )
+    .bind(event.paused)
+    .bind(&event.creator_vault)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(true)
+}
+
+async fn persist_rewards_allowed_funder(
+    pool: Arc<PgPool>,
+    signature: String,
+    slot: u64,
+    event: AllowedFunderUpdatedEvent,
+) -> Result<bool> {
+    let insert_result = sqlx::query(
+        r#"
+        insert into events (sig, slot, program, kind, payload)
+        values ($1, $2, $3, $4, $5)
+        on conflict (sig) do nothing
+        "#,
+    )
+    .bind(&signature)
+    .bind(slot as i64)
+    .bind("rewards_vault")
+    .bind("rewards_allowed_funder")
+    .bind(json!({
+        "pool": event.pool,
+        "allowed_funder": event.allowed_funder,
+    }))
+    .execute(pool.as_ref())
+    .await?;
+
+    if insert_result.rows_affected() == 0 {
+        return Ok(false);
+    }
+
+    sqlx::query(
+        r#"
+        update rewards_pools
+        set allowed_funder = $1, updated_at = now()
+        where rewards_pool = $2
+        "#,
+    )
+    .bind(&event.allowed_funder)
+    .bind(&event.pool)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(true)
+}
+
+async fn persist_rewards_reward_bps(
+    pool: Arc<PgPool>,
+    signature: String,
+    slot: u64,
+    event: RewardBpsUpdatedEvent,
+) -> Result<bool> {
+    let insert_result = sqlx::query(
+        r#"
+        insert into events (sig, slot, program, kind, payload)
+        values ($1, $2, $3, $4, $5)
+        on conflict (sig) do nothing
+        "#,
+    )
+    .bind(&signature)
+    .bind(slot as i64)
+    .bind("rewards_vault")
+    .bind("rewards_bps_updated")
+    .bind(json!({
+        "pool": event.pool,
+        "reward_bps": event.reward_bps,
+    }))
+    .execute(pool.as_ref())
+    .await?;
+
+    if insert_result.rows_affected() == 0 {
+        return Ok(false);
+    }
+
+    sqlx::query(
+        r#"
+        update rewards_pools
+        set reward_bps = $1, updated_at = now()
+        where rewards_pool = $2
+        "#,
+    )
+    .bind(event.reward_bps as i32)
+    .bind(&event.pool)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(true)
+}
+
+async fn persist_rewards_admin_updated(
+    pool: Arc<PgPool>,
+    signature: String,
+    slot: u64,
+    event: RewardsAdminUpdatedEvent,
+) -> Result<bool> {
+    let insert_result = sqlx::query(
+        r#"
+        insert into events (sig, slot, program, kind, payload)
+        values ($1, $2, $3, $4, $5)
+        on conflict (sig) do nothing
+        "#,
+    )
+    .bind(&signature)
+    .bind(slot as i64)
+    .bind("rewards_vault")
+    .bind("rewards_admin_updated")
+    .bind(json!({
+        "pool": event.pool,
+        "previous_admin": event.previous_admin,
+        "new_admin": event.new_admin,
+    }))
+    .execute(pool.as_ref())
+    .await?;
+
+    if insert_result.rows_affected() == 0 {
+        return Ok(false);
+    }
+
+    sqlx::query(
+        r#"
+        update rewards_pools
+        set admin = $1, updated_at = now()
+        where rewards_pool = $2
+        "#,
+    )
+    .bind(&event.new_admin)
+    .bind(&event.pool)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(true)
+}
+
+async fn persist_rewards_paused(
+    pool: Arc<PgPool>,
+    signature: String,
+    slot: u64,
+    event: RewardsPoolPausedEvent,
+) -> Result<bool> {
+    let insert_result = sqlx::query(
+        r#"
+        insert into events (sig, slot, program, kind, payload)
+        values ($1, $2, $3, $4, $5)
+        on conflict (sig) do nothing
+        "#,
+    )
+    .bind(&signature)
+    .bind(slot as i64)
+    .bind("rewards_vault")
+    .bind("rewards_paused")
+    .bind(json!({
+        "pool": event.pool,
+        "paused": event.paused,
+    }))
+    .execute(pool.as_ref())
+    .await?;
+
+    if insert_result.rows_affected() == 0 {
+        return Ok(false);
+    }
+
+    sqlx::query(
+        r#"
+        update rewards_pools
+        set paused = $1, updated_at = now()
+        where rewards_pool = $2
+        "#,
+    )
+    .bind(event.paused)
+    .bind(&event.pool)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(true)
+}
+
+async fn persist_stable_vault_initialized(
+    pool: Arc<PgPool>,
+    signature: String,
+    slot: u64,
+    event: StableVaultInitializedEvent,
+) -> Result<bool> {
+    let insert_result = sqlx::query(
+        r#"
+        insert into events (sig, slot, program, kind, payload)
+        values ($1, $2, $3, $4, $5)
+        on conflict (sig) do nothing
+        "#,
+    )
+    .bind(&signature)
+    .bind(slot as i64)
+    .bind("stable_vault")
+    .bind("stable_initialized")
+    .bind(json!({
+        "stable_vault": event.stable_vault,
+        "authority": event.authority,
+        "share_mint": event.share_mint,
+        "stable_mint": event.stable_mint,
+        "admin": event.admin,
+    }))
+    .execute(pool.as_ref())
+    .await?;
+
+    if insert_result.rows_affected() == 0 {
+        return Ok(false);
+    }
+
+    sqlx::query(
+        r#"
+        insert into stable_vaults (stable_vault, authority_seed, admin, keeper_authority, share_mint, stable_mint, pending_sol_lamports, updated_at)
+        values ($1, $2, $3, $2, $4, $5, 0, now())
+        on conflict (stable_vault)
+        do update set
+            authority_seed = EXCLUDED.authority_seed,
+            admin = EXCLUDED.admin,
+            keeper_authority = EXCLUDED.keeper_authority,
+            share_mint = EXCLUDED.share_mint,
+            stable_mint = EXCLUDED.stable_mint,
+            updated_at = now()
+        "#,
+    )
+    .bind(&event.stable_vault)
+    .bind(&event.authority)
+    .bind(&event.admin)
+    .bind(&event.share_mint)
+    .bind(&event.stable_mint)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(true)
+}
+
+async fn persist_stable_admin_updated(
+    pool: Arc<PgPool>,
+    signature: String,
+    slot: u64,
+    event: StableVaultAdminUpdatedEvent,
+) -> Result<bool> {
+    let insert_result = sqlx::query(
+        r#"
+        insert into events (sig, slot, program, kind, payload)
+        values ($1, $2, $3, $4, $5)
+        on conflict (sig) do nothing
+        "#,
+    )
+    .bind(&signature)
+    .bind(slot as i64)
+    .bind("stable_vault")
+    .bind("stable_admin_updated")
+    .bind(json!({
+        "stable_vault": event.stable_vault,
+        "previous_admin": event.previous_admin,
+        "new_admin": event.new_admin,
+    }))
+    .execute(pool.as_ref())
+    .await?;
+
+    if insert_result.rows_affected() == 0 {
+        return Ok(false);
+    }
+
+    sqlx::query(
+        r#"
+        update stable_vaults
+        set admin = $1, updated_at = now()
+        where stable_vault = $2
+        "#,
+    )
+    .bind(&event.new_admin)
+    .bind(&event.stable_vault)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(true)
+}
+
+async fn persist_keeper_authority_updated(
+    pool: Arc<PgPool>,
+    signature: String,
+    slot: u64,
+    event: KeeperAuthorityUpdatedEvent,
+) -> Result<bool> {
+    let insert_result = sqlx::query(
+        r#"
+        insert into events (sig, slot, program, kind, payload)
+        values ($1, $2, $3, $4, $5)
+        on conflict (sig) do nothing
+        "#,
+    )
+    .bind(&signature)
+    .bind(slot as i64)
+    .bind("stable_vault")
+    .bind("stable_keeper_updated")
+    .bind(json!({
+        "stable_vault": event.stable_vault,
+        "keeper_authority": event.keeper_authority,
+    }))
+    .execute(pool.as_ref())
+    .await?;
+
+    if insert_result.rows_affected() == 0 {
+        return Ok(false);
+    }
+
+    sqlx::query(
+        r#"
+        update stable_vaults
+        set keeper_authority = $1, updated_at = now()
+        where stable_vault = $2
+        "#,
+    )
+    .bind(&event.keeper_authority)
+    .bind(&event.stable_vault)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(true)
+}
+
+async fn persist_stable_pending_sol(
+    pool: Arc<PgPool>,
+    signature: String,
+    slot: u64,
+    stable_vault: String,
+    pending_sol: u64,
+    kind: &'static str,
+) -> Result<bool> {
+    let insert_result = sqlx::query(
+        r#"
+        insert into events (sig, slot, program, kind, payload)
+        values ($1, $2, $3, $4, $5)
+        on conflict (sig) do nothing
+        "#,
+    )
+    .bind(&signature)
+    .bind(slot as i64)
+    .bind("stable_vault")
+    .bind(kind)
+    .bind(json!({
+        "stable_vault": stable_vault,
+        "pending_sol": pending_sol,
+    }))
+    .execute(pool.as_ref())
+    .await?;
+
+    if insert_result.rows_affected() == 0 {
+        return Ok(false);
+    }
+
+    sqlx::query(
+        r#"
+        update stable_vaults
+        set pending_sol_lamports = $1, updated_at = now()
+        where stable_vault = $2
+        "#,
+    )
+    .bind(pending_sol as f64)
+    .bind(stable_vault)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(true)
+}
+
+async fn persist_creator_fees_swept(
+    pool: Arc<PgPool>,
+    signature: String,
+    slot: u64,
+    event: CreatorFeesSweptEvent,
+) -> Result<bool> {
+    persist_stable_pending_sol(
+        pool,
+        signature,
+        slot,
+        event.stable_vault,
+        event.pending_sol,
+        "stable_fees_swept",
+    )
+    .await
+}
+
+async fn persist_conversion_processed(
+    pool: Arc<PgPool>,
+    signature: String,
+    slot: u64,
+    event: ConversionProcessedEvent,
+) -> Result<bool> {
+    persist_stable_pending_sol(
+        pool,
+        signature,
+        slot,
+        event.stable_vault,
+        event.pending_sol,
+        "stable_conversion",
+    )
+    .await
 }
