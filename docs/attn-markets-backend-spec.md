@@ -11,8 +11,8 @@
 - `stable_vault` handles initialize/deposit/redeem plus creator fee sweeping with SOL reward splits into RewardsVault.
 - `rewards_vault` program live with stake/unstake/claim/fund, admin/allowed-funder controls, and property tests (linker crash still environmental).
 - `attn_client` + `attn_cli` expose full rewards builders/commands (initialize, stake, claim, fund) in addition to stable vault flows.
-- `attn_indexer` consumes program logs into Postgres with checkpoints, signature dedupe, and cursor pagination; migrations 001–003 authored.
-- `attn_api` serves `/v1/overview`, `/v1/markets`, `/v1/markets/:id`, `/v1/portfolio/:wallet`, `/v1/attnusd`, `/v1/rewards`, `/v1/rewards/:pool`, `/readyz`, `/version` with weak ETags.
+- `attn_indexer` consumes program logs into Postgres with checkpoints, signature + operation-id dedupe, and cursor pagination; migrations 001–005 (`004_governance.sql`, `005_stable_pause.sql`) authored.
+- `attn_api` serves `/v1/overview`, `/v1/markets`, `/v1/markets/:id`, `/v1/portfolio/:wallet`, `/v1/attnusd`, `/v1/rewards`, `/v1/rewards/:pool`, `/v1/governance`, `/readyz`, `/version` with weak ETags.
 - Localnet E2E script in repo; devnet deploy + Squads migration scheduled next.
 
 ## Monorepo Structure (Rust-centric)
@@ -39,19 +39,19 @@ attnmarkets/
 
 ### 1. CreatorVault Program
 - **Accounts**
-  - `CreatorVault`: main PDA storing Pump PDA, fee totals, SY mint, authorized admins.
-  - `VaultAuthority`: signer PDA derived from seeds (`creator-vault`, pump mint).
+  - `CreatorVault`: main PDA storing Pump PDA, fee totals, SY mint, `authority_seed`, governance fields (`admin`, `emergency_admin`, `sol_rewards_bps`, `paused`).
+  - `VaultAuthority`: signer PDA derived from seeds (`creator-vault`, pump mint) using Anchor 0.32 `ctx.bumps`.
   - `FeeEscrow`: token account for accumulated SOL (wrapped) or USDC, owned by vault.
 - **Instructions**
-  - `initialize_vault { pump_creator_pda, quote_mint, admin }`
-  - `collect_fees { creator_vault, pump_pda }` (CPI to Pump program to sweep fees)
-  - `wrap_fees { creator_vault, user, amount, maturity }` – mints SY to user.
+  - `initialize_vault { pump_creator_pda, quote_mint, admin, emergency_admin }`
+  - `collect_fees { creator_vault, pump_pda }` – CPI to Pump program to sweep fees.
+  - `wrap_fees { creator_vault, user, amount }` – mints SY to user; blocked when `paused`.
   - `mint_for_splitter { creator_vault, splitter_authority, mint, destination, amount }` – CPI helper to mint PT/YT/SY on Splitter’s behalf.
   - `transfer_fees_for_splitter { creator_vault, splitter_authority, fee_vault, destination, amount }` – CPI helper moving accrued fees to Splitter users.
-  - `update_admin {}` – governance operations.
-  - `pause / resume` – guard rails for emergencies.
+  - `set_rewards_split { sol_rewards_bps }`, `update_admin`, `update_emergency_admin`.
+  - `toggle_pause { is_paused }` – guard rails for emergencies.
 - **Events**
-  - `FeeCollected`, `SYMinted`, `SplitterMinted`, `SplitterFeeTransfer`, `VaultPaused`.
+  - `FeeCollected`, `SYMinted`, `SplitterMinted`, `SplitterFeeTransfer`, `CreatorVaultPaused`, `RewardsSplitUpdated`.
 - **Key Considerations**
   - Support both direct Pump token deposits and raw SOL fee deposits (convert via wSOL).
   - Track `total_fees_collected`, `total_sy_minted`, `cta_status` flag (optional) for UI gating.
@@ -60,12 +60,12 @@ attnmarkets/
 - **Accounts**
   - `Market`: keyed by `pump_mint + maturity_ts` storing PT mint, YT mint, maturity, fee index, total minted.
   - `UserPosition`: optional PDA storing last fee index to compute owed yield lazily.
-  - `SplitterAuthority`: PDA per CreatorVault storing bump so both programs share seeds.
+  - `SplitterAuthority`: PDA per CreatorVault; signer seeds come from Anchor `ctx.bumps` (no stored bump).
 - **Instructions**
   - `create_market { creator_vault, maturity_ts }`
-  - `mint_pt_yt { market, creator_vault, splitter_authority, user, sy_amount }` – burns SY and CPIs into CreatorVault `mint_for_splitter`.
+  - `mint_pt_yt { market, creator_vault, splitter_authority, user, sy_amount }` – burns SY and CPIs into CreatorVault `mint_for_splitter` with signer seeds from `ctx.bumps`.
   - `redeem_yield { market, creator_vault, splitter_authority, user }` – CPIs into `transfer_fees_for_splitter`.
-  - `redeem_principal { market, creator_vault, splitter_authority, user }` – after maturity CPIs to re-mint SY.
+  - `redeem_principal { market, creator_vault, splitter_authority, user }` – after maturity CPIs to re-mint SY before unwinding PT.
   - `close_market {}` – cleans up once PT supply zero.
 - **Events**
   - `MarketCreated`, `PTYT_Minted`, `YieldRedeemed`, `PrincipalRedeemed`.
@@ -75,24 +75,26 @@ attnmarkets/
 
 ### 3. Stable Yield Vault Program (`attnUSD`)
 - **Accounts**
-  - `StableVault`: stores total deposits, attnUSD mint, share index, conversion queue state.
+  - `StableVault`: stores total deposits, attnUSD mint, share index, conversion queue state, `authority_seed`, `keeper_authority`, `admin`, `emergency_admin`, `paused`, `pending_sol_lamports`, accepted mint list.
   - `DepositRecord`: optional tracking for KYC or big deposits.
 - **Instructions**
-  - `initialize_stable_vault { accepted_stable_mints[], conversion_strategy }`
-  - `deposit_stable { stable_vault, user, stable_mint, amount }` – mints attnUSD shares at current NAV (implemented).
-  - `redeem_attnusd { stable_vault, user, shares }` – burns shares and returns stables (implemented).
-- `sweep_creator_fees { stable_vault, creator_vault, rewards_pool, sol_rewards_bps, fee_accounts[] }` – splits SOL between RewardsVault funding and stable conversions, updates pending SOL/NAV.
-  - `process_conversion { stable_vault, swap_accounts[] }` – optional asynchronous SOL→stable swap executor (Jupiter).
+  - `initialize_stable_vault { accepted_stable_mints[], conversion_strategy, admin, emergency_admin, keeper_authority }`
+  - `deposit_stable { stable_vault, user, stable_mint, amount }` – mints attnUSD shares at current NAV.
+  - `redeem_attnusd { stable_vault, user, shares }` – burns shares and returns stables.
+  - `sweep_creator_fees { stable_vault, creator_vault, rewards_pool, fee_accounts[], operation_id }` – splits SOL between RewardsVault funding (CPI `fund_rewards`) and stable conversions, updates pending SOL/NAV using the configured `sol_rewards_bps`; replay-safe via `operation_id`.
+  - `process_conversion { stable_vault, swap_accounts[], operation_id }` – optional asynchronous SOL→stable swap executor (Jupiter) with replay guard.
+  - `set_conversion_strategy`, `set_rewards_split`, `update_admin`, `update_emergency_admin`, `update_keeper_authority`, `toggle_pause`.
 - **Events**
-  - `attnUSD_Minted`, `attnUSD_Redeemed`, `CreatorFeesSwept`, `ConversionExecuted`.
+  - `attnUSD_Minted`, `attnUSD_Redeemed`, `CreatorFeesSwept { operation_id, sol_rewards_bps, last_sweep_id }`, `ConversionExecuted { operation_id, last_conversion_id }`, `StableVaultPauseToggled`.
 - **Considerations**
   - Share accounting (`total_assets / total_shares`) must stay exact; deposits/redemptions use price-per-share math.
   - Slippage limits, oracle pricing (Pyth/Jupiter quotes) to protect conversions.
+  - CPI into RewardsVault occurs before conversion so SOL rewards leave the vault deterministically.
   - Option to disable auto-sweep for markets that prefer standalone YT.
 
 ### 4. RewardsVault Program (`sAttnUSD`)
 - **Accounts**
-  - `RewardsPool`: PDA storing pool config (`reward_bps`, admin, allowed_funder, total_staked`, `sol_per_share`, `pending_rewards`, `last_treasury_balance`, PDA bumps).
+  - `RewardsPool`: PDA storing pool config (`reward_bps`, admin, allowed_funder, total_staked`, `sol_per_share`, `pending_rewards`, `last_treasury_balance`, `last_fund_id`, `is_paused`).
   - `RewardsAuthority`: PDA signer over attn vault + sAttn mint.
   - `StakePosition`: PDA (`stake-position`, pool, wallet) tracking staked amount and reward debt.
   - `sAttnMint`: PDA mint (decimals match attnUSD) controlled by `RewardsAuthority`.
@@ -103,10 +105,10 @@ attnmarkets/
   - `stake_attnusd { pool, staker, amount }` – transfers attnUSD into vault, mints sAttnUSD 1:1, settles accrued SOL.
   - `unstake_attnusd { pool, staker, amount }` – burns sAttnUSD, returns attnUSD, settles SOL, updates index debt.
   - `claim_rewards { pool, staker }` – pays pending SOL without touching principal.
-  - `fund_rewards { pool, creator_vault, allowed_funder, amount }` – requires signer match, transfers SOL into treasury, folds pending rewards when stakers exist.
-  - `update_allowed_funder`, `update_reward_bps`, `pause` (future) – constrained by Squads admin + timelock.
+  - `fund_rewards { pool, creator_vault, allowed_funder, amount, operation_id }` – requires signer match + monotonic id, transfers SOL into treasury, folds pending rewards when stakers exist.
+  - `update_allowed_funder`, `update_reward_bps`, `update_admin`, `toggle_pause`.
 - **Events**
-  - `RewardsPoolInitialized`, `RewardsFunded` (includes `source_amount`, `treasury_balance`), `Staked`, `Unstaked`, `RewardsClaimed`.
+  - `RewardsPoolInitialized`, `RewardsFunded` (includes `operation_id`, `source_amount`, `treasury_balance`, `last_fund_id`), `Staked`, `Unstaked`, `RewardsClaimed`, `RewardsPoolPauseToggled`, `RewardsAdminUpdated`.
 - **Considerations**
   - Index math monotonic: property tests enforce `sum(claimed) ≤ sum(funded)` and rounding safety at lamport scale.
   - Funding path is trust-minimized: CPI requires allowed funder signer + creator vault match.
@@ -134,30 +136,32 @@ attnmarkets/
   - PDA derivations (`creator_vault_pda`, `market_pda`, `attnusd_mint_pda`).
   - Jupiter swap helper (via HTTP client) for SOL→USDC conversions.
   - Serialization helpers for front-end bridging (if needed).
-- Export CLI-friendly commands (wrap, split, redeem, stake, unstake, claim, fund) reused by `attn_cli`.
+- Export CLI-friendly commands (wrap, split, redeem, stake, unstake, claim, `fund --operation-id`, `sweep --operation-id`, `convert --operation-id`) reused by `attn_cli`.
 
 - **Stack**: Pure Rust using `anchor-client`, `solana-client`, and `tokio`. Store data in Postgres (with SQLx or Diesel) and optionally ClickHouse for analytics.
 - **Ingestion**
   - Subscribe to program logs/events (CreatorVault, Splitter, StableVault, RewardsVault, AMM) via WebSocket or gRPC.
-  - Maintain `ingest_checkpoints` table keyed by program + signature to dedupe and resume (`--from-slot` flag).
-  - Periodically read account state for derived metrics (total fees, indexes, treasury balances).
+  - Maintain `ingest_checkpoints` keyed by program + signature + `operation_id` to dedupe and resume (`--from-slot` flag).
+  - Periodically read account state for derived metrics (total fees, indexes, treasury balances, pause/admin state).
   - Ingest Pump.fun CTO approvals manually (if we store status) or via form webhook.
-- **Schema (Postgres)**
-- `creator_vaults` (pump_mint, status, total_fees, total_sy, last_collected_slot).
+- **Schema (Postgres)** – migrations `001`–`005` (including `004_governance.sql`, `005_stable_pause.sql`) lay down these tables/columns:
+- `creator_vaults` (pump_mint, authority_seed, admin, emergency_admin, sol_rewards_bps, paused, total_fees, total_sy, last_collected_slot).
+- `stable_vaults` (vault_pubkey, authority_seed, admin, emergency_admin, keeper_authority, share_mint, stable_mint, pending_sol_lamports, paused, last_sweep_id, last_conversion_id, updated_at).
 - `markets` (market_pubkey, pump_mint, maturity_ts, pt_supply, yt_supply, fee_index, apy metrics).
 - `user_positions` (wallet, market, pt_balance, yt_balance, last_index, accrued_yield).
 - `attnusd_stats` (total_supply, index, apy_history).
 - `swaps`, `liquidity_events`.
-- `rewards_pools` (pool_pubkey, pump_mint, reward_bps, total_staked, sol_per_share, allowed_funder, admin, treasury_balance, updated_at).
+- `rewards_pools` (pool_pubkey, pump_mint, reward_bps, total_staked, sol_per_share, allowed_funder, admin, treasury_balance, last_fund_id, is_paused, updated_at).
 - `rewards_positions` (wallet, pool_pubkey, staked_amount, reward_debt, total_claimed, updated_at).
-- `reward_events` (pool_pubkey, wallet?, event_type, slot, signature, source_amount, distributed_amount).
-- `ingest_checkpoints` (program_id, slot, signature, cursor_state).
+- `reward_events` (pool_pubkey, wallet?, event_type, slot, signature, operation_id, source_amount, distributed_amount, treasury_balance).
+- `ingest_checkpoints` (program_id, slot, signature, operation_id, cursor_state).
 - **Processing**
   - Recompute YT APY: `(fees_last_24h / yt_outstanding) * annualization factor`.
   - Compute PT discount from AMM mid-price vs notional.
   - Convert SOL totals to USD via price oracle for UI.
+  - Track latest `operation_id` per vault (sweep/conversion/fund) and pause states for alerting + frontend banners.
   - Add DB indexes on `(wallet)`, `(pool_pubkey)`, `(slot, signature)` for API pagination.
-- **APIs** (REST, JSON; list endpoints accept `?limit=&cursor=` and return weak ETag headers)
+- **APIs** (REST, JSON; list endpoints accept `?limit=&cursor=` and return weak ETag headers; clients should send `If-None-Match` to leverage 304 responses)
   - `GET /v1/overview`
   - `GET /v1/markets`
   - `GET /v1/markets/{market}`
@@ -165,6 +169,7 @@ attnmarkets/
   - `GET /v1/attnusd`
   - `GET /v1/rewards`
   - `GET /v1/rewards/{pool}`
+  - `GET /v1/governance`
   - `GET /readyz`, `GET /version`
   - CORS allowlist includes demo + live frontend origins; optional API key header when public.
   - Current implementation: `attn_api` uses SQLx-backed store with pagination and dedupe, though full production tuning still ongoing.
@@ -190,8 +195,8 @@ attnmarkets/
 - Grafana dashboards for fee flow, attnUSD supply, AMM TVL.
 
 ## Keeper Service
-- Cron-style runner (Rust or Typescript) invoking `collect_fees`, `sweep_creator_fees(sol_rewards_bps)`, and `rewards_vault::fund_rewards`.
-- Implements exponential backoff + idempotency by signature/slot to avoid double funding.
+- Cron-style runner (Rust or Typescript) invoking `collect_fees`, `sweep_creator_fees(operation_id)`, `rewards_vault::fund_rewards(operation_id)`, and `process_conversion(operation_id)` while vaults are unpaused.
+- Implements exponential backoff + idempotency by signature/slot/`operation_id` to avoid double funding; skips work if governance pauses a vault.
 - Emits Prometheus metrics and writes audit rows to `reward_events` with keeper identity.
 - Will later manage AMM rebalances once pools live.
 
