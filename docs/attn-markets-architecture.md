@@ -1,5 +1,7 @@
 # attn.markets Program Architecture
 
+> Executive summary: keeper-facing instructions are now idempotent and every vault exposes pause controls so governance can halt flows safely while creators & LPs stay protected.
+
 The protocol is composed of five primary Solana programs (CreatorVault, Splitter, StableVault, RewardsVault, AMM) plus supporting SDK/indexer components. This note captures how the programs interact, what PDAs they derive, and how creator-fee cash flows propagate from Pump.fun into attnUSD, PT/YT, and SOL reward markets.
 
 ## High-Level Flow
@@ -18,13 +20,13 @@ PT, attnUSD, and sAttnUSD trade/settle across pools; indexer + SDK expose state 
 
 ## Programs and Responsibilities
 
-| Program        | Purpose                                                                 | Key PDAs / Seeds                                              | Key Instructions                                                                                  |
+| Program        | Purpose                                                                 | Key PDAs / Seeds                                              | Key Instructions (idempotency & pause highlights)                                                 |
 |----------------|-------------------------------------------------------------------------|----------------------------------------------------------------|----------------------------------------------------------------------------------------------------|
-| **CreatorVault** | Custodies creator fees, mints Standardized Yield (SY), and exposes CPI hooks for downstream programs. | `creator-vault` (pump mint), `fee-vault` (pump mint), `sy-mint` (pump mint)                      | `initialize_vault`, `wrap_fees`, `mint_for_splitter`, `transfer_fees_for_splitter`                |
-| **Splitter**     | Burns SY and mints PT/YT per maturity, accounts for yield, invokes CreatorVault CPI helpers.            | `market` (pump mint + maturity), `user-position`, `splitter-authority` (creator vault)           | `create_market`, `mint_pt_yt`, `redeem_yield`, `redeem_principal`, `close_market`                 |
-| **StableVault**  | Accepts stablecoin deposits, converts creator-fee inflows to same basket, issues attnUSD shares.         | `stable-vault` (protocol scope), `attnUSD-mint`, per-stable custody PDAs, `sol-vault`            | `initialize_stable_vault`, `deposit_stable`, `redeem_attnusd`, `sweep_creator_fees` (split + CPI), `process_conversion` |
-| **RewardsVault** | Lets attnUSD holders stake for SOL rewards while preserving stable NAV.                                  | `rewards-pool` (creator vault), `rewards-authority`, `stake-position`, `s-attn-mint`, `sol-treasury`, `attn-vault` | `initialize_pool`, `stake_attnusd`, `unstake_attnusd`, `claim_rewards`, `fund_rewards` (allowed funder)   |
-| **AMM**          | Supports PT/quote and attnUSD/quote swaps + liquidity provision.                                          | `pool` (token pair + maturity), `position` PDAs                                                   | `create_pool`, `add_liquidity`, `remove_liquidity`, `swap_exact_in/out`, `collect_fees`           |
+| **CreatorVault** | Custodies creator fees, mints Standardized Yield (SY), and exposes CPI hooks for downstream programs. | `creator-vault` (pump mint), `fee-vault` (pump mint), `sy-mint` (pump mint)                      | `initialize_vault`, `wrap_fees`, `mint_for_splitter`, `transfer_fees_for_splitter`; vault-level pause gate and admin/emergency controls. |
+| **Splitter**     | Burns SY and mints PT/YT per maturity, accounts for yield, invokes CreatorVault CPI helpers.            | `market` (pump mint + maturity), `user-position`, `splitter-authority` (creator vault, bump from `ctx.bumps`) | `create_market`, `mint_pt_yt`, `redeem_yield`, `redeem_principal`, `close_market`; mint/fee transfers execute via CreatorVault CPI. |
+| **StableVault**  | Accepts stablecoin deposits, converts creator-fee inflows to same basket, issues attnUSD shares.         | `stable-vault` (authority seed + bump), `share-mint`, accepted-mint custody PDAs, `sol-vault`    | `initialize_stable_vault`, `deposit_stable`, `redeem_attnusd`, `sweep_creator_fees` (requires `operation_id`, routes SOL bps to RewardsVault before conversion), `process_conversion` (`operation_id`). |
+| **RewardsVault** | Lets attnUSD holders stake for SOL rewards while preserving stable NAV.                                  | `rewards-pool` (creator vault), `rewards-authority`, `stake-position`, `s-attn-mint`, `sol-treasury`, `attn-vault` | `initialize_pool`, `stake_attnusd`, `unstake_attnusd`, `claim_rewards`, `fund_rewards` (`operation_id`, allowed funder); pool pause flag for staking/claim circuits. |
+| **AMM**          | Supports PT/quote and attnUSD/quote swaps + liquidity provision.                                          | `pool` (token pair + maturity), `position` PDAs                                                   | `create_pool`, `add_liquidity`, `remove_liquidity`, `swap_exact_in/out`, `collect_fees`.           |
 
 ## Interaction Graph
 
@@ -53,7 +55,15 @@ PT, attnUSD, and sAttnUSD trade/settle across pools; indexer + SDK expose state 
                                    AMM Pools
 ```
 
-## Cash Flow Paths
+## Cash Flow Paths & Idempotent Keepers
+
+1. **Creator fees** enter CreatorVault, increment TVL only when the vault is unpaused. `wrap_fees` is the sole authority to mint SY.
+2. **Splitter CPI**: `mint_pt_yt` and `redeem_yield`/`redeem_principal` recompute their signer PDAs (splitter-authority + user-position) via `ctx.bumps`. No stored bump state remains.
+3. **Keeper loop**:
+   - `sweep_creator_fees` accepts an `operation_id`. It splits SOL rewards (bps) and performs a CPI into RewardsVault `fund_rewards` before queuing the remainder for StableVault conversion.
+   - `fund_rewards` is idempotent: repeated `operation_id` submissions are rejected, and pending SOL is tracked until stakers exist.
+   - `process_conversion` likewise requires `operation_id`, ensuring stable conversions are replay-safe.
+4. **Pause controls**: `CreatorVault.paused`, `StableVault.paused`, and `RewardsPool.is_paused` each gate write paths. Admin or emergency admin can toggle, and events emit `*_PauseToggled`.
 
 1. **Creator Fees**: Pump.fun `set_creator_authority` routes fees to `CreatorVault` fee vault PDAs (SOL/USDC).
 2. **SY Minting**: Users call `wrap_fees` to convert raw fees/Pump tokens into SY (SPL mint owned by CreatorVault).
@@ -94,7 +104,7 @@ PT, attnUSD, and sAttnUSD trade/settle across pools; indexer + SDK expose state 
 - **StableVault → RewardsVault**
   - `fund_rewards`: CPI invoked inside `sweep_creator_fees` to route the SOL rewards slice.
 - **StableVault → CreatorVault**
-  - `sweep_creator_fees`: Pulls fees from CreatorVault fee vaults, splitting SOL between RewardsVault funding and stable conversions.
+  - `sweep_creator_fees`: Pulls fees from CreatorVault fee vaults, splitting SOL between RewardsVault funding and stable conversions using an `operation_id` for idempotent keeper retries.
 - **AMM → Others**
   - Pools reference PT/YT/attnUSD mints but do not require CPI to CreatorVault; they use standard token program instructions.
 
@@ -115,7 +125,7 @@ PT, attnUSD, and sAttnUSD trade/settle across pools; indexer + SDK expose state 
 
 ## Governance & Operations
 - Program admins rotate to Squads multisigs: `creator_admin` (CreatorVault + RewardsVault pools) and `attn_admin` (StableVault, future router).
-- Keeper daemon (Rust or TS) invokes `collect_fees`, `sweep_creator_fees`, and `fund_rewards` on a schedule with signature dedupe.
+- Keeper daemon (Rust or TS) invokes `collect_fees`, `sweep_creator_fees(operation_id)`, and `fund_rewards(operation_id)` on a schedule with signature dedupe.
 - Devnet go-live checklist: freeze program IDs in Anchor.toml, deploy via Squads, start indexer with `--from-slot`, verify `/readyz` before enabling Live frontend mode.
 
 ## Future Hooks
@@ -126,4 +136,32 @@ PT, attnUSD, and sAttnUSD trade/settle across pools; indexer + SDK expose state 
 
 ---
 
-This diagrammatic overview lives alongside the MVP and backend specifications; keep it updated as we implement StableVault or adjust CPI boundaries.
+### Pause & Governance Fields
+
+| Account                | Fields / Authorities                                                     | Notes                                                                                |
+|------------------------|---------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
+| CreatorVault           | `authority_seed`, `admin`, `emergency_admin`, `paused`, `sol_rewards_bps` | Admin owns config updates; emergency admin can pause.                               |
+| StableVault            | `authority_seed`, `keeper_authority`, `admin`, `emergency_admin`, `paused`, `pending_sol_lamports` | Keeper-only instructions require matching PDA; pause prevents deposits/conversions. |
+| RewardsPool            | `admin`, `allowed_funder`, `is_paused`, `last_fund_id`, `last_treasury_balance` | Funding and staking honour pause & monotonic SOL/share index invariants.            |
+
+### CPI & Event Updates
+
+- StableVault → RewardsVault CPI now precedes conversions so SOL rewards leave before stable swaps; events include `CreatorFeesSwept { operation_id }` and SOL splits.
+- RewardsVault emits `RewardsFunded`, `RewardsPauseToggled`, and admin update events to support indexer dedupe.
+- Splitter mints/payments flow strictly through CreatorVault CPI helpers (`mint_for_splitter`, `transfer_fees_for_splitter`).
+
+### PDA Guidance (Anchor 0.32)
+
+- Every instruction derives signer PDAs via `ctx.bumps` plus canonical seed recomputation (`Pubkey::find_program_address` in tests). There are no persisted bump fields that drive seeds on-chain.
+- StableVault PDAs: `stable-vault` uses `authority_seed` stored in state; accepted-mint/treasury PDAs derive from that seed.
+- Splitter `splitter-authority` and `user-position` PDAs are resolved using `ctx.bumps` to build signer seeds at runtime.
+
+### Keeper & Indexer Expectations
+
+- Keepers must pass unique `operation_id` (u64) when calling:
+  - `StableVault::sweep_creator_fees`
+  - `StableVault::process_conversion`
+  - `RewardsVault::fund_rewards`
+- Indexer stores the last successful IDs per vault and only ingests events if the ID increments. Pause flags suppress alerts when flows are intentionally halted.
+
+This diagrammatic overview lives alongside the MVP and backend specifications; keep it updated as we add AMM sinks or adjust CPI boundaries.

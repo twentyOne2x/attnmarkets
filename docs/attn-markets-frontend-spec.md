@@ -31,7 +31,7 @@
   - Logo + “attn.markets” brand.
   - Tabs: `Overview`, `Markets`, `Creator`, `Portfolio`, `attnUSD`, `Rewards`, `Docs`.
   - Wallet connect button with network toggle (devnet/mainnet) and mode switch (`Demo` default, `Live (devnet)`).
-  - Banner when Live mode is enabled (“Live mode – devnet”) with dismiss + info link.
+  - Banners: (1) Live mode (“Live mode – devnet”) with dismiss + info link, (2) Pause alerts when any vault reports `paused` via `/v1/governance` (disables write actions globally).
 
 - **Overview (Landing)**
   - Hero: “Tokenize Pump.fun creator fees into PT/YT.”
@@ -56,19 +56,20 @@
   - Positions table grouped by market:
     - For PT: quantity, market price, next maturity, `Redeem` button (enabled post-maturity).
     - For YT: quantity, accrued yield (SOL & USD), `Claim` button.
-    - For attnUSD: balance, current APY, NAV delta; no claim actions.
-    - For sAttnUSD: staked balance, pending SOL, `Claim SOL`, `Unstake`.
+    - For attnUSD: balance, current APY, NAV delta, StableVault keeper status/pause badge; no claim actions while paused.
+    - For sAttnUSD: staked balance, pending SOL, last fund id, `Claim SOL`, `Unstake`; disables buttons if Rewards pool paused.
   - Activity feed: recent wrap/mint/redeem/swap transactions with links to Solscan.
 
 - **attnUSD Hub**
   - Display attnUSD supply, APY, conversion history (SOL→USDC), and risk summary.
+  - Surface `sol_rewards_bps`, keeper authority status, last sweep/conversion IDs, and pause state with tooltips.
   - `Deposit` (for direct YT contributions) and `Redeem` actions; clarify that yield accrues via NAV.
   - Optionally show external integrations (lending partners once available).
 
 - **Rewards (sAttnUSD)**
-  - Card with total staked attnUSD (`total_staked`), SOL/share index (`sol_per_share`), pending SOL (per vault + per-user).
+  - Card with total staked attnUSD (`total_staked`), SOL/share index (`sol_per_share`), last fund id / treasury balance, pending SOL (per vault + per-user).
   - Actions: `Stake attnUSD`, `Unstake`, `Claim SOL`.
-  - Table of reward events (funded, claimed) sourced from indexer `/v1/rewards*`.
+  - Table of reward events (funded, claimed) sourced from indexer `/v1/rewards*` with cursor pagination and 304 handling (weak ETag caching).
   - Devnet-only guard: require wallet connected on devnet, otherwise show read-only stats.
 
 - **Market Detail Page**
@@ -137,6 +138,7 @@
   - `GET /v1/attnusd` – supply, APY, conversion history.
   - `GET /v1/rewards` – rewards funding/claim events (paginated).
   - `GET /v1/rewards/{pool}` – pool detail (paginated events, totals).
+  - `GET /v1/governance` – CreatorVault, StableVault, RewardsVault admin/pause snapshots (feed pause banner + tooltips).
   - `GET /v1/cto-status/{pumpToken}` – optional pump CTO tracking (if stored off-chain).
   - `GET /readyz`, `GET /version` – health gates for Live mode.
 - On-chain state read via Anchor client for freshness (SY/PT/YT supply, indices).
@@ -163,7 +165,7 @@
 - Confirm dialogs for wrap/split, claim, redemption actions with warnings about irreversible operations.
 - Show gas estimate and necessary SOL balance.
 - Guard rails if CTO not approved yet (disable split actions).
-- Display health status (vault paused, AMM paused) if governance toggles stop conditions.
+- Display health status (vault paused, AMM paused) if governance toggles stop conditions; disable buttons and highlight paused banner.
 - Validate user cluster before enabling Live actions; surface low SOL warning.
 
 ## Demo vs Live Modes
@@ -197,6 +199,7 @@ All keys are validated on boot. Missing or malformed values force Demo mode and 
 - Swap PT/quote, add/remove liquidity, view position updates.
 - Rewards page pagination + ETag caching (mock 304).
 - Live mode health fallback when `/readyz` fails.
+- Pause banner + disabled states when `/v1/governance` reports paused vaults.
 
 ## Deliverables
 - Frontend repo with modular React components (Tailwind/Chakra optional).

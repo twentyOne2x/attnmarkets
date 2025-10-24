@@ -17,15 +17,15 @@ Ship the minimum set of contracts and tooling that turn a Pump.fun creator-fee P
 ### 1. CreatorVault Program
 - PDA per Pump token (seeds: `["creator-vault", pump_mint]`).
 - Stores:
-  - Pump creator-fee PDA address
-  - Accepted quote mint (SOL via wSOL wrapper or USDC)
-  - Maturity schedule array (default daily/weekly/monthly)
-  - Admin multisig (Squads `creator_admin`) and optional allowed funder override
+  - Pump creator-fee PDA address, accepted quote mint (SOL via wSOL wrapper or USDC), maturity defaults.
+  - Governance state: `authority_seed`, `admin` (Squads safe), `emergency_admin`, `sol_rewards_bps`, `paused`.
+  - Control PDAs: `fee_vault`, `sy_mint` (derived each instruction, no stored bump reliance).
 - Instructions:
-  - `initialize_vault(admin, pump_creator_pda, quote_mint)`
-  - `collect_fees()` – pulls funds from Pump PDA (requires `set_creator_authority` executed).
-  - `wrap_fees(amount, maturity)` – mints SY SPL token.
+  - `initialize_vault(admin, emergency_admin, pump_creator_pda, quote_mint)`
+  - `collect_fees()` – pulls funds from Pump PDA (after CTO).
+  - `wrap_fees(amount)` – mints SY SPL token when vault is unpaused.
   - `set_rewards_split(sol_rewards_bps)` – configures default basis points for SOL rewards sweep.
+  - `toggle_pause(is_paused)` – admin/emergency admin guard for all mutating instructions.
   - `sweep_unassigned()` – admin recovers dust/fees if creator opts out.
 
 ### 2. SY Token Mint
@@ -39,9 +39,9 @@ Ship the minimum set of contracts and tooling that turn a Pump.fun creator-fee P
   - `UserPosition`: tracks user fee index for pro-rata yield claims.
 - Instructions:
   - `create_market(pump_vault, maturity_ts)`
-  - `mint_pt_yt(user, sy_amount)` – burns SY, mints PT & YT.
-  - `redeem_yield(user, yt_amount)` – transfers delta fees to user.
-  - `redeem_principal(user, pt_amount)` – after maturity, burns PT and sends Pump token or vault balance.
+  - `mint_pt_yt(user, sy_amount)` – burns SY, mints PT & YT through CreatorVault CPI; signer PDAs constructed from `ctx.bumps`.
+  - `redeem_yield(user, yt_amount)` – settles accrued fees via CreatorVault CPI into user quote ATA.
+  - `redeem_principal(user, pt_amount)` – after maturity, burns PT and mints SY back via CreatorVault CPI before unwrapping.
   - `close_market()` – admin finalizes market once all PT redeemed.
 
 ### 4. Fee Accounting
@@ -52,22 +52,36 @@ Ship the minimum set of contracts and tooling that turn a Pump.fun creator-fee P
 ### 4. Stable Yield Vault (`attnUSD`)
 - Custodies aggregated creator fees and LP deposits; converts the non-reward SOL slice into protocol-selected stablecoins (USDC/USDT/USDe) via Jupiter.
 - Mints `attnUSD`, a yield-bearing stablecoin whose returns accrue via NAV (no manual claim).
-- Maintains share index so deposits/withdrawals remain fair; `sweep_creator_fees` accepts `sol_rewards_bps` and CPI-calls RewardsVault before topping up the stable basket.
-- Core instructions: `initialize_stable_vault`, `deposit_stable`, `redeem_attnusd`, `process_conversion`, `set_conversion_strategy`.
-- Emits events for fee sweeps and conversions so indexer tracks NAV changes.
+- Maintains share index so deposits/withdrawals remain fair; `sweep_creator_fees` reads the configured `sol_rewards_bps`, emits Rewards funding via CPI (before conversions), and requires an `operation_id` for keeper idempotency. `process_conversion` also takes `operation_id`.
+- Tracks governance + keeper state: `authority_seed`, `keeper_authority`, `admin`, `emergency_admin`, `paused`, `pending_sol_lamports`, accepted mint list.
+- Core instructions: `initialize_stable_vault`, `deposit_stable`, `redeem_attnusd`, `sweep_creator_fees(operation_id)`, `process_conversion(operation_id)`, `set_conversion_strategy`, `toggle_pause`.
+- Emits events for fee sweeps (`CreatorFeesSwept { operation_id, sol_rewards_bps, last_sweep_id }`) and conversions so indexer tracks NAV changes and idempotency.
 
 ### 5. RewardsVault (sAttnUSD)
-- Accepts `attnUSD` deposits, mints staking receipt token sAttnUSD, and pays SOL rewards from funded slices.
-- Tracks `total_staked`, `sol_per_share`, `pending_rewards`, and enforces allowed funder (CreatorVault PDA or keeper) with admin set to Squads.
+- Accepts `attnUSD` deposits, mints staking receipt token sAttnUSD, and pays SOL rewards from funded slices while attnUSD NAV stays stable.
+- Tracks `total_staked`, `sol_per_share`, `pending_rewards`, `last_fund_id`, `last_treasury_balance`, `allowed_funder`, `is_paused`.
 - Instructions:
   - `initialize_pool(admin, reward_bps, allowed_funder)` – sets pool config and seeds PDAs (sAttn mint, attn vault, SOL treasury).
-  - `stake_attnusd(user, amount)` – transfers `attnUSD`, mints sAttnUSD 1:1, settles pending SOL.
+  - `stake_attnusd(user, amount)` – transfers `attnUSD`, mints sAttnUSD 1:1, settles pending SOL (requires pool active).
   - `unstake_attnusd(user, amount)` – burns sAttnUSD, returns `attnUSD`, settles SOL.
   - `claim_rewards(user)` – withdraws accrued SOL without unstaking.
-  - `fund_rewards(amount_sol)` – requires allowed funder signer; updates SOL/share index and folds pending rewards when no stakers.
-- Future governance hooks: update allowed funder, adjust reward bps, pause/resume (timelocked via Squads).
+  - `fund_rewards(amount_sol, operation_id)` – CreatorVault/keeper only; ids must strictly increase.
+  - `toggle_pause`, `update_admin`, `update_allowed_funder`.
+- Future governance hooks: admin rotation (Squads), emergency pause runbook, reward bps adjustments via on-chain proposal.
 
-### 6. AMM v0 (Optional early, mandatory before mainnet)
+### 6. Keeper Loops & Idempotency
+- Keeper daemon collects Pump fees, wraps SY, and drives `stable_vault::sweep_creator_fees(operation_id)` → `rewards_vault::fund_rewards(operation_id)` → `stable_vault::process_conversion(operation_id)` on a schedule.
+- `operation_id` is a monotonically increasing `u64` per vault; duplicate IDs are rejected to make every CPI idempotent.
+- Events expose `last_sweep_id`, `last_conversion_id`, `last_fund_id` so indexer/API can dedupe and surface keeper lag metrics.
+- CLI exposes operation IDs on `attn_cli stable sweep`, `attn_cli stable convert`, and `attn_cli rewards fund`; localnet scripts must pipe a UUID/counter.
+
+### 7. Pause & Governance Controls
+- CreatorVault, StableVault, and RewardsVault each gate mutating instructions behind `paused` flags; admin or emergency admin (Squads safes) may toggle.
+- StableVault enforces a dedicated `keeper_authority` signer in addition to admin; pauses prevent keeper loops from moving funds during incidents.
+- Frontend/indexer must surface pause state (banner + disabled actions) to avoid user confusion and false alarms.
+- Anchor 0.32 `ctx.bumps` is used everywhere to derive PDA signers; no instruction depends on stored bump bytes.
+
+### 7. AMM v0 (Optional early, mandatory before mainnet)
 - Minimal concentrated pool for PT/quote and `attnUSD`/quote pairs (YT/quote optional).
 - Based on Pendle v2 CWAMM:
   - Price = `discount_factor * PT_supply` for PT pool.
@@ -76,33 +90,35 @@ Ship the minimum set of contracts and tooling that turn a Pump.fun creator-fee P
 - Fees accrue in quote asset.
 - For MVP we can hardcode a single liquidity range with protocol LP to prove swaps work.
 
-### 7. Frontend + CLI
+### 8. Frontend + CLI
 - **Web (Next.js)**:
   - App shell with Demo (default) / Live (devnet) toggle persisted in `localStorage`.
   - CTO handoff checklist, including CreatorVault PDA + Squads multisig note.
   - Markets explorer (`/v1/markets`), portfolio dashboard (PT, YT, attnUSD NAV, sAttnUSD claimable SOL).
-  - Rewards page showing pool stats, stake/unstake/claim actions gated behind wallet+devnet check.
+  - Rewards page showing pool stats, stake/unstake/claim actions gated behind wallet+devnet check; surfaces `last_fund_id`, treasury balance, and handles HTTP 304 via ETag caching.
   - Live mode health check (`/readyz`, `/version`) with automatic fallback to Demo if unhealthy; Live banner when on.
+  - Global pause UX: show banner + disable write actions when CreatorVault/StableVault/RewardsVault report `paused`.
   - Stub liquidity tab for PT/attnUSD once AMM v0 lands.
 - **CLI (Rust `attn_cli`)**:
-  - `rewards initialize|stake|unstake|claim|fund`.
-  - `stable sweep-fees --sol-rewards-bps ...`, `wrap`, `split`, `redeem`.
+  - `rewards initialize|stake|unstake|claim|fund --operation-id`.
+  - `stable sweep-fees --operation-id ...`, `stable convert --operation-id ...`, `wrap`, `split`, `redeem`.
   - CTO helpers (`attn-cli cto submit|update`).
   - Flags for devnet vs localnet plus API calls for smoke tests.
 
-### 8. Indexer / Analytics
-- Runs off Solana RPC/WebSocket (Helius/Jito) with signature dedupe checkpoints.
+### 9. Indexer / Analytics
+- Runs off Solana RPC/WebSocket (Helius/Jito) with signature + operation-id dedupe checkpoints.
 - Tracks:
-  - Fees collected per Pump token and sweep transactions.
+  - Fees collected per Pump token and sweep transactions (with `operation_id`, `last_sweep_id`).
   - SY / PT / YT supply per market plus maturities.
-  - attnUSD NAV (total assets, price-per-share).
-  - Rewards pools (total_staked, sol_per_share, pending) and user positions/claims.
-  - Redemption, funding, staking events with slot/signature metadata.
-- Stores data in Postgres (SQLx migrations 001–003) with indexes on wallet/pool/slot.
-- Powers REST endpoints `/v1/overview`, `/v1/markets`, `/v1/markets/:id`, `/v1/portfolio/:wallet`, `/v1/attnusd`, `/v1/rewards`, `/v1/rewards/:pool` plus `/readyz`, `/version`.
+  - attnUSD NAV (total assets, price-per-share) and StableVault pause/keeper state.
+  - Rewards pools (total_staked, sol_per_share, pending, last_fund_id, treasury balances) and user positions/claims.
+  - Governance snapshots: CreatorVault admin/emergency_admin/paused, StableVault authority+admins, RewardsPool admin/pause.
+- Stores data in Postgres (SQLx migrations 001–005) with indexes on wallet/pool/slot and ETag materialized views.
+- Powers REST endpoints `/v1/overview`, `/v1/markets`, `/v1/markets/:id`, `/v1/portfolio/:wallet`, `/v1/attnusd`, `/v1/rewards`, `/v1/rewards/:pool`, `/v1/governance`, plus `/readyz`, `/version`.
+- `/v1/rewards*` respond with weak ETags (SHA-256 hashes); clients send `If-None-Match` and expect 304 responses when unchanged.
 
 ### Current On-Chain & Backend Progress (Q4 2025 snapshot)
-- **CreatorVault**: `initialize_vault`, `wrap_fees`, CPI helpers, and configurable `sol_rewards_bps` in `sweep_creator_fees`; admin slated for Squads rotation.
+- **CreatorVault**: `initialize_vault`, `wrap_fees`, CPI helpers, and configurable `sol_rewards_bps` consumed by `sweep_creator_fees`; admin slated for Squads rotation.
 - **Splitter**: Markets derive `splitter-authority` PDA; integration tests cover mint → accrue → redeem workflows.
 - **StableVault**: Initialize/deposit/redeem/sweep/conversion live; sweeps now split SOL rewards and CPI into RewardsVault before conversion.
 - **RewardsVault**: Stake/unstake/claim/fund implemented with admin + allowed-funder checks and proptest coverage (rerun once rust-lld installed).
@@ -155,8 +171,9 @@ Ship the minimum set of contracts and tooling that turn a Pump.fun creator-fee P
 ## Next Steps
 1. Fix rust-lld toolchain on CI/dev machines and re-run `cargo test -p rewards_vault` / `attn_api` suites.
 2. Finalize frontend DataProvider (Demo vs Live), Rewards page wiring, and Live-mode UX guards (`/readyz` fallback, banners).
-3. Stand up keeper daemon for periodic `collect_fees` + `sweep_creator_fees` + `fund_rewards`, including monitoring + alerting.
+3. Stand up keeper daemon for periodic `collect_fees` + `sweep_creator_fees(operation_id)` + `fund_rewards(operation_id)`, including monitoring + alerting.
 4. Complete devnet rollout plan: Squads safe creation, program admin rotation, Anchor deploy, indexer `--from-slot`, Live frontend smoke tests.
 5. Decide on integrated vs standalone router architecture before AMM v0 implementation.
 6. Implement AMM v0 math/tests and expose CLI+API endpoints for pricing data.
 7. Draft audit scope, security checklist, and documentation for governance proposals.
+8. Wire `/v1/governance` + pause states into frontend banner controls and API caching (ETag aware).
