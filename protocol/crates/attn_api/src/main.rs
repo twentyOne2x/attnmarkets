@@ -4,8 +4,9 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Context, Result};
 use attn_indexer::{
-    connect_pool, mock_store, run_migrations, AttnUsdStats, DynStore, MarketDetail, MarketSummary,
-    Overview, Portfolio, RewardsPoolDetail, RewardsPoolSummary, SqlxStore,
+    connect_pool, mock_store, run_migrations, AttnUsdStats, DynStore, GovernanceState,
+    MarketDetail, MarketSummary, Overview, Portfolio, RewardsPoolDetail, RewardsPoolSummary,
+    SqlxStore,
 };
 use axum::{
     extract::{Path, Query, State, TypedHeader},
@@ -145,6 +146,7 @@ fn build_router(state: AppState) -> Router {
         .route("/v1/attnusd", get(get_attnusd))
         .route("/v1/rewards", get(list_rewards))
         .route("/v1/rewards/:pool", get(get_rewards_pool))
+        .route("/v1/governance", get(get_governance))
         .with_state(state)
 }
 
@@ -269,6 +271,11 @@ async fn get_rewards_pool(
         .headers_mut()
         .insert(ETAG, HeaderValue::from_str(&etag.to_string()).unwrap());
     Ok(response)
+}
+
+async fn get_governance(State(state): State<AppState>) -> ApiResult<GovernanceState> {
+    let governance = state.store.governance().await?;
+    Ok(Json(governance))
 }
 
 #[cfg(test)]
