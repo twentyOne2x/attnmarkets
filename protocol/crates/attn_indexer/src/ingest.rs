@@ -231,6 +231,13 @@ async fn handle_logs(
                 )
                 .await?;
             }
+            "StableVaultPauseToggled" => {
+                let data: StableVaultPauseToggledEvent =
+                    serde_json::from_value(event.data.clone())?;
+                processed |=
+                    persist_stable_pause_toggled(pool.clone(), event.signature.clone(), slot, data)
+                        .await?;
+            }
             "CreatorFeesSwept" => {
                 let data: CreatorFeesSweptEvent = serde_json::from_value(event.data.clone())?;
                 processed |=
@@ -360,6 +367,8 @@ struct RewardsFundedEvent {
     pub source_amount: u64,
     pub sol_per_share: String,
     pub treasury_balance: u64,
+    #[serde(default)]
+    pub operation_id: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -434,7 +443,7 @@ struct RewardsPoolPausedEvent {
 #[derive(Debug, Deserialize)]
 struct StableVaultInitializedEvent {
     pub stable_vault: String,
-    pub authority: String,
+    pub authority_seed: String,
     pub share_mint: String,
     pub stable_mint: String,
     pub admin: String,
@@ -454,15 +463,25 @@ struct KeeperAuthorityUpdatedEvent {
 }
 
 #[derive(Debug, Deserialize)]
+struct StableVaultPauseToggledEvent {
+    pub stable_vault: String,
+    pub is_paused: bool,
+}
+
+#[derive(Debug, Deserialize)]
 struct CreatorFeesSweptEvent {
     pub stable_vault: String,
     pub pending_sol: u64,
+    #[serde(default)]
+    pub operation_id: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
 struct ConversionProcessedEvent {
     pub stable_vault: String,
     pub pending_sol: u64,
+    #[serde(default)]
+    pub operation_id: Option<u64>,
 }
 
 fn decode_sol_index(value: &str) -> Result<f64> {
@@ -581,6 +600,49 @@ async fn persist_rewards_pool_initialized(
     Ok(true)
 }
 
+async fn persist_stable_pause_toggled(
+    pool: Arc<PgPool>,
+    signature: String,
+    slot: u64,
+    event: StableVaultPauseToggledEvent,
+) -> Result<bool> {
+    let insert_result = sqlx::query(
+        r#"
+        insert into events (sig, slot, program, kind, payload)
+        values ($1, $2, $3, $4, $5)
+        on conflict (sig) do nothing
+        "#,
+    )
+    .bind(&signature)
+    .bind(slot as i64)
+    .bind("stable_vault")
+    .bind("stable_pause")
+    .bind(json!({
+        "stable_vault": event.stable_vault,
+        "is_paused": event.is_paused,
+    }))
+    .execute(pool.as_ref())
+    .await?;
+
+    if insert_result.rows_affected() == 0 {
+        return Ok(false);
+    }
+
+    sqlx::query(
+        r#"
+        update stable_vaults
+        set paused = $1, updated_at = now()
+        where stable_vault = $2
+        "#,
+    )
+    .bind(event.is_paused)
+    .bind(&event.stable_vault)
+    .execute(pool.as_ref())
+    .await?;
+
+    Ok(true)
+}
+
 async fn persist_rewards_funded(
     pool: Arc<PgPool>,
     signature: String,
@@ -605,6 +667,7 @@ async fn persist_rewards_funded(
         "source_amount": event.source_amount,
         "sol_per_share": event.sol_per_share,
         "treasury_balance": event.treasury_balance,
+        "operation_id": event.operation_id,
     }))
     .execute(pool.as_ref())
     .await?;
@@ -1193,7 +1256,7 @@ async fn persist_stable_vault_initialized(
     .bind("stable_initialized")
     .bind(json!({
         "stable_vault": event.stable_vault,
-        "authority": event.authority,
+        "authority_seed": event.authority_seed,
         "share_mint": event.share_mint,
         "stable_mint": event.stable_mint,
         "admin": event.admin,
@@ -1207,8 +1270,8 @@ async fn persist_stable_vault_initialized(
 
     sqlx::query(
         r#"
-        insert into stable_vaults (stable_vault, authority_seed, admin, keeper_authority, share_mint, stable_mint, pending_sol_lamports, updated_at)
-        values ($1, $2, $3, $2, $4, $5, 0, now())
+        insert into stable_vaults (stable_vault, authority_seed, admin, keeper_authority, share_mint, stable_mint, pending_sol_lamports, paused, updated_at)
+        values ($1, $2, $3, $2, $4, $5, 0, false, now())
         on conflict (stable_vault)
         do update set
             authority_seed = EXCLUDED.authority_seed,
@@ -1216,11 +1279,12 @@ async fn persist_stable_vault_initialized(
             keeper_authority = EXCLUDED.keeper_authority,
             share_mint = EXCLUDED.share_mint,
             stable_mint = EXCLUDED.stable_mint,
+            paused = EXCLUDED.paused,
             updated_at = now()
         "#,
     )
     .bind(&event.stable_vault)
-    .bind(&event.authority)
+    .bind(&event.authority_seed)
     .bind(&event.admin)
     .bind(&event.share_mint)
     .bind(&event.stable_mint)
@@ -1324,6 +1388,8 @@ async fn persist_stable_pending_sol(
     stable_vault: String,
     pending_sol: u64,
     kind: &'static str,
+    operation_id: Option<u64>,
+    op_column: Option<&'static str>,
 ) -> Result<bool> {
     let insert_result = sqlx::query(
         r#"
@@ -1339,6 +1405,7 @@ async fn persist_stable_pending_sol(
     .bind(json!({
         "stable_vault": stable_vault,
         "pending_sol": pending_sol,
+        "operation_id": operation_id,
     }))
     .execute(pool.as_ref())
     .await?;
@@ -1347,17 +1414,53 @@ async fn persist_stable_pending_sol(
         return Ok(false);
     }
 
-    sqlx::query(
-        r#"
-        update stable_vaults
-        set pending_sol_lamports = $1, updated_at = now()
-        where stable_vault = $2
-        "#,
-    )
-    .bind(pending_sol as f64)
-    .bind(stable_vault)
-    .execute(pool.as_ref())
-    .await?;
+    match op_column {
+        Some("last_sweep_id") => {
+            sqlx::query(
+                r#"
+                update stable_vaults
+                set pending_sol_lamports = $1,
+                    last_sweep_id = $2,
+                    updated_at = now()
+                where stable_vault = $3
+                "#,
+            )
+            .bind(pending_sol as f64)
+            .bind(operation_id.unwrap_or_default() as f64)
+            .bind(stable_vault)
+            .execute(pool.as_ref())
+            .await?;
+        }
+        Some("last_conversion_id") => {
+            sqlx::query(
+                r#"
+                update stable_vaults
+                set pending_sol_lamports = $1,
+                    last_conversion_id = $2,
+                    updated_at = now()
+                where stable_vault = $3
+                "#,
+            )
+            .bind(pending_sol as f64)
+            .bind(operation_id.unwrap_or_default() as f64)
+            .bind(stable_vault)
+            .execute(pool.as_ref())
+            .await?;
+        }
+        _ => {
+            sqlx::query(
+                r#"
+                update stable_vaults
+                set pending_sol_lamports = $1, updated_at = now()
+                where stable_vault = $2
+                "#,
+            )
+            .bind(pending_sol as f64)
+            .bind(stable_vault)
+            .execute(pool.as_ref())
+            .await?;
+        }
+    }
 
     Ok(true)
 }
@@ -1375,6 +1478,8 @@ async fn persist_creator_fees_swept(
         event.stable_vault,
         event.pending_sol,
         "stable_fees_swept",
+        event.operation_id,
+        Some("last_sweep_id"),
     )
     .await
 }
@@ -1392,6 +1497,8 @@ async fn persist_conversion_processed(
         event.stable_vault,
         event.pending_sol,
         "stable_conversion",
+        event.operation_id,
+        Some("last_conversion_id"),
     )
     .await
 }

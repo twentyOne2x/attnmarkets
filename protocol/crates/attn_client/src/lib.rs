@@ -187,16 +187,17 @@ pub mod stable {
     pub fn build_sweep_creator_fees_ix(
         pdas: &StableVaultPdas,
         keeper_authority: Pubkey,
-        fee_source: Pubkey,
+        allowed_funder: Pubkey,
         creator_vault: Pubkey,
         rewards_pool: Pubkey,
         rewards_treasury: Pubkey,
         amount: u64,
+        operation_id: u64,
     ) -> Instruction {
         let accounts = stable_accounts::SweepCreatorFees {
             stable_vault: pdas.stable_vault,
             keeper_authority,
-            fee_source,
+            allowed_funder,
             creator_vault,
             rewards_pool,
             rewards_treasury,
@@ -204,7 +205,11 @@ pub mod stable {
             rewards_program: rewards_vault::ID,
             system_program: system_program::ID,
         };
-        let data = stable_ix::SweepCreatorFees { amount }.data();
+        let data = stable_ix::SweepCreatorFees {
+            amount,
+            operation_id,
+        }
+        .data();
         Instruction {
             program_id: stable_vault::ID,
             accounts: accounts.to_account_metas(None),
@@ -220,6 +225,7 @@ pub mod stable {
         conversion_source: Pubkey,
         amount_stable: u64,
         sol_spent: u64,
+        operation_id: u64,
     ) -> Instruction {
         let accounts = stable_accounts::ProcessConversion {
             stable_vault: pdas.stable_vault,
@@ -235,6 +241,7 @@ pub mod stable {
         let data = stable_ix::ProcessConversion {
             amount_stable,
             sol_spent,
+            operation_id,
         }
         .data();
         Instruction {
@@ -327,27 +334,29 @@ pub mod stable {
         pub fn sweep_creator_fees(
             &self,
             keeper_authority: &Keypair,
-            fee_source: &Keypair,
+            allowed_funder: &Keypair,
             pdas: &StableVaultPdas,
             creator_vault: Pubkey,
             rewards_pool: Pubkey,
             rewards_treasury: Pubkey,
             amount: u64,
+            operation_id: u64,
         ) -> Result<()> {
             let ix = build_sweep_creator_fees_ix(
                 pdas,
                 keeper_authority.pubkey(),
-                fee_source.pubkey(),
+                allowed_funder.pubkey(),
                 creator_vault,
                 rewards_pool,
                 rewards_treasury,
                 amount,
+                operation_id,
             );
             self.program
                 .request()
                 .instruction(ix)
                 .signer(keeper_authority)
-                .signer(fee_source)
+                .signer(allowed_funder)
                 .send()?;
             Ok(())
         }
@@ -361,6 +370,7 @@ pub mod stable {
             conversion_source: Pubkey,
             amount_stable: u64,
             sol_spent: u64,
+            operation_id: u64,
         ) -> Result<()> {
             let ix = build_process_conversion_ix(
                 pdas,
@@ -370,6 +380,7 @@ pub mod stable {
                 conversion_source,
                 amount_stable,
                 sol_spent,
+                operation_id,
             );
             self.program
                 .request()
@@ -451,6 +462,105 @@ pub mod stable {
                 .request()
                 .instruction(ix)
                 .signer(admin)
+                .send()?;
+            Ok(())
+        }
+
+        pub fn set_pause(
+            &self,
+            authority: &Keypair,
+            pdas: &StableVaultPdas,
+            is_paused: bool,
+        ) -> Result<()> {
+            let accounts = stable_accounts::SetStableVaultPause {
+                stable_vault: pdas.stable_vault,
+                authority: authority.pubkey(),
+            };
+            let data = stable_ix::SetPause { is_paused }.data();
+            let ix = Instruction {
+                program_id: stable_vault::ID,
+                accounts: accounts.to_account_metas(None),
+                data,
+            };
+            self.program
+                .request()
+                .instruction(ix)
+                .signer(authority)
+                .send()?;
+            Ok(())
+        }
+
+        pub fn add_accepted_mint(
+            &self,
+            authority: &Keypair,
+            pdas: &StableVaultPdas,
+            mint: Pubkey,
+        ) -> Result<()> {
+            let accounts = stable_accounts::ManageAcceptedMint {
+                stable_vault: pdas.stable_vault,
+                authority: authority.pubkey(),
+            };
+            let data = stable_ix::AddAcceptedMint { mint }.data();
+            let ix = Instruction {
+                program_id: stable_vault::ID,
+                accounts: accounts.to_account_metas(None),
+                data,
+            };
+            self.program
+                .request()
+                .instruction(ix)
+                .signer(authority)
+                .send()?;
+            Ok(())
+        }
+
+        pub fn remove_accepted_mint(
+            &self,
+            authority: &Keypair,
+            pdas: &StableVaultPdas,
+            mint: Pubkey,
+        ) -> Result<()> {
+            let accounts = stable_accounts::ManageAcceptedMint {
+                stable_vault: pdas.stable_vault,
+                authority: authority.pubkey(),
+            };
+            let data = stable_ix::RemoveAcceptedMint { mint }.data();
+            let ix = Instruction {
+                program_id: stable_vault::ID,
+                accounts: accounts.to_account_metas(None),
+                data,
+            };
+            self.program
+                .request()
+                .instruction(ix)
+                .signer(authority)
+                .send()?;
+            Ok(())
+        }
+
+        pub fn withdraw_sol_dust(
+            &self,
+            authority: &Keypair,
+            pdas: &StableVaultPdas,
+            destination: Pubkey,
+            amount: u64,
+        ) -> Result<()> {
+            let accounts = stable_accounts::WithdrawSolDust {
+                stable_vault: pdas.stable_vault,
+                authority: authority.pubkey(),
+                sol_vault: pdas.sol_vault,
+                destination,
+            };
+            let data = stable_ix::WithdrawSolDust { amount }.data();
+            let ix = Instruction {
+                program_id: stable_vault::ID,
+                accounts: accounts.to_account_metas(None),
+                data,
+            };
+            self.program
+                .request()
+                .instruction(ix)
+                .signer(authority)
                 .send()?;
             Ok(())
         }
@@ -600,6 +710,7 @@ pub mod rewards {
         allowed_funder: Pubkey,
         sol_treasury: Pubkey,
         amount: u64,
+        operation_id: u64,
     ) -> Instruction {
         let accounts = rewards_accounts::FundRewards {
             creator_vault,
@@ -608,7 +719,11 @@ pub mod rewards {
             sol_treasury,
             system_program: system_program::ID,
         };
-        let data = rewards_ix::FundRewards { amount }.data();
+        let data = rewards_ix::FundRewards {
+            amount,
+            operation_id,
+        }
+        .data();
         Instruction {
             program_id: rewards_vault::ID,
             accounts: accounts.to_account_metas(None),
@@ -876,6 +991,7 @@ pub mod rewards {
             pdas: &RewardsVaultPdas,
             allowed_funder: &Keypair,
             amount: u64,
+            operation_id: u64,
         ) -> Result<()> {
             let ix = build_fund_rewards_ix(
                 creator_vault,
@@ -883,6 +999,7 @@ pub mod rewards {
                 allowed_funder.pubkey(),
                 pdas.sol_treasury,
                 amount,
+                operation_id,
             );
             self.program
                 .request()

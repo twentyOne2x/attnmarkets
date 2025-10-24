@@ -11,6 +11,10 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tokio = { workspace = true, features = ["rt", "macros"] }
 solana-sdk = "2.3.0"
-anchor-client = "0.32.1"
+anchor-client = "=0.32.0"
 shellexpand = "3.1.0"
 rewards_vault = { path = "../../programs/rewards_vault", features = ["no-entrypoint"] }
+stable_vault = { path = "../../programs/stable_vault", features = ["no-entrypoint"] }
+splitter = { path = "../../programs/splitter", features = ["no-entrypoint"] }
+creator_vault = { path = "../../programs/creator_vault", features = ["no-entrypoint"] }
+anchor-spl = { workspace = true }

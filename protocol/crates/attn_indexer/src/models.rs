@@ -142,6 +142,9 @@ pub struct StableVaultGovernance {
     pub share_mint: String,
     pub stable_mint: String,
     pub pending_sol_lamports: f64,
+    pub paused: bool,
+    pub last_sweep_id: f64,
+    pub last_conversion_id: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

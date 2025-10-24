@@ -1,7 +1,7 @@
-use std::{rc::Rc, str::FromStr};
+use std::{str::FromStr, sync::Arc};
 
 use anchor_client::{Client, Cluster, Program};
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use attn_client::{creator, rewards, splitter as splitter_client, stable};
 use clap::{Parser, Subcommand};
 use shellexpand;
@@ -46,6 +46,8 @@ enum Commands {
         creator_vault: Pubkey,
         #[arg(long = "amount")]
         amount: u64,
+        #[arg(long = "operation-id")]
+        operation_id: u64,
     },
     /// RewardsVault helpers
     Rewards {
@@ -131,6 +133,15 @@ enum RewardsCommands {
         #[arg(long = "creator-vault", value_parser = parse_pubkey)]
         creator_vault: Pubkey,
     },
+    /// Fund the rewards vault with SOL
+    Fund {
+        #[arg(long = "creator-vault", value_parser = parse_pubkey)]
+        creator_vault: Pubkey,
+        #[arg(long)]
+        amount: u64,
+        #[arg(long = "operation-id")]
+        operation_id: u64,
+    },
 }
 
 #[tokio::main]
@@ -138,8 +149,11 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt().with_max_level(Level::INFO).init();
     let cli = Cli::parse();
     let keypair_path = shellexpand::tilde(&cli.keypair).into_owned();
-    let payer =
-        Rc::new(read_keypair_file(keypair_path).context("failed to read keypair from path")?);
+    let payer = Arc::new(
+        read_keypair_file(&keypair_path)
+            .map_err(|err| anyhow!(err.to_string()))
+            .context("failed to read keypair from path")?,
+    );
     let cluster = Cluster::Custom(cli.rpc_url.clone(), cli.rpc_url.clone());
     let client = Client::new_with_options(cluster, payer.clone(), CommitmentConfig::confirmed());
 
@@ -190,7 +204,8 @@ async fn main() -> Result<()> {
             RewardsCommands::Fund {
                 creator_vault,
                 amount,
-            } => rewards_fund(&client, payer.clone(), creator_vault, amount).await?,
+                operation_id,
+            } => rewards_fund(&client, payer.clone(), creator_vault, amount, operation_id).await?,
         },
         Commands::Wrap { pump_mint, amount } => {
             wrap(&client, payer.clone(), pump_mint, amount).await?
@@ -203,20 +218,25 @@ async fn main() -> Result<()> {
         Commands::RedeemPt { market, amount } => {
             redeem_principal(&client, payer.clone(), market, amount).await?
         }
+        Commands::Fund {
+            creator_vault,
+            amount,
+            operation_id,
+        } => rewards_fund(&client, payer.clone(), creator_vault, amount, operation_id).await?,
     }
 
     Ok(())
 }
 
 async fn rewards_initialize(
-    client: &Client<Rc<Keypair>>,
-    payer: Rc<Keypair>,
+    client: &Client<Arc<Keypair>>,
+    payer: Arc<Keypair>,
     creator_vault: Pubkey,
     attn_mint: Pubkey,
     reward_bps: u16,
     allowed_funder: Option<Pubkey>,
 ) -> Result<()> {
-    let program = client.program(rewards_vault::ID);
+    let program = client.program(rewards_vault::ID)?;
     let rewards_client = rewards::RewardsVaultClient::new(&program);
     let allowed = allowed_funder.unwrap_or(creator_vault);
     let pdas = rewards_client
@@ -237,13 +257,13 @@ async fn rewards_initialize(
 }
 
 async fn rewards_stake(
-    client: &Client<Rc<Keypair>>,
-    payer: Rc<Keypair>,
+    client: &Client<Arc<Keypair>>,
+    payer: Arc<Keypair>,
     creator_vault: Pubkey,
     attn_mint: Pubkey,
     amount: u64,
 ) -> Result<()> {
-    let program = client.program(rewards_vault::ID);
+    let program = client.program(rewards_vault::ID)?;
     let pdas = rewards::derive_pdas(&creator_vault);
     let user = payer.pubkey();
     let user_attn_ata = associated_token_address(&user, &attn_mint);
@@ -270,19 +290,19 @@ async fn rewards_stake(
     );
     instructions.push(stake_ix);
 
-    let sig = send_instructions(program, payer, instructions).await?;
+    let sig = send_instructions(program, instructions)?;
     println!("Rewards stake transaction signature: {}", sig);
     Ok(())
 }
 
 async fn rewards_unstake(
-    client: &Client<Rc<Keypair>>,
-    payer: Rc<Keypair>,
+    client: &Client<Arc<Keypair>>,
+    payer: Arc<Keypair>,
     creator_vault: Pubkey,
     attn_mint: Pubkey,
     amount: u64,
 ) -> Result<()> {
-    let program = client.program(rewards_vault::ID);
+    let program = client.program(rewards_vault::ID)?;
     let pdas = rewards::derive_pdas(&creator_vault);
     let user = payer.pubkey();
     let user_attn_ata = associated_token_address(&user, &attn_mint);
@@ -309,55 +329,50 @@ async fn rewards_unstake(
     );
     instructions.push(unstake_ix);
 
-    let sig = send_instructions(program, payer, instructions).await?;
+    let sig = send_instructions(program, instructions)?;
     println!("Rewards unstake transaction signature: {}", sig);
     Ok(())
 }
 
 async fn rewards_claim(
-    client: &Client<Rc<Keypair>>,
-    payer: Rc<Keypair>,
+    client: &Client<Arc<Keypair>>,
+    payer: Arc<Keypair>,
     creator_vault: Pubkey,
 ) -> Result<()> {
-    let program = client.program(rewards_vault::ID);
+    let program = client.program(rewards_vault::ID)?;
     let pdas = rewards::derive_pdas(&creator_vault);
     let user = payer.pubkey();
     let (stake_position, _) = rewards::stake_position_pda(&pdas.rewards_pool, &user);
 
     let claim_ix =
         rewards::build_claim_rewards_ix(pdas.rewards_pool, user, stake_position, pdas.sol_treasury);
-    let sig = send_instructions(program, payer, vec![claim_ix]).await?;
+    let sig = send_instructions(program, vec![claim_ix])?;
     println!("Rewards claim transaction signature: {}", sig);
     Ok(())
 }
 
 async fn rewards_fund(
-    client: &Client<Rc<Keypair>>,
-    payer: Rc<Keypair>,
+    client: &Client<Arc<Keypair>>,
+    payer: Arc<Keypair>,
     creator_vault: Pubkey,
     amount: u64,
+    operation_id: u64,
 ) -> Result<()> {
-    let program = client.program(rewards_vault::ID);
+    let program = client.program(rewards_vault::ID)?;
     let pdas = rewards::derive_pdas(&creator_vault);
-    let instruction = rewards::build_fund_rewards_ix(
-        creator_vault,
-        pdas.rewards_pool,
-        payer.pubkey(),
-        pdas.sol_treasury,
-        amount,
-    );
-    let sig = send_instructions(program, payer, vec![instruction]).await?;
-    println!("Rewards fund transaction signature: {}", sig);
+    let rewards_client = rewards::RewardsVaultClient::new(&program);
+    rewards_client.fund_rewards(creator_vault, &pdas, &payer, amount, operation_id)?;
+    println!("Rewards fund submitted");
     Ok(())
 }
 
 async fn wrap(
-    client: &Client<Rc<Keypair>>,
-    payer: Rc<Keypair>,
+    client: &Client<Arc<Keypair>>,
+    payer: Arc<Keypair>,
     pump_mint: Pubkey,
     amount: u64,
 ) -> Result<()> {
-    let program = client.program(creator_vault::ID);
+    let program = client.program(creator_vault::ID)?;
     let (creator_vault_addr, _) = creator::creator_vault_pda(&pump_mint);
     let creator_state = creator::fetch_account(&program, creator_vault_addr)
         .await
@@ -385,26 +400,26 @@ async fn wrap(
         ),
     ];
 
-    let sig = send_instructions(program, payer, instructions).await?;
+    let sig = send_instructions(program, instructions)?;
     println!("Wrap transaction signature: {}", sig);
     Ok(())
 }
 
 async fn split(
-    client: &Client<Rc<Keypair>>,
-    payer: Rc<Keypair>,
+    client: &Client<Arc<Keypair>>,
+    payer: Arc<Keypair>,
     market_pubkey: Pubkey,
     amount: u64,
 ) -> Result<()> {
-    let splitter_program = client.program(splitter::ID);
-    let creator_program = client.program(creator_vault::ID);
+    let splitter_program = client.program(splitter::ID)?;
+    let creator_program = client.program(creator_vault::ID)?;
 
     let market = splitter_client::fetch_market(&splitter_program, market_pubkey)
         .await
         .context("failed to fetch market account")?;
 
     let creator_vault_addr = market.creator_vault;
-    let creator_state = creator::fetch_account(&creator_program, creator_vault_addr)
+    let _creator_state = creator::fetch_account(&creator_program, creator_vault_addr)
         .await
         .context("failed to fetch creator vault account")?;
 
@@ -433,7 +448,7 @@ async fn split(
     );
     instructions.push(mint_ix);
 
-    let sig = send_instructions(splitter_program, payer, instructions).await?;
+    let sig = send_instructions(splitter_program, instructions)?;
     println!(
         "Split transaction signature: {}\nSplitter authority: {}\nUser position: {}",
         sig, pdas.splitter_authority, pdas.user_position
@@ -442,13 +457,13 @@ async fn split(
 }
 
 async fn redeem_yield(
-    client: &Client<Rc<Keypair>>,
-    payer: Rc<Keypair>,
+    client: &Client<Arc<Keypair>>,
+    payer: Arc<Keypair>,
     market_pubkey: Pubkey,
     new_fee_index: Option<u128>,
 ) -> Result<()> {
-    let splitter_program = client.program(splitter::ID);
-    let creator_program = client.program(creator_vault::ID);
+    let splitter_program = client.program(splitter::ID)?;
+    let creator_program = client.program(creator_vault::ID)?;
 
     let market = splitter_client::fetch_market(&splitter_program, market_pubkey)
         .await
@@ -483,19 +498,19 @@ async fn redeem_yield(
     );
     instructions.push(ix);
 
-    let sig = send_instructions(splitter_program, payer, instructions).await?;
+    let sig = send_instructions(splitter_program, instructions)?;
     println!("Redeem yield transaction signature: {}", sig);
     Ok(())
 }
 
 async fn redeem_principal(
-    client: &Client<Rc<Keypair>>,
-    payer: Rc<Keypair>,
+    client: &Client<Arc<Keypair>>,
+    payer: Arc<Keypair>,
     market_pubkey: Pubkey,
     amount: u64,
 ) -> Result<()> {
-    let splitter_program = client.program(splitter::ID);
-    let creator_program = client.program(creator_vault::ID);
+    let splitter_program = client.program(splitter::ID)?;
+    let creator_program = client.program(creator_vault::ID)?;
 
     let market = splitter_client::fetch_market(&splitter_program, market_pubkey)
         .await
@@ -527,26 +542,21 @@ async fn redeem_principal(
     );
     instructions.push(ix);
 
-    let sig = send_instructions(splitter_program, payer, instructions).await?;
+    let sig = send_instructions(splitter_program, instructions)?;
     println!("Redeem principal transaction signature: {}", sig);
     Ok(())
 }
 
-async fn send_instructions<C>(
-    program: Program<C>,
-    payer: Rc<Keypair>,
-    instructions: Vec<Instruction>,
-) -> Result<Signature>
+fn send_instructions<C>(program: Program<C>, instructions: Vec<Instruction>) -> Result<Signature>
 where
     C: std::ops::Deref + Clone,
-    C::Target: Signer,
+    C::Target: Signer + Sized,
 {
-    let sig = program
-        .request()
-        .instructions(instructions)
-        .signer(payer.as_ref())
-        .send()
-        .await?;
+    let mut builder = program.request();
+    for ix in instructions {
+        builder = builder.instruction(ix);
+    }
+    let sig = builder.send()?;
     Ok(sig)
 }
 

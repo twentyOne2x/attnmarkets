@@ -541,7 +541,7 @@ impl ReadStore for SqlxStore {
 
         let stable_row = sqlx::query(
             r#"
-            select stable_vault, authority_seed, admin, keeper_authority, share_mint, stable_mint, pending_sol_lamports
+            select stable_vault, authority_seed, admin, keeper_authority, share_mint, stable_mint, pending_sol_lamports, paused, last_sweep_id, last_conversion_id
             from stable_vaults
             order by stable_vault asc
             limit 1
@@ -558,6 +558,9 @@ impl ReadStore for SqlxStore {
             share_mint: row.get("share_mint"),
             stable_mint: row.get("stable_mint"),
             pending_sol_lamports: row.get::<f64, _>("pending_sol_lamports"),
+            paused: row.get::<bool, _>("paused"),
+            last_sweep_id: row.get::<f64, _>("last_sweep_id"),
+            last_conversion_id: row.get::<f64, _>("last_conversion_id"),
         });
 
         Ok(GovernanceState {
@@ -827,6 +830,9 @@ impl MockData {
                 share_mint: "ShareMint111111111111111111111111111111".into(),
                 stable_mint: "StableMint111111111111111111111111111111".into(),
                 pending_sol_lamports: 0.0,
+                paused: false,
+                last_sweep_id: 0.0,
+                last_conversion_id: 0.0,
             }),
         };
 
