@@ -89,11 +89,6 @@ attn.markets tokenises Solana fee streams (ICM, creator token) into Pendle-style
 
 attn.markets turns Pump.fun creator fees into composable DeFi assets, unlocking upfront funding for teams and diversified yield for investors, all without rewriting the original token.
 
-## TL;DR
-- Tokenise Pump.fun creator fees into SY → PT/YT, `attnUSD`, and SOL rewards with idempotent keeper flows (`operation_id` on every sweep/convert/fund).
-- **Squads-administered vaults**: CreatorVault **admin = Squads 2-of-2 (creator+attn)**. Pause toggles exist on creator/stable/rewards so incidents can halt writes without redeploys.
-- Indexer + API expose weak ETags, `/v1/governance`, and CLI/keeper tooling so the frontend, scripts, and observers stay in sync.
-
 ## Quickstart
 ```bash
 rustup target add bpfel-unknown-unknown
