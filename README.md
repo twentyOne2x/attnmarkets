@@ -9,6 +9,7 @@
 ## TL;DR
 - Tokenize Pump.fun creator fees into SY → PT/YT, `attnUSD`, SOL rewards.
 - Dual-control via Squads 2-of-2; pause + idempotent keeper ops.
+- **15-day advance UX:** mint PT/YT, sell YT for upfront USDC, buy back any time (devnet RFQ).
 - Devnet live; AMM v0 pending. Details below.
 
 ## Why now (creator payouts) — **as of 2025-10-25**
@@ -123,15 +124,17 @@ cargo run -p attn_api                                             # launches RES
 
 ### Architecture Overview
 ```
-Pump.fun Creator Fees ──► CreatorVault ──► SY ──► Splitter ──► PT / YT
-                                      │                       │
-                                      │                       └─► YT cash flow ──► StableVault (attnUSD NAV)
-                                      │                                │
-                                      │                                └─► attnUSD staking ──► RewardsVault (SOL index)
-                                      │
-                                      └─► attnUSD mint hooks (LP stablecoin deposits)
+Pump.fun fees → CreatorVault (admin: Squads 2-of-2)
+   ├─ keeper: sweep (rewards_bps) → RewardsVault (claim SOL)
+   ├─ redeem_yield (YT) → pays from CreatorVault fees
+   └─ redeem_principal (PT) after maturity
 
-PT, attnUSD, and sAttnUSD trade/settle across AMM pools; indexer + SDK surface live state.
+Splitter: SY → PT + YT
+StableVault: user deposits stables ↔ mint/burn attnUSD (no fee sweeps)
+AMM pools: PT/quote and attnUSD/quote (v0 pending)
+Governance: pause gates on Creator/Stable/Rewards; keeper ops use monotonic operation_id
+Indexer/API: /v1/* with weak ETags, /readyz, /version
+
 ```
 
 | Program | Responsibilities | Key Seeds / Notes | Idempotent & Pause Highlights |
