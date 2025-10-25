@@ -146,7 +146,11 @@ pub mod splitter {
             .ok_or(SplitterError::MathOverflow)?;
 
         let (expected_position, position_bump) = Pubkey::find_program_address(
-            &[b"user-position", market.key().as_ref(), ctx.accounts.user.key().as_ref()],
+            &[
+                b"user-position",
+                market.key().as_ref(),
+                ctx.accounts.user.key().as_ref(),
+            ],
             &crate::ID,
         );
         require_keys_eq!(
@@ -591,8 +595,6 @@ pub struct UserPosition {
 impl UserPosition {
     pub const INIT_SPACE: usize = 32 + 32 + 1 + 16 + 16;
 }
-
-
 
 #[event]
 pub struct MarketCreated {
