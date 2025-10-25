@@ -42,6 +42,7 @@ export async function buybackYt(params: BuybackYtParams): Promise<string> {
       ? params.decimals
       : await fetchMintDecimals(provider, pumpMintPk);
   const amount = uiToBn(trade.priceUsdc.toString(), decimals);
+  const amountBigInt = BigInt(amount.toString());
 
   const userUsdcAta = await ensureAta(provider, userPk, pumpMintPk, userPk);
   const lpWalletPk = new PublicKey(trade.settlement.lpWallet);
@@ -52,7 +53,7 @@ export async function buybackYt(params: BuybackYtParams): Promise<string> {
     pumpMintPk,
     lpUsdcAta,
     userPk,
-    amount,
+    amountBigInt,
     decimals,
   );
 
