@@ -4,6 +4,9 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { AppProvider } from './context/AppContext';
 import { DataModeProvider } from './context/DataModeContext';
+import GovernanceBanner from './components/GovernanceBanner';
+import WalletProviders from './components/WalletProviders';
+import AppFooter from './components/AppFooter';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -21,9 +24,15 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <DataModeProvider>
-          <AppProvider>
-            {children}
-          </AppProvider>
+          <WalletProviders>
+            <AppProvider>
+              <GovernanceBanner />
+              <div className="min-h-screen flex flex-col">
+                <div className="flex-1">{children}</div>
+                <AppFooter />
+              </div>
+            </AppProvider>
+          </WalletProviders>
         </DataModeProvider>
       </body>
     </html>

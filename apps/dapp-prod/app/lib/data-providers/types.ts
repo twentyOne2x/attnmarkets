@@ -77,6 +77,47 @@ export interface RewardPosition {
   apr: number;
   claimed: number;
   updatedAt: string;
+  paused?: boolean;
+  attnMint?: string;
+  sAttnMint?: string;
+  attnVault?: string;
+}
+
+export interface CreatorGovernance {
+  creator_vault: string;
+  pump_mint: string;
+  admin: string;
+  sol_rewards_bps: number;
+  paused: boolean;
+  sy_mint: string;
+}
+
+export interface RewardsGovernance {
+  rewards_pool: string;
+  creator_vault: string;
+  admin: string;
+  allowed_funder: string;
+  reward_bps: number;
+  paused: boolean;
+}
+
+export interface StableVaultGovernance {
+  stable_vault: string;
+  admin: string;
+  keeper_authority: string;
+  authority_seed: string;
+  share_mint: string;
+  stable_mint: string;
+  pending_sol_lamports: number;
+  paused: boolean;
+  last_sweep_id: number;
+  last_conversion_id: number;
+}
+
+export interface GovernanceState {
+  creator_vaults: CreatorGovernance[];
+  rewards_pools: RewardsGovernance[];
+  stable_vault?: StableVaultGovernance;
 }
 
 export interface DataProvider {
@@ -86,4 +127,5 @@ export interface DataProvider {
   getLoanHistory(wallet: string, params?: CursorParams): Promise<PaginatedResponse<LoanHistoryItem>>;
   getRewards(params?: CursorParams): Promise<PaginatedResponse<RewardPosition>>;
   getRewardsSummary(params?: { signal?: AbortSignal }): Promise<RewardsSummary>;
+  getGovernance(params?: { signal?: AbortSignal }): Promise<GovernanceState>;
 }
