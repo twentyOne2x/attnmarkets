@@ -4,19 +4,22 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Context, Result};
 use attn_indexer::{
-    connect_pool, mock_store, run_migrations, AttnUsdStats, DynStore, GovernanceState,
-    MarketDetail, MarketSummary, Overview, Portfolio, RewardsPoolSummary, SqlxStore,
+    connect_pool, mock_store, run_migrations, DynStore, Overview, RewardsPoolSummary, SqlxStore,
 };
 use axum::{
     extract::{Path, Query, State},
-    http::{header::{ETAG, IF_NONE_MATCH}, HeaderMap, HeaderValue, StatusCode},
+    http::{
+        header::{AUTHORIZATION, CACHE_CONTROL, CONTENT_TYPE, ETAG, IF_NONE_MATCH},
+        HeaderMap, HeaderValue, Method, StatusCode,
+    },
     response::{IntoResponse, Response},
     routing::get,
     Json, Router,
 };
-use sha2::{Digest, Sha256};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use tokio::net::TcpListener;
+use tower_http::cors::{AllowHeaders, AllowOrigin, CorsLayer};
 use tracing::{error, info, warn, Level};
 
 #[derive(Serialize, Deserialize)]
@@ -34,6 +37,22 @@ fn make_weak_etag(input: &[u8]) -> String {
     hasher.update(input);
     let digest = hasher.finalize();
     format!("W/\"{}\"", hex::encode(digest))
+}
+
+fn etag_for<T: Serialize>(value: &T) -> String {
+    let json = serde_json::to_vec(value).expect("serialize value for etag");
+    make_weak_etag(&json)
+}
+
+fn apply_cache_headers(mut response: Response, etag: &str) -> Response {
+    response
+        .headers_mut()
+        .insert(ETAG, HeaderValue::from_str(etag).unwrap());
+    response.headers_mut().insert(
+        CACHE_CONTROL,
+        HeaderValue::from_static("private, max-age=0, must-revalidate"),
+    );
+    response
 }
 
 fn header_matches_if_none(value: &HeaderValue, etag: &str) -> bool {
@@ -138,8 +157,6 @@ impl IntoResponse for ApiError {
     }
 }
 
-type ApiResult<T> = Result<Json<T>, ApiError>;
-
 #[derive(Debug, Deserialize)]
 struct RewardsQuery {
     cursor: Option<String>,
@@ -154,6 +171,8 @@ struct RewardsListResponse {
 
 fn build_router(state: AppState) -> Router {
     Router::new()
+        .route("/readyz", get(readyz))
+        .route("/version", get(version))
         .route("/health", get(health))
         .route("/v1/overview", get(get_overview))
         .route("/v1/markets", get(list_markets))
@@ -164,6 +183,32 @@ fn build_router(state: AppState) -> Router {
         .route("/v1/rewards/:pool", get(get_rewards_pool))
         .route("/v1/governance", get(get_governance))
         .with_state(state)
+        .layer(cors_layer())
+}
+
+fn cors_layer() -> CorsLayer {
+    let live_origin =
+        env::var("ATTN_API_LIVE_ORIGIN").unwrap_or_else(|_| "https://attn.markets".to_string());
+    let allow_origin = AllowOrigin::predicate(move |origin, _| {
+        if let Ok(origin_str) = origin.to_str() {
+            if origin_str == live_origin
+                || origin_str.starts_with("http://localhost")
+                || origin_str.starts_with("http://127.0.0.1")
+            {
+                return true;
+            }
+        }
+        false
+    });
+
+    CorsLayer::new()
+        .allow_origin(allow_origin)
+        .allow_methods([Method::GET, Method::HEAD, Method::POST, Method::OPTIONS])
+        .allow_headers(AllowHeaders::list([
+            AUTHORIZATION,
+            CONTENT_TYPE,
+            IF_NONE_MATCH,
+        ]))
 }
 
 #[tokio::main]
@@ -198,43 +243,118 @@ async fn health() -> Json<HealthResponse> {
     Json(HealthResponse { status: "ok" })
 }
 
-async fn get_overview(State(state): State<AppState>) -> ApiResult<Overview> {
-    let overview = state.store.overview().await?;
-    Ok(Json(overview))
+async fn readyz(State(state): State<AppState>) -> Result<Json<HealthResponse>, ApiError> {
+    state.store.health_check().await?;
+    Ok(Json(HealthResponse { status: "ok" }))
 }
 
-async fn list_markets(State(state): State<AppState>) -> ApiResult<Vec<MarketSummary>> {
+#[derive(Serialize)]
+struct VersionResponse {
+    version: &'static str,
+    git_sha: &'static str,
+    built_at_unix: u64,
+}
+
+fn version_info() -> VersionResponse {
+    VersionResponse {
+        version: env!("CARGO_PKG_VERSION"),
+        git_sha: option_env!("ATTN_BUILD_GIT_SHA").unwrap_or("unknown"),
+        built_at_unix: option_env!("ATTN_BUILD_UNIX_TS")
+            .and_then(|raw| raw.parse::<u64>().ok())
+            .unwrap_or(0),
+    }
+}
+
+async fn version() -> Response {
+    let payload = version_info();
+    let etag = etag_for(&payload);
+    let response = Json(payload).into_response();
+    apply_cache_headers(response, &etag)
+}
+
+async fn get_overview(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Response, ApiError> {
+    let overview = state.store.overview().await?;
+    let etag = etag_for(&overview);
+    if let Some(value) = headers.get(IF_NONE_MATCH) {
+        if header_matches_if_none(value, &etag) {
+            return Ok(StatusCode::NOT_MODIFIED.into_response());
+        }
+    }
+    let response = Json(overview).into_response();
+    Ok(apply_cache_headers(response, &etag))
+}
+
+async fn list_markets(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Response, ApiError> {
     let markets = state.store.markets().await?;
-    Ok(Json(markets))
+    let etag = etag_for(&markets);
+    if let Some(value) = headers.get(IF_NONE_MATCH) {
+        if header_matches_if_none(value, &etag) {
+            return Ok(StatusCode::NOT_MODIFIED.into_response());
+        }
+    }
+    let response = Json(markets).into_response();
+    Ok(apply_cache_headers(response, &etag))
 }
 
 async fn get_market(
     Path(market): Path<String>,
     State(state): State<AppState>,
-) -> ApiResult<MarketDetail> {
+    headers: HeaderMap,
+) -> Result<Response, ApiError> {
     let detail = state
         .store
         .market(&market)
         .await?
         .ok_or_else(|| ApiError::not_found("market", market.clone()))?;
-    Ok(Json(detail))
+    let etag = etag_for(&detail);
+    if let Some(value) = headers.get(IF_NONE_MATCH) {
+        if header_matches_if_none(value, &etag) {
+            return Ok(StatusCode::NOT_MODIFIED.into_response());
+        }
+    }
+    let response = Json(detail).into_response();
+    Ok(apply_cache_headers(response, &etag))
 }
 
 async fn get_portfolio(
     Path(wallet): Path<String>,
     State(state): State<AppState>,
-) -> ApiResult<Portfolio> {
+    headers: HeaderMap,
+) -> Result<Response, ApiError> {
     let portfolio = state
         .store
         .portfolio(&wallet)
         .await?
         .ok_or_else(|| ApiError::not_found("portfolio", wallet.clone()))?;
-    Ok(Json(portfolio))
+    let etag = etag_for(&portfolio);
+    if let Some(value) = headers.get(IF_NONE_MATCH) {
+        if header_matches_if_none(value, &etag) {
+            return Ok(StatusCode::NOT_MODIFIED.into_response());
+        }
+    }
+    let response = Json(portfolio).into_response();
+    Ok(apply_cache_headers(response, &etag))
 }
 
-async fn get_attnusd(State(state): State<AppState>) -> ApiResult<AttnUsdStats> {
+async fn get_attnusd(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Response, ApiError> {
     let stats = state.store.attnusd().await?;
-    Ok(Json(stats))
+    let etag = etag_for(&stats);
+    if let Some(value) = headers.get(IF_NONE_MATCH) {
+        if header_matches_if_none(value, &etag) {
+            return Ok(StatusCode::NOT_MODIFIED.into_response());
+        }
+    }
+    let response = Json(stats).into_response();
+    Ok(apply_cache_headers(response, &etag))
 }
 
 async fn list_rewards(
@@ -261,10 +381,8 @@ async fn list_rewards(
         pools: page.items,
         next_cursor: page.next_cursor,
     };
-    let mut response = Json(body).into_response();
-    response
-        .headers_mut()
-        .insert(ETAG, HeaderValue::from_str(&etag).unwrap());
+    let response = Json(body).into_response();
+    let response = apply_cache_headers(response, &etag);
     Ok(response)
 }
 
@@ -285,16 +403,24 @@ async fn get_rewards_pool(
             return Ok(StatusCode::NOT_MODIFIED.into_response());
         }
     }
-    let mut response = Json(detail).into_response();
-    response
-        .headers_mut()
-        .insert(ETAG, HeaderValue::from_str(&etag).unwrap());
+    let response = Json(detail).into_response();
+    let response = apply_cache_headers(response, &etag);
     Ok(response)
 }
 
-async fn get_governance(State(state): State<AppState>) -> ApiResult<GovernanceState> {
+async fn get_governance(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Response, ApiError> {
     let governance = state.store.governance().await?;
-    Ok(Json(governance))
+    let etag = etag_for(&governance);
+    if let Some(value) = headers.get(IF_NONE_MATCH) {
+        if header_matches_if_none(value, &etag) {
+            return Ok(StatusCode::NOT_MODIFIED.into_response());
+        }
+    }
+    let response = Json(governance).into_response();
+    Ok(apply_cache_headers(response, &etag))
 }
 
 #[cfg(test)]
@@ -374,5 +500,40 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn readyz_endpoint_checks_store() {
+        let app = test_app();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/readyz")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn version_endpoint_returns_payload() {
+        let app = test_app();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/version")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let bytes = response.into_body().collect().await.unwrap().to_bytes();
+        let payload: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(payload["version"].as_str(), Some(env!("CARGO_PKG_VERSION")));
+        assert!(payload["git_sha"].is_string());
+        assert!(payload["built_at_unix"].is_number());
     }
 }
