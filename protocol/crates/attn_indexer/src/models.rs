@@ -23,6 +23,10 @@ pub enum MarketStatus {
 pub struct MarketSummary {
     pub market: String,
     pub pump_mint: String,
+    pub creator_vault: String,
+    pub sy_mint: String,
+    pub pt_mint: String,
+    pub yt_mint: String,
     pub maturity_ts: i64,
     pub pt_supply: f64,
     pub yt_supply: f64,
@@ -124,6 +128,7 @@ pub struct CreatorGovernance {
     pub sol_rewards_bps: u16,
     pub paused: bool,
     pub sy_mint: String,
+    pub advance_enabled: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
