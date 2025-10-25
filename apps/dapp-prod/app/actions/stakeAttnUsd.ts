@@ -1,40 +1,13 @@
-import BN from 'bn.js';
-import {
-  createAssociatedTokenAccountInstruction,
-  getAssociatedTokenAddressSync,
-  TOKEN_PROGRAM_ID,
-  getMint,
-} from '@solana/spl-token';
-import { PublicKey, SystemProgram, Transaction, TransactionInstruction } from '@solana/web3.js';
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { PublicKey, SystemProgram } from '@solana/web3.js';
 import { program } from '@/app/lib/anchor';
 import { RewardsVaultIdl } from '@/app/idl';
 import { PIDS } from '@/app/lib/programIds';
+import { ensureAta, fetchMintDecimals, uiToBn } from './helpers';
 
 const REWARDS_AUTHORITY_SEED = Buffer.from('rewards-authority');
 const STAKE_POSITION_SEED = Buffer.from('stake-position');
 const SOL_TREASURY_SEED = Buffer.from('sol-treasury');
-
-const uiToBn = (input: string, decimals: number): BN => {
-  const trimmed = input.trim();
-  if (!trimmed) {
-    throw new Error('Amount is required');
-  }
-  if (!/^\d*(\.\d*)?$/.test(trimmed)) {
-    throw new Error('Invalid amount format');
-  }
-  const [rawInt, rawFrac = ''] = trimmed.split('.');
-  const intPart = rawInt.replace(/^0+(?=\d)/, '') || '0';
-  if (rawFrac.length > decimals) {
-    throw new Error(`Amount supports at most ${decimals} decimal places`);
-  }
-  const fracPart = rawFrac.padEnd(decimals, '0').slice(0, decimals);
-  const digits = `${intPart}${fracPart}`;
-  const bn = new BN(digits);
-  if (bn.isZero()) {
-    throw new Error('Stake amount must be greater than zero');
-  }
-  return bn;
-};
 
 const deriveRewardsAuthority = (pool: PublicKey, programId: PublicKey): PublicKey => {
   const [authority] = PublicKey.findProgramAddressSync(
@@ -89,38 +62,16 @@ export async function stakeAttnUSD(
   const prog = program(RewardsVaultIdl as any, PIDS.rewards_vault, wallet);
   const provider = (prog as any).provider;
 
-  const mintInfo =
-    decimals !== undefined
-      ? { decimals }
-      : await getMint(provider.connection, attnMintPk, 'confirmed');
-  const amount = uiToBn(amountUi, mintInfo.decimals);
+  const mintDecimals =
+    decimals !== undefined ? decimals : await fetchMintDecimals(provider, attnMintPk);
+  const amount = uiToBn(amountUi, mintDecimals);
 
-  const userAttnAta = getAssociatedTokenAddressSync(attnMintPk, stakerPk);
-  const userSAttnAta = getAssociatedTokenAddressSync(sAttnMintPk, stakerPk);
+  const userPubkey = wallet.publicKey as PublicKey;
+  const userAttnAta = await ensureAta(provider, stakerPk, attnMintPk, userPubkey);
+  const userSAttnAta = await ensureAta(provider, stakerPk, sAttnMintPk, userPubkey);
   const rewardsAuthority = deriveRewardsAuthority(poolPk, programId);
   const stakePosition = deriveStakePosition(poolPk, stakerPk, programId);
   const solTreasury = deriveSolTreasury(poolPk, programId);
-
-  const ataInstructions: TransactionInstruction[] = [];
-  const userPubkey = wallet.publicKey as PublicKey;
-
-  const maybeCreateAta = async (ata: PublicKey, mint: PublicKey) => {
-    const accountInfo = await provider.connection.getAccountInfo(ata);
-    if (!accountInfo) {
-      ataInstructions.push(
-        createAssociatedTokenAccountInstruction(userPubkey, ata, stakerPk, mint),
-      );
-    }
-  };
-
-  await maybeCreateAta(userAttnAta, attnMintPk);
-  await maybeCreateAta(userSAttnAta, sAttnMintPk);
-
-  if (ataInstructions.length > 0) {
-    const tx = new Transaction().add(...ataInstructions);
-    tx.feePayer = userPubkey;
-    await provider.sendAndConfirm(tx, [], { commitment: 'confirmed' });
-  }
 
   await prog.methods
     .stakeAttnusd(amount)

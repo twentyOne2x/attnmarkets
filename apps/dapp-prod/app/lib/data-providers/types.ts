@@ -36,6 +36,29 @@ export interface CreatorSummary {
   } | null;
 }
 
+export interface MarketSummary {
+  market: string;
+  pump_mint: string;
+  creator_vault: string;
+  sy_mint: string;
+  pt_mint: string;
+  yt_mint: string;
+  maturity_ts: number;
+  pt_supply: number;
+  yt_supply: number;
+  implied_apy: number;
+  status: 'active' | 'matured' | 'settled';
+}
+
+export interface MarketDetail {
+  summary: MarketSummary;
+  total_fees_distributed_sol: number;
+  fee_index: number;
+  tvl_sol: number;
+  last_yield_slot: number;
+  updated_at: string;
+}
+
 export interface UserPosition {
   deposited_usdc: number;
   cyt_tokens: number;
@@ -90,6 +113,7 @@ export interface CreatorGovernance {
   sol_rewards_bps: number;
   paused: boolean;
   sy_mint: string;
+  advance_enabled: boolean;
 }
 
 export interface RewardsGovernance {
@@ -120,6 +144,42 @@ export interface GovernanceState {
   stable_vault?: StableVaultGovernance;
 }
 
+export interface AdvanceQuote {
+  quote_id: string;
+  market: string;
+  size_yt: number;
+  price_usdc: number;
+  implied_apr: number;
+  est_slippage: number;
+  route: 'rfq' | 'amm';
+  side: 'sell' | 'buyback';
+  expires_at: string;
+  cursor: string;
+}
+
+export interface AdvanceCapsSnapshot {
+  wallet_limit_usdc?: number;
+  wallet_used_usdc: number;
+  wallet_remaining_usdc?: number;
+  epoch_limit_usdc?: number;
+  epoch_used_usdc: number;
+  epoch_remaining_usdc?: number;
+}
+
+export interface AdvanceTrade {
+  quote_id: string;
+  route: 'rfq' | 'amm';
+  side: 'sell' | 'buyback';
+  price_usdc: number;
+  size_yt: number;
+  expires_at: string;
+  ttl_seconds: number;
+  settlement: {
+    lp_wallet: string;
+  };
+  caps: AdvanceCapsSnapshot;
+}
+
 export interface DataProvider {
   getPoolOverview(params?: { signal?: AbortSignal }): Promise<PoolOverview>;
   getCreators(params?: CursorParams): Promise<PaginatedResponse<CreatorSummary>>;
@@ -127,5 +187,13 @@ export interface DataProvider {
   getLoanHistory(wallet: string, params?: CursorParams): Promise<PaginatedResponse<LoanHistoryItem>>;
   getRewards(params?: CursorParams): Promise<PaginatedResponse<RewardPosition>>;
   getRewardsSummary(params?: { signal?: AbortSignal }): Promise<RewardsSummary>;
+  getMarkets(params?: { signal?: AbortSignal }): Promise<MarketSummary[]>;
+  getMarket(market: string, params?: { signal?: AbortSignal }): Promise<MarketDetail>;
   getGovernance(params?: { signal?: AbortSignal }): Promise<GovernanceState>;
+  getYtQuote(
+    market: string,
+    params: { size: number; maturity: number; side?: 'sell' | 'buyback'; signal?: AbortSignal }
+  ): Promise<AdvanceQuote>;
+  postSellYt(payload: { quoteId: string; wallet: string }): Promise<AdvanceTrade>;
+  postBuybackYt(payload: { quoteId: string; wallet: string }): Promise<AdvanceTrade>;
 }
