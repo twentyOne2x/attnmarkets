@@ -1,8 +1,12 @@
 import { api, ApiError } from '../api';
 import {
+  AdvanceQuote,
+  AdvanceTrade,
   CursorParams,
   DataProvider,
   LoanHistoryItem,
+  MarketDetail,
+  MarketSummary,
   PaginatedResponse,
   PoolOverview,
   RewardPosition,
@@ -37,11 +41,24 @@ type MarketStatus = 'active' | 'matured' | 'settled';
 interface MarketSummaryResponse {
   market: string;
   pump_mint: string;
+  creator_vault: string;
+  sy_mint: string;
+  pt_mint: string;
+  yt_mint: string;
   maturity_ts: number;
   pt_supply: number;
   yt_supply: number;
   implied_apy: number;
   status: MarketStatus;
+}
+
+interface MarketDetailResponse {
+  summary: MarketSummaryResponse;
+  total_fees_distributed_sol: number;
+  fee_index: number;
+  tvl_sol: number;
+  last_yield_slot: number;
+  updated_at: ISODateTimeString;
 }
 
 interface PortfolioPositionResponse {
@@ -112,20 +129,21 @@ export class BridgeDataProvider implements DataProvider {
   private readonly etags = new Map<string, string>();
   private readonly cache = new Map<string, unknown>();
 
-  private async fetchJson<T>(path: string): Promise<T> {
-    const etag = this.etags.get(path);
-    const response = await api<T>(path, etag);
+  private async fetchJson<T>(path: string, init?: RequestInit, cacheKey?: string): Promise<T> {
+    const key = cacheKey ?? path;
+    const etag = this.etags.get(key);
+    const response = await api<T>(path, etag, init);
     if (!response.notModified) {
-      this.cache.set(path, response.data);
+      this.cache.set(key, response.data);
       if (response.etag) {
-        this.etags.set(path, response.etag);
+        this.etags.set(key, response.etag);
       }
       return response.data;
     }
-    return this.cache.get(path) as T;
+    return this.cache.get(key) as T;
   }
 
-  private mapMarketsToCreators(markets: MarketSummaryResponse[]): CreatorSummary[] {
+  private mapMarketsToCreators(markets: MarketSummary[]): CreatorSummary[] {
     return markets.map((market) => {
       const annualFeesUsd = toDisplayAmount(market.pt_supply * market.implied_apy);
       const weeklyFeesUsd = annualFeesUsd / 52;
@@ -140,6 +158,28 @@ export class BridgeDataProvider implements DataProvider {
         activeLoan: null,
       };
     });
+  }
+
+  private normalizeMarketSummary(source: MarketSummaryResponse): MarketSummary {
+    const status: MarketSummary['status'] =
+      source.status === 'settled'
+        ? 'settled'
+        : source.status === 'matured'
+        ? 'matured'
+        : 'active';
+    return {
+      market: source.market,
+      pump_mint: source.pump_mint,
+      creator_vault: source.creator_vault,
+      sy_mint: source.sy_mint,
+      pt_mint: source.pt_mint,
+      yt_mint: source.yt_mint,
+      maturity_ts: source.maturity_ts,
+      pt_supply: source.pt_supply,
+      yt_supply: source.yt_supply,
+      implied_apy: source.implied_apy,
+      status,
+    };
   }
 
   async getPoolOverview(): Promise<PoolOverview> {
@@ -158,9 +198,32 @@ export class BridgeDataProvider implements DataProvider {
   }
 
   async getCreators(params?: CursorParams): Promise<PaginatedResponse<CreatorSummary>> {
-    const markets = await this.fetchJson<MarketSummaryResponse[]>('/v1/markets');
+    const markets = await this.getMarkets({ signal: params?.signal });
     const creators = this.mapMarketsToCreators(markets);
     return paginate(creators, params);
+  }
+
+  async getMarkets(params?: { signal?: AbortSignal }): Promise<MarketSummary[]> {
+    const markets = await this.fetchJson<MarketSummaryResponse[]>(
+      '/v1/markets',
+      { signal: params?.signal }
+    );
+    return markets.map((market) => this.normalizeMarketSummary(market));
+  }
+
+  async getMarket(market: string, params?: { signal?: AbortSignal }): Promise<MarketDetail> {
+    const detail = await this.fetchJson<MarketDetailResponse>(
+      `/v1/markets/${market}`,
+      { signal: params?.signal }
+    );
+    return {
+      summary: this.normalizeMarketSummary(detail.summary),
+      total_fees_distributed_sol: detail.total_fees_distributed_sol,
+      fee_index: detail.fee_index,
+      tvl_sol: detail.tvl_sol,
+      last_yield_slot: detail.last_yield_slot,
+      updated_at: detail.updated_at,
+    };
   }
 
   async getUserPortfolio(wallet: string): Promise<UserPortfolio> {
@@ -240,7 +303,55 @@ export class BridgeDataProvider implements DataProvider {
     return totals;
   }
 
-  async getGovernance(): Promise<GovernanceState> {
-    return this.fetchJson<GovernanceState>('/v1/governance');
+  async getYtQuote(
+    market: string,
+    params: { size: number; maturity: number; side?: 'sell' | 'buyback'; signal?: AbortSignal }
+  ): Promise<AdvanceQuote> {
+    const query = new URLSearchParams({
+      size: params.size.toString(),
+      maturity: params.maturity.toString(),
+    });
+    if (params.side) {
+      query.set('side', params.side);
+    }
+    const path = `/v1/markets/${market}/yt-quote?${query.toString()}`;
+    return this.fetchJson<AdvanceQuote>(path, { signal: params.signal }, path);
+  }
+
+  async postSellYt(payload: { quoteId: string; wallet: string }): Promise<AdvanceTrade> {
+    const response = await api<AdvanceTrade>(
+      '/v1/rfq/yt-sell',
+      undefined,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ quote_id: payload.quoteId, wallet: payload.wallet }),
+      }
+    );
+    return response.data;
+  }
+
+  async postBuybackYt(payload: { quoteId: string; wallet: string }): Promise<AdvanceTrade> {
+    const response = await api<AdvanceTrade>(
+      '/v1/rfq/yt-buyback',
+      undefined,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ quote_id: payload.quoteId, wallet: payload.wallet }),
+      }
+    );
+    return response.data;
+  }
+
+  async getGovernance(params?: { signal?: AbortSignal }): Promise<GovernanceState> {
+    return this.fetchJson<GovernanceState>(
+      '/v1/governance',
+      { signal: params?.signal }
+    );
   }
 }

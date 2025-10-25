@@ -29,7 +29,12 @@ const AppFooter: React.FC = () => {
 
   return (
     <footer className="w-full border-t border-gray-800 bg-dark-card text-xs text-text-secondary px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-      <span>attn.markets — Live data {mode === 'live' ? 'enabled' : 'disabled'}</span>
+      <div className="flex flex-col gap-1">
+        <span>attn.markets — Live data {mode === 'live' ? 'enabled' : 'disabled'}</span>
+        <span className="text-[11px] text-warning">
+          This is a sale of future yield, not a loan. Quotes available on devnet only.
+        </span>
+      </div>
       <span className="flex items-center gap-2">
         build
         {commitUrl ? (
