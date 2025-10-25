@@ -29,18 +29,19 @@ export async function api<T>(path: string, etag?: string, init?: RequestInit): P
     throw new Error('NEXT_PUBLIC_API_BASE is not configured for Live mode');
   }
 
-  const url = `${base.replace(/\/$/, '')}${normalizePath(path)}`;
-  const headers: Record<string, string> = init?.headers
-    ? { ...init.headers as Record<string, string> }
-    : {};
+  const isBrowser = typeof window !== 'undefined';
+  const targetPath = normalizePath(path);
+  const url = isBrowser ? `/api/bridge${targetPath}` : `${base.replace(/\/$/, '')}${targetPath}`;
+  const headers = new Headers(init?.headers ?? undefined);
 
   if (etag) {
-    headers['If-None-Match'] = etag;
+    headers.set('If-None-Match', etag);
   }
 
   const response = await fetch(url, {
     ...init,
     headers,
+    cache: 'no-store',
   });
 
   if (response.status === 304) {
@@ -53,6 +54,13 @@ export async function api<T>(path: string, etag?: string, init?: RequestInit): P
 
   if (!response.ok) {
     const body = await response.text();
+    if (!isBrowser) {
+      console.error('[attn] upstream API request failed', {
+        url,
+        status: response.status,
+        body: body ? body.slice(0, 1024) : '<empty>',
+      });
+    }
     throw new ApiError(response.status, body || response.statusText);
   }
 

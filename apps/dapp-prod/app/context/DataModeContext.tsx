@@ -20,12 +20,20 @@ interface DataModeContextValue {
 
 const DataModeContext = createContext<DataModeContextValue | undefined>(undefined);
 
+const buildBridgeUrl = (apiBase: string, path: string): string => {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  if (typeof window === 'undefined') {
+    return `${apiBase.replace(/\/$/, '')}${normalizedPath}`;
+  }
+  return `/api/bridge${normalizedPath}`;
+};
+
 const checkHealth = async (apiBase: string): Promise<void> => {
-  const readyz = await fetch(`${apiBase.replace(/\/$/, '')}/readyz`, { cache: 'no-store' });
+  const readyz = await fetch(buildBridgeUrl(apiBase, '/readyz'), { cache: 'no-store' });
   if (!readyz.ok) {
     throw new Error(`/readyz returned ${readyz.status}`);
   }
-  const version = await fetch(`${apiBase.replace(/\/$/, '')}/version`, { cache: 'no-store' });
+  const version = await fetch(buildBridgeUrl(apiBase, '/version'), { cache: 'no-store' });
   if (!version.ok) {
     throw new Error(`/version returned ${version.status}`);
   }
