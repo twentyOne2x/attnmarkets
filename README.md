@@ -7,25 +7,27 @@
 - Forum post: https://arena.colosseum.org/posts/3308
 
 ## TL;DR
-- Tokenize Pump.fun creator fees into SY → PT/YT, `attnUSD`, SOL rewards.
+- Tokenize Solana fee streams (starting with Pump.fun) into SY → PT/YT, `attnUSD`, SOL rewards.
 - Dual-control via Squads 2-of-2; pause + idempotent keeper ops.
 - **15-day advance UX:** mint PT/YT, sell YT for upfront USDC, buy back any time (devnet RFQ).
 - Devnet live; AMM v0 pending. Details below.
 
-## Why now (creator payouts) — **as of 2025-10-25**
-- Pump.fun creator fees: **~$300M annualized** from last 30 days. [[1]]
-- YouTube: **~$70B** to creators over last 3 years (**~$23B/yr avg**). [[2]]
-- TikTok LIVE gifts: **~$1.5B** in **2023**. [[3]]
-- OnlyFans: **$5.32B** paid in **FY2023**. [[4]]
-- Twitch: **>$1B** to streamers in **2023**. [[5]]
+## Why now - creator + builder payouts (as of 2025-10-25)
+- Receivables advances (factoring): **~$4T annual turnover**. [[1]]
+- Pump.fun creator fees: **~$300M annualized** from last 30 days. [[2]]
+- YouTube: **~$70B** to creators over last 3 years (**~$23B/yr avg**). [[3]]
+- TikTok LIVE gifts: **~$1.5B** in **2023**. [[4]]
+- OnlyFans: **$5.32B** paid in **FY2023**. [[5]]
+- Twitch: **>$1B** to streamers in **2023**. [[6]]
 
 *Notes:* Pump.fun is a 30-day run-rate; others are fiscal-year totals or program subsets. All USD.
 
-[1]: https://earnings.wtf
-[2]: https://blog.youtube/inside-youtube/2024-letter-from-neal/
-[3]: https://www.fxcintel.com/research/press-releases/new-data-analysis-shows-tiktok-takes-77-cut-of-gift-payments-sent-to-creators
-[4]: https://www.upmarket.co/blog/onlyfans-official-revenue-net-profit-creator-and-subscriber-data-updated-september-2024/
-[5]: https://blog.twitch.tv/en/2024/01/10/a-difficult-update-about-our-workforce/
+[1]: https://fci.nl/en/news/fci-release-2024-world-industry-statistics-showing-factoring-market-remains-stable
+[2]: https://earnings.wtf
+[3]: https://blog.youtube/inside-youtube/2024-letter-from-neal/
+[4]: https://www.fxcintel.com/research/press-releases/new-data-analysis-shows-tiktok-takes-77-cut-of-gift-payments-sent-to-creators
+[5]: https://www.upmarket.co/blog/onlyfans-official-revenue-net-profit-creator-and-subscriber-data-updated-september-2024/
+[6]: https://blog.twitch.tv/en/2024/01/10/a-difficult-update-about-our-workforce/
 
 
 ## What We’re Building
