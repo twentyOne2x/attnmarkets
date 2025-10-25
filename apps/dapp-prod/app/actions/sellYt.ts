@@ -38,6 +38,7 @@ export async function sellYt(params: SellYtParams): Promise<string> {
   const decimals =
     params.decimals !== undefined ? params.decimals : await fetchMintDecimals(provider, ytMintPk);
   const amount = uiToBn(trade.sizeYt.toString(), decimals);
+  const amountBigInt = BigInt(amount.toString());
 
   const userYtAta = await ensureAta(provider, userPk, ytMintPk, userPk);
   const lpWalletPk = new PublicKey(trade.settlement.lpWallet);
@@ -48,7 +49,7 @@ export async function sellYt(params: SellYtParams): Promise<string> {
     ytMintPk,
     lpYtAta,
     userPk,
-    amount,
+    amountBigInt,
     decimals,
   );
 
