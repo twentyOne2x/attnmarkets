@@ -2,9 +2,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import Navigation from '../components/Navigation';
 import Tooltip from '../components/Tooltip';
 import { useAppContext } from '../context/AppContext';
+import { useETag } from '../hooks/useETag';
+import type { RewardPosition } from '../lib/data-providers';
+import { stakeAttnUSD } from '../actions/stakeAttnUsd';
 
 interface Notification {
   id: string;
@@ -14,6 +19,17 @@ interface Notification {
   persistent?: boolean;
   duration?: number;
   position: number;
+}
+
+interface RewardsListResponse {
+  pools: RewardPosition[];
+  next_cursor?: string;
+}
+
+interface PortfolioResponse {
+  wallet: string;
+  updated_at: string;
+  [key: string]: unknown;
 }
 
 export default function DepositPage(): React.JSX.Element {
@@ -36,7 +52,11 @@ export default function DepositPage(): React.JSX.Element {
     isLive,
     cluster,
     switchMode,
-    healthStatus
+    healthStatus,
+    writeEnabled,
+    governancePaused,
+    isWalletConnected,
+    walletNetwork,
   } = useAppContext();
 
   const [amount, setAmount] = useState<string>('');
@@ -54,7 +74,52 @@ export default function DepositPage(): React.JSX.Element {
   // Notification system
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationCounter, setNotificationCounter] = useState<number>(0);
-  const canTransact = isLive && cluster === 'devnet';
+  const canTransact = writeEnabled;
+  const walletAdapter = useWallet();
+  const [stakeAmount, setStakeAmount] = useState<string>('1');
+  const [stakeSubmitting, setStakeSubmitting] = useState(false);
+  const [rewardsRefresh, setRewardsRefresh] = useState(0);
+  const [portfolioRefresh, setPortfolioRefresh] = useState(0);
+
+  const { data: rewardsData } = useETag<RewardsListResponse>('/v1/rewards?limit=5', {
+    enabled: mode === 'live',
+    deps: [mode, rewardsRefresh],
+  });
+  const activePool = rewardsData?.pools?.[0];
+  const poolPaused = activePool?.paused ?? false;
+  const poolAccountsReady = Boolean(activePool?.attnMint && activePool?.sAttnMint && activePool?.attnVault);
+  const networkMismatch = Boolean(
+    walletNetwork &&
+      walletNetwork !== 'devnet' &&
+      walletNetwork !== WalletAdapterNetwork.Devnet,
+  );
+
+  const portfolioPath = currentUserWallet
+    ? `/v1/portfolio/${currentUserWallet}`
+    : '/v1/portfolio/placeholder';
+  useETag<PortfolioResponse>(portfolioPath, {
+    enabled: mode === 'live' && !!currentUserWallet,
+    deps: [mode, currentUserWallet, portfolioRefresh],
+  });
+
+  const guardReason = () => {
+    if (!isLive) return 'Live mode required';
+    if (cluster !== 'devnet') return 'Switch network to devnet to continue';
+    if (!isWalletConnected) return 'Connect wallet to perform write actions';
+    if (governancePaused) return 'Writes disabled: governance pause active';
+    if (networkMismatch) return 'Wallet network mismatch: switch wallet to devnet';
+    return 'Writes unavailable';
+  };
+
+  const stakeGuardReason = () => {
+    if (!writeEnabled) return guardReason();
+    if (!walletAdapter.publicKey) return 'Connect wallet to perform write actions';
+    if (!activePool) return 'No rewards pool available';
+    if (poolPaused) return 'Rewards pool paused';
+    if (!poolAccountsReady) return 'Rewards pool configuration incomplete';
+    if (networkMismatch) return 'Wallet network mismatch: switch wallet to devnet';
+    return '';
+  };
 
   // Notification management functions
   const addNotification = (notification: Omit<Notification, 'id' | 'position'>) => {
@@ -208,12 +273,83 @@ export default function DepositPage(): React.JSX.Element {
     }
   };
 
+  const handleStake = async () => {
+    const reason = stakeGuardReason();
+    if (reason) {
+      addNotification({
+        type: 'error',
+        title: 'Stake unavailable',
+        message: reason,
+        duration: 3000,
+      });
+      return;
+    }
+
+    if (!activePool || !walletAdapter.publicKey || !poolAccountsReady) {
+      addNotification({
+        type: 'error',
+        title: 'Stake unavailable',
+        message: 'Rewards pool metadata missing.',
+        duration: 3000,
+      });
+      return;
+    }
+
+    try {
+      setStakeSubmitting(true);
+      await stakeAttnUSD(
+        walletAdapter,
+        {
+          pool: activePool.pool,
+          staker: walletAdapter.publicKey.toBase58(),
+          attnMint: activePool.attnMint!,
+          attnVault: activePool.attnVault!,
+          sAttnMint: activePool.sAttnMint!,
+        },
+        stakeAmount,
+      );
+
+      addNotification({
+        type: 'success',
+        title: 'Stake submitted',
+        message: `Staked ${stakeAmount} attnUSD into rewards vault.`,
+        duration: 4000,
+      });
+
+      setStakeAmount('1');
+      setRewardsRefresh((value) => value + 1);
+      if (currentUserWallet) {
+        setPortfolioRefresh((value) => value + 1);
+      }
+    } catch (error) {
+      console.error('Stake failed', error);
+      addNotification({
+        type: 'error',
+        title: 'Stake failed',
+        message: (error as Error).message ?? 'Failed to stake attnUSD',
+        duration: 5000,
+      });
+    } finally {
+      setStakeSubmitting(false);
+    }
+  };
+
   const currentAPR = calculateLPAPR();
   const projectedMonthlyEarnings = amount ? 
     calculateMonthlyYield(parseFloat(amount) || 0).toFixed(2) : '0';
 
   const projectedYearlyEarnings = amount ? 
     ((parseFloat(amount) || 0) * (currentAPR / 100)).toFixed(2) : '0';
+
+  const stakeButtonDisabled =
+    !writeEnabled ||
+    stakeSubmitting ||
+    !walletAdapter.publicKey ||
+    !activePool ||
+    poolPaused ||
+    !poolAccountsReady ||
+    Number(stakeAmount) <= 0 ||
+    networkMismatch;
 
   const availableLiquidity = getAvailableLiquidity();
   const totalBorrowed = creators
@@ -285,23 +421,37 @@ Higher utilization = higher LP returns`;
         <Navigation />
         <div className="max-w-3xl mx-auto px-4 py-12">
           <div className="bg-dark-card border border-gray-700 rounded-xl p-8 text-center space-y-4">
-            <h1 className="text-2xl font-semibold">Live mode required</h1>
+            <h1 className="text-2xl font-semibold">Action unavailable</h1>
             <p className="text-text-secondary">
-              Deposit and withdrawal actions are available only in Live mode on devnet. Switch to Live to interact with the
-              attnUSD pool. Live mode health fallback triggers automatically when <code className="bg-dark px-1 rounded">/readyz</code> fails.
+              {guardReason()}
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <button
-                onClick={handleEnableLive}
-                disabled={enablingLive || healthStatus === 'checking'}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  enablingLive || healthStatus === 'checking'
-                    ? 'bg-secondary/30 text-secondary/60 cursor-not-allowed'
-                    : 'bg-secondary/20 text-secondary hover:bg-secondary/30'
-                }`}
-              >
-                {enablingLive || healthStatus === 'checking' ? 'Checking readiness…' : 'Enable Live (devnet)'}
-              </button>
+              {!isLive && (
+                <button
+                  onClick={handleEnableLive}
+                  disabled={enablingLive || healthStatus === 'checking'}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    enablingLive || healthStatus === 'checking'
+                      ? 'bg-secondary/30 text-secondary/60 cursor-not-allowed'
+                      : 'bg-secondary/20 text-secondary hover:bg-secondary/30'
+                  }`}
+                >
+                  {enablingLive || healthStatus === 'checking' ? 'Checking readiness…' : 'Enable Live (devnet)'}
+                </button>
+              )}
+              {!isWalletConnected && (
+                <button
+                  onClick={handleConnectWallet}
+                  disabled={isConnecting}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    isConnecting
+                      ? 'bg-primary/30 text-primary/60 cursor-not-allowed'
+                      : 'bg-primary/20 text-primary hover:bg-primary/30'
+                  }`}
+                >
+                  {isConnecting ? 'Connecting…' : 'Connect Wallet'}
+                </button>
+              )}
               <div className="text-sm text-text-secondary">
                 Current mode: <span className="font-semibold uppercase">{mode}</span>
               </div>
@@ -309,6 +459,11 @@ Higher utilization = higher LP returns`;
             {healthStatus === 'unhealthy' && (
               <p className="text-red-400 text-sm">
                 Live mode is unavailable right now. Try again soon or continue exploring the demo.
+              </p>
+            )}
+            {governancePaused && (
+              <p className="text-yellow-400 text-sm">
+                Governance pause is active. Write actions are temporarily disabled until the pause is lifted.
               </p>
             )}
           </div>
@@ -641,6 +796,63 @@ Higher utilization = higher LP returns`;
                   </Tooltip>
                   <span className="text-success font-mono">{currentAPR.toFixed(1)}%</span>
                 </div>
+              </div>
+            </div>
+
+            {/* Rewards Vault Staking */}
+            <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                <div>
+                  <h3 className="text-lg font-bold">Stake attnUSD</h3>
+                  <p className="text-sm text-text-secondary">
+                    Stake your attnUSD to earn SOL rewards from the rewards vault.
+                  </p>
+                </div>
+                <div className="text-xs text-text-secondary uppercase tracking-wide">
+                  {activePool ? `Pool ${activePool.pool.slice(0, 6)}…` : 'No pool detected'}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-text-secondary mb-2">Amount (attnUSD)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={stakeAmount}
+                    onChange={(event) => setStakeAmount(event.target.value)}
+                    disabled={!writeEnabled || stakeSubmitting}
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <button
+                    onClick={handleStake}
+                    disabled={stakeButtonDisabled}
+                    className={`px-4 py-2 rounded-lg font-semibold transition-colors w-full sm:w-auto ${
+                      stakeButtonDisabled
+                        ? 'bg-primary/10 text-primary/40 cursor-not-allowed'
+                        : 'bg-primary text-dark hover:bg-primary/90'
+                    }`}
+                  >
+                    {stakeSubmitting ? 'Submitting…' : 'Stake attnUSD'}
+                  </button>
+
+                  <div className="text-xs text-text-secondary flex items-center gap-2">
+                    {stakeSubmitting && <div className="loading-spinner-blue" />} 
+                    <span>
+                      Rewards accrue automatically; unstake anytime while Live mode is enabled.
+                    </span>
+                  </div>
+                </div>
+
+                {stakeButtonDisabled && stakeGuardReason() && (
+                  <div className="text-xs text-red-400">
+                    {stakeGuardReason()}
+                  </div>
+                )}
               </div>
             </div>
 
