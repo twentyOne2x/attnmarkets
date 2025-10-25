@@ -60,14 +60,35 @@ const parseProgramIds = (raw?: string): Record<string, Record<string, string>> =
 
 export const runtimeEnv: RuntimeEnv = (() => {
   const defaultMode = parseMode(process.env.NEXT_PUBLIC_DATA_MODE ?? 'demo');
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE?.trim() || null;
+  const rawApiBase = process.env.NEXT_PUBLIC_API_BASE?.trim() || null;
   const cluster = process.env.NEXT_PUBLIC_CLUSTER?.trim() || 'devnet';
   const programIds = parseProgramIds(process.env.NEXT_PUBLIC_PROGRAM_IDS);
+
+  const isServer = typeof window === 'undefined';
+  const isLocalApiBase = rawApiBase ? /https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(rawApiBase) : false;
+  let apiBaseUrl = rawApiBase;
+
+  if (rawApiBase && isLocalApiBase && process.env.NODE_ENV === 'production') {
+    if (isServer) {
+      console.error(
+        `[attn] NEXT_PUBLIC_API_BASE is set to a localhost URL (${rawApiBase}) in production. Disabling Live mode fetches.`,
+      );
+    }
+    apiBaseUrl = null;
+  } else if (!rawApiBase && isServer) {
+    console.warn('[attn] NEXT_PUBLIC_API_BASE is not configured. Live mode will remain disabled.');
+  }
 
   const isValid = Boolean(apiBaseUrl && Object.keys(programIds).length > 0);
 
   if (defaultMode !== 'demo' && !isValid) {
     console.warn('[attn] Live mode configuration incomplete. Defaulting to demo mode.');
+  }
+
+  if (isServer) {
+    console.info(
+      `[attn] runtime config: mode=${isValid ? defaultMode : 'demo'} cluster=${cluster} apiBase=${apiBaseUrl ?? 'unset'}`,
+    );
   }
 
   return {
