@@ -2,6 +2,8 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import {
   calculateLPAPR,
   calculateMonthlyYield as calcMonthlyYield,
@@ -14,6 +16,7 @@ import {
 } from '../utils/borrowingCalculations';
 import { useDataMode, type HealthStatus } from './DataModeContext';
 import type { DataMode } from '../config/runtime';
+import type { GovernanceState } from '../lib/data-providers';
 
 // Simple inline config
 const POOL_CONFIG = {
@@ -21,6 +24,16 @@ const POOL_CONFIG = {
   minPoolUtilization: 0.1,
   maxPoolUtilization: 0.8,
   defaultUserBalance: 10000,
+};
+
+const computeGovernancePaused = (snapshot: GovernanceState | null): boolean => {
+  if (!snapshot) {
+    return false;
+  }
+  const creatorPaused = snapshot.creator_vaults.some(vault => vault.paused);
+  const rewardsPaused = snapshot.rewards_pools.some(pool => pool.paused);
+  const stablePaused = snapshot.stable_vault?.paused ?? false;
+  return creatorPaused || rewardsPaused || stablePaused;
 };
 
 // Simple pool TVL calculation - no automatic top-ups
@@ -140,6 +153,10 @@ interface AppContextType {
   programIds: Record<string, string>;
   lastModeError?: string;
   cluster: string;
+  governancePaused: boolean;
+  writeEnabled: boolean;
+  walletNetwork?: string | null;
+  governanceState: GovernanceState | null;
   
   // Global notification system
   notifications: Notification[];
@@ -315,6 +332,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     healthStatus,
     lastError,
   } = useDataMode();
+  const wallet = useWallet();
 
   // Initialize wallet from localStorage first, before any other state
   const [currentUserWallet, setCurrentUserWalletState] = useState<string>(() => {
@@ -352,12 +370,34 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   // Global connection states
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [isListing, setIsListing] = useState<boolean>(false);
+  const [governanceState, setGovernanceState] = useState<GovernanceState | null>(null);
+  const [governancePaused, setGovernancePaused] = useState<boolean>(false);
 
   // Derived connection states
-  const isWalletConnected = !!currentUserWallet;
+  const isWalletConnected = wallet.connected || !!currentUserWallet;
+  const adapterNetwork =
+    wallet.wallet?.adapter && 'network' in wallet.wallet.adapter
+      ? ((wallet.wallet.adapter as { network?: string }).network ?? null)
+      : null;
+  const isWalletOnDevnet =
+    !adapterNetwork ||
+    adapterNetwork === 'devnet' ||
+    adapterNetwork === WalletAdapterNetwork.Devnet;
   const isUserListed = creators.some(c => c.wallet === currentUserWallet);
   const isFullyConnected = isWalletConnected && isUserListed;
   const isLive = mode === 'live';
+  const writeEnabled =
+    isLive && cluster === 'devnet' && isWalletConnected && !governancePaused && isWalletOnDevnet;
+
+  useEffect(() => {
+    if (wallet.connected && wallet.publicKey) {
+      const pubkey = wallet.publicKey.toBase58();
+      if (currentUserWallet !== pubkey) {
+        setCurrentUserWalletState(pubkey);
+        saveToLocalStorage({ currentUserWallet: pubkey });
+      }
+    }
+  }, [wallet.connected, wallet.publicKey, currentUserWallet]);
 
   // Global notification management
   const addNotification = (notification: Omit<Notification, 'id' | 'position'>) => {
@@ -387,42 +427,59 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
   // Centralized wallet connection - Step 1: Connect wallet only
   const connectWallet = async () => {
-    if (!currentUserWallet && !isConnecting) {
-      setIsConnecting(true);
-      
-      try {
-        console.log('🔑 AppContext: Connecting wallet...');
+    if (isConnecting || wallet.connected) {
+      return;
+    }
+
+    setIsConnecting(true);
+
+    try {
+      if (wallet.connect) {
+        await wallet.connect();
+        if (wallet.publicKey) {
+          const pubkey = wallet.publicKey.toBase58();
+          setCurrentUserWalletState(pubkey);
+          saveToLocalStorage({ currentUserWallet: pubkey });
+          addNotification({
+            type: 'success',
+            title: 'Wallet Connected!',
+            message: 'Wallet adapter connected successfully.',
+            duration: 2500,
+          });
+          return;
+        }
+      }
+      throw new Error('Wallet adapter unavailable');
+    } catch (error) {
+      console.warn('Wallet adapter connection failed, falling back to demo wallet', error);
+      if (!currentUserWallet) {
         addNotification({
           type: 'processing',
           title: 'Connecting Wallet',
-          message: 'Generating wallet address...',
-          duration: 1000
+          message: 'Generating demo wallet address...',
+          duration: 1000,
         });
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
+
         const deterministicWallet = '0x1234567890abcdef1234567890abcdef12345678';
         setCurrentUserWalletState(deterministicWallet);
         saveToLocalStorage({ currentUserWallet: deterministicWallet });
-        console.log('🔑 Wallet connected via AppContext:', deterministicWallet);
-        
+
         addNotification({
           type: 'success',
-          title: 'Wallet Connected!',
+          title: 'Demo Wallet Connected',
           message: 'Click Sign & List to complete setup.',
-          duration: 3000
+          duration: 3000,
         });
-        
-        await new Promise(resolve => setTimeout(resolve, 300));
-      } catch (error) {
-        console.error('Error connecting wallet:', error);
+      } else {
         addNotification({
           type: 'error',
           title: 'Connection Failed',
-          message: 'Failed to connect wallet'
+          message: 'Failed to connect wallet',
         });
-      } finally {
-        setIsConnecting(false);
       }
+    } finally {
+      setIsConnecting(false);
     }
   };
 
@@ -584,6 +641,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
             setUserPositionState(initialPosition);
             setLoanHistoryState(sampleHistory);
             setLPHistoryState([]);
+            setGovernanceState(null);
+            setGovernancePaused(false);
 
             saveToLocalStorage({
               poolData: updatedPool,
@@ -596,9 +655,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
             });
           }
         } else {
-          const [poolOverview, creatorsPage] = await Promise.all([
-            provider.getPoolOverview({ force: true }),
-            provider.getCreators({ limit: 100, force: true }),
+          const [poolOverview, creatorsPage, governanceSnapshot] = await Promise.all([
+            provider.getPoolOverview(),
+            provider.getCreators({ limit: 100 }),
+            provider.getGovernance(),
           ]);
 
           const normalizedCreators = creatorsPage.items.map(creator => ({
@@ -630,8 +690,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           if (currentUserWallet) {
             try {
               const [portfolio, loanHistoryResp] = await Promise.all([
-                provider.getUserPortfolio(currentUserWallet, { force: true }),
-                provider.getLoanHistory(currentUserWallet, { limit: 50, force: true }),
+                provider.getUserPortfolio(currentUserWallet),
+                provider.getLoanHistory(currentUserWallet, { limit: 50 }),
               ]);
 
               userPortfolio = {
@@ -660,6 +720,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           });
           setLoanHistoryState(liveLoanHistory);
           setLPHistoryState([]);
+          setGovernanceState(governanceSnapshot);
+          setGovernancePaused(computeGovernancePaused(governanceSnapshot));
         }
 
         if (cancelled) return;
@@ -676,6 +738,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         if (!cancelled) {
           setLoading(false);
           setDataInitialized(true);
+          setGovernanceState(null);
+          setGovernancePaused(false);
         }
         if (mode === 'live') {
           await setDataMode('demo');
@@ -1154,8 +1218,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     toggleMode,
     apiBaseUrl,
     programIds,
-    lastModeError,
+    lastModeError: lastError,
     cluster,
+    governancePaused,
+    writeEnabled,
+    walletNetwork: adapterNetwork,
+    governanceState,
 
     // Global notification system
     notifications,

@@ -1,3 +1,3 @@
 export * from './types';
 export { demoDataProvider } from './demo';
-export { ApiDataProvider } from './api';
+export { BridgeDataProvider } from './bridge';

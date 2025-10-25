@@ -2,7 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { DataMode, persistMode, runtimeEnv, useStoredMode } from '../config/runtime';
-import { ApiDataProvider, DataProvider, demoDataProvider } from '../lib/data-providers';
+import { BridgeDataProvider, DataProvider, demoDataProvider } from '../lib/data-providers';
 
 export type HealthStatus = 'unknown' | 'checking' | 'healthy' | 'unhealthy';
 
@@ -32,7 +32,7 @@ const checkHealth = async (apiBase: string): Promise<void> => {
 };
 
 export const DataModeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const stored = typeof window === 'undefined' ? runtimeEnv.defaultMode : useStoredMode();
+  const stored = useStoredMode();
   const initialMode = runtimeEnv.isValid ? stored : 'demo';
 
   const [mode, setModeState] = useState<DataMode>(initialMode);
@@ -44,7 +44,7 @@ export const DataModeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const provider = useMemo<DataProvider>(() => {
     if (mode === 'live' && apiBaseUrl) {
-      return new ApiDataProvider(apiBaseUrl);
+      return new BridgeDataProvider();
     }
     return demoDataProvider;
   }, [mode, apiBaseUrl]);

@@ -16,6 +16,7 @@ import {
   RewardPosition,
   RewardsSummary,
   UserPortfolio,
+  GovernanceState,
 } from './types';
 
 const BASE_POOL_TVL = 250_000;
@@ -119,6 +120,25 @@ class DemoDataProvider implements DataProvider {
 
   async getRewardsSummary(): Promise<RewardsSummary> {
     return { total: 0, claimable: 0, staked: 0 };
+  }
+
+  async getGovernance(): Promise<GovernanceState> {
+    return {
+      creator_vaults: [],
+      rewards_pools: [],
+      stable_vault: {
+        stable_vault: 'StableVault111111111111111111111111111111',
+        admin: 'Admin1111111111111111111111111111111111',
+        keeper_authority: 'Keeper11111111111111111111111111111111',
+        authority_seed: 'seed',
+        share_mint: 'ShareMint1111111111111111111111111111111',
+        stable_mint: 'StableMint111111111111111111111111111111',
+        pending_sol_lamports: 0,
+        paused: false,
+        last_sweep_id: 0,
+        last_conversion_id: 0,
+      },
+    };
   }
 }
 
