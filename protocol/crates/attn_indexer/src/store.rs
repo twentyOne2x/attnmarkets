@@ -116,9 +116,20 @@ impl ReadStore for SqlxStore {
     async fn markets(&self) -> Result<Vec<MarketSummary>> {
         let rows = sqlx::query(
             r#"
-            select market_pubkey, pump_mint, maturity_ts, pt_supply, yt_supply, fee_index, updated_at
-            from markets
-            order by market_pubkey asc
+            select m.market_pubkey,
+                   m.pump_mint,
+                   cv.vault_pubkey as creator_vault,
+                   cv.sy_mint,
+                   m.pt_mint,
+                   m.yt_mint,
+                   m.maturity_ts,
+                   m.pt_supply,
+                   m.yt_supply,
+                   m.fee_index,
+                   m.updated_at
+            from markets m
+            join creator_vaults cv on cv.pump_mint = m.pump_mint
+            order by m.market_pubkey asc
             "#,
         )
         .fetch_all(&self.pool)
@@ -136,6 +147,10 @@ impl ReadStore for SqlxStore {
                 MarketSummary {
                     market: row.get("market_pubkey"),
                     pump_mint: row.get("pump_mint"),
+                    creator_vault: row.get("creator_vault"),
+                    sy_mint: row.get("sy_mint"),
+                    pt_mint: row.get("pt_mint"),
+                    yt_mint: row.get("yt_mint"),
                     maturity_ts,
                     pt_supply: row.get("pt_supply"),
                     yt_supply: row.get("yt_supply"),
@@ -153,6 +168,10 @@ impl ReadStore for SqlxStore {
             r#"
             select m.market_pubkey,
                    m.pump_mint,
+                   v.vault_pubkey as creator_vault,
+                   v.sy_mint,
+                   m.pt_mint,
+                   m.yt_mint,
                    m.maturity_ts,
                    m.pt_supply,
                    m.yt_supply,
@@ -184,6 +203,10 @@ impl ReadStore for SqlxStore {
             summary: MarketSummary {
                 market: row.get("market_pubkey"),
                 pump_mint: row.get("pump_mint"),
+                creator_vault: row.get("creator_vault"),
+                sy_mint: row.get("sy_mint"),
+                pt_mint: row.get("pt_mint"),
+                yt_mint: row.get("yt_mint"),
                 maturity_ts,
                 pt_supply: row.get("pt_supply"),
                 yt_supply: row.get("yt_supply"),
@@ -513,7 +536,8 @@ impl ReadStore for SqlxStore {
     async fn governance(&self) -> Result<GovernanceState> {
         let creator_rows = sqlx::query(
             r#"
-            select vault_pubkey, pump_mint, admin, sol_rewards_bps, paused, sy_mint
+            select vault_pubkey, pump_mint, admin, sol_rewards_bps, paused, sy_mint,
+                   coalesce(advance_enabled, false) as advance_enabled
             from creator_vaults
             order by pump_mint asc
             "#,
@@ -530,6 +554,7 @@ impl ReadStore for SqlxStore {
                 sol_rewards_bps: row.get::<i32, _>("sol_rewards_bps").max(0) as u16,
                 paused: row.get::<bool, _>("paused"),
                 sy_mint: row.get("sy_mint"),
+                advance_enabled: row.get::<bool, _>("advance_enabled"),
             })
             .collect();
 
@@ -717,6 +742,10 @@ impl MockData {
         let market_one_summary = MarketSummary {
             market: "Market1111111111111111111111111111111111".into(),
             pump_mint: "PumpMint11111111111111111111111111111111".into(),
+            creator_vault: "CreatorVault1111111111111111111111111111111".into(),
+            sy_mint: "SyMint111111111111111111111111111111111".into(),
+            pt_mint: "PtMint111111111111111111111111111111111".into(),
+            yt_mint: "YtMint111111111111111111111111111111111".into(),
             maturity_ts: (now + Duration::days(30)).timestamp(),
             pt_supply: 125_000.0,
             yt_supply: 125_000.0,
@@ -727,6 +756,10 @@ impl MockData {
         let market_two_summary = MarketSummary {
             market: "Market2222222222222222222222222222222222".into(),
             pump_mint: "PumpMint22222222222222222222222222222222".into(),
+            creator_vault: "CreatorVault2222222222222222222222222222222".into(),
+            sy_mint: "SyMint222222222222222222222222222222222".into(),
+            pt_mint: "PtMint222222222222222222222222222222222".into(),
+            yt_mint: "YtMint222222222222222222222222222222222".into(),
             maturity_ts: (now - Duration::days(3)).timestamp(),
             pt_supply: 64_000.0,
             yt_supply: 64_000.0,
@@ -858,6 +891,7 @@ impl MockData {
                 sol_rewards_bps: 500,
                 paused: false,
                 sy_mint: "SyMint111111111111111111111111111111111".into(),
+                advance_enabled: true,
             }],
             rewards_pools: vec![RewardsGovernance {
                 rewards_pool: "RewardsPool111111111111111111111111111111".into(),
