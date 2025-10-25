@@ -80,6 +80,9 @@ pub struct RewardsPoolSummary {
     pub allowed_funder: String,
     pub treasury_balance_sol: f64,
     pub paused: bool,
+    pub attn_mint: String,
+    pub s_attn_mint: String,
+    pub attn_vault: String,
     pub updated_at: DateTime<Utc>,
 }
 

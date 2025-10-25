@@ -24,6 +24,7 @@ pub trait ReadStore: Send + Sync {
     async fn rewards(&self, cursor: Option<String>, limit: u16) -> Result<RewardsPage>;
     async fn rewards_pool(&self, pool: &str) -> Result<Option<RewardsPoolDetail>>;
     async fn governance(&self) -> Result<GovernanceState>;
+    async fn health_check(&self) -> Result<()>;
 }
 
 pub type DynStore = Arc<dyn ReadStore>;
@@ -289,6 +290,9 @@ impl ReadStore for SqlxStore {
                        allowed_funder,
                        treasury_balance_lamports,
                        paused,
+                       attn_mint,
+                       s_attn_mint,
+                       attn_vault,
                        updated_at
                 from rewards_pools
                 where rewards_pool > $1
@@ -314,6 +318,9 @@ impl ReadStore for SqlxStore {
                        allowed_funder,
                        treasury_balance_lamports,
                        paused,
+                       attn_mint,
+                       s_attn_mint,
+                       attn_vault,
                        updated_at
                 from rewards_pools
                 order by rewards_pool asc
@@ -341,6 +348,9 @@ impl ReadStore for SqlxStore {
                 treasury_balance_sol: row.get::<f64, _>("treasury_balance_lamports")
                     / 1_000_000_000_f64,
                 paused: row.get::<bool, _>("paused"),
+                attn_mint: row.get("attn_mint"),
+                s_attn_mint: row.get("s_attn_mint"),
+                attn_vault: row.get("attn_vault"),
                 updated_at: row.get("updated_at"),
             })
             .collect();
@@ -375,6 +385,9 @@ impl ReadStore for SqlxStore {
                    allowed_funder,
                    treasury_balance_lamports,
                    paused,
+                   attn_mint,
+                   s_attn_mint,
+                   attn_vault,
                    updated_at
             from rewards_pools
             where rewards_pool = $1
@@ -401,6 +414,9 @@ impl ReadStore for SqlxStore {
             treasury_balance_sol: row.get::<f64, _>("treasury_balance_lamports")
                 / 1_000_000_000_f64,
             paused: row.get::<bool, _>("paused"),
+            attn_mint: row.get("attn_mint"),
+            s_attn_mint: row.get("s_attn_mint"),
+            attn_vault: row.get("attn_vault"),
             updated_at: row.get("updated_at"),
         };
 
@@ -569,6 +585,28 @@ impl ReadStore for SqlxStore {
             stable_vault,
         })
     }
+
+    async fn health_check(&self) -> Result<()> {
+        sqlx::query("select 1")
+            .fetch_one(&self.pool)
+            .await
+            .map(|_| ())?;
+
+        let tables = [
+            "creator_vaults",
+            "markets",
+            "attnusd_stats",
+            "rewards_pools",
+            "stable_vaults",
+        ];
+
+        for table in tables {
+            let query = format!("select 1 from {table} limit 1");
+            sqlx::query(&query).fetch_optional(&self.pool).await?;
+        }
+
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -650,6 +688,10 @@ impl ReadStore for MockStore {
 
     async fn governance(&self) -> Result<GovernanceState> {
         Ok(self.inner.governance.clone())
+    }
+
+    async fn health_check(&self) -> Result<()> {
+        Ok(())
     }
 }
 
@@ -771,6 +813,9 @@ impl MockData {
             allowed_funder: "Funder111111111111111111111111111111111".into(),
             treasury_balance_sol: 12.5,
             paused: false,
+            attn_mint: "AttnMint111111111111111111111111111111111".into(),
+            s_attn_mint: "SAttnMint11111111111111111111111111111111".into(),
+            attn_vault: "AttnVault1111111111111111111111111111111".into(),
             updated_at: now,
         };
 
