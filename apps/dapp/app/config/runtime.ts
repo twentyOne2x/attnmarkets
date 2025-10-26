@@ -8,6 +8,7 @@ export interface RuntimeEnv {
   cluster: string;
   programIds: Record<string, Record<string, string>>;
   isValid: boolean;
+  squadsEnabled: boolean;
   attnSquadsMember: string;
   apiKey: string | null;
   csrfToken: string;
@@ -62,11 +63,18 @@ const parseProgramIds = (raw?: string): Record<string, Record<string, string>> =
   }
 };
 
+const parseBoolean = (raw?: string | null): boolean => {
+  if (!raw) return false;
+  const normalized = raw.trim().toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+};
+
 export const runtimeEnv: RuntimeEnv = (() => {
   const defaultMode = parseMode(process.env.NEXT_PUBLIC_DATA_MODE ?? 'demo');
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE?.trim() || null;
   const cluster = process.env.NEXT_PUBLIC_CLUSTER?.trim() || 'devnet';
   const programIds = parseProgramIds(process.env.NEXT_PUBLIC_PROGRAM_IDS);
+  const squadsEnabled = parseBoolean(process.env.NEXT_PUBLIC_SQUADS_ENABLED);
   const attnSquadsMember =
     process.env.NEXT_PUBLIC_SQUADS_ATTN_MEMBER?.trim() || 'Attn111111111111111111111111111111111111111';
   const apiKey = process.env.NEXT_PUBLIC_ATTN_API_KEY?.trim() || null;
@@ -86,6 +94,7 @@ export const runtimeEnv: RuntimeEnv = (() => {
     cluster,
     programIds,
     isValid,
+    squadsEnabled,
     attnSquadsMember,
     apiKey,
     csrfToken,
@@ -113,9 +122,6 @@ export const useRuntimeMode = (mode: DataMode) => {
       apiBaseUrl: runtimeEnv.apiBaseUrl,
       cluster: runtimeEnv.cluster,
       programIds: runtimeEnv.programIds,
-      apiKey: runtimeEnv.apiKey,
-      csrfToken: runtimeEnv.csrfToken,
-      isAdmin: runtimeEnv.isAdmin,
     }),
     [mode]
   );

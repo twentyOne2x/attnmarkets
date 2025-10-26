@@ -37,6 +37,7 @@ struct SquadsInner {
     api_keys: Arc<Vec<String>>,
     config_digest: String,
     rpc: Option<RpcSanity>,
+    status_sync_enabled: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -87,21 +88,30 @@ pub struct SquadsConfig {
     pub rpc_strict: bool,
     pub expected_config_digest: Option<String>,
     pub config_digest: String,
+    pub status_sync_enabled: bool,
 }
 
 impl SquadsConfig {
     pub fn from_env() -> Result<Option<Self>> {
-        let enabled = env::var("ATTN_API_SQUADS_ENABLED")
-            .ok()
-            .map(|value| match value.to_lowercase().as_str() {
-                "0" | "false" | "no" | "off" => false,
-                _ => true,
+        let parse_flag = |key: &str| {
+            env::var(key).ok().map(|value| {
+                matches!(
+                    value.trim().to_lowercase().as_str(),
+                    "1" | "true" | "yes" | "on"
+                )
             })
-            .unwrap_or(true);
+        };
+        let enabled = parse_flag("ATTN_ENABLE_SQUADS")
+            .or_else(|| parse_flag("ATTN_API_SQUADS_ENABLED"))
+            .unwrap_or(false);
 
         if !enabled {
             return Ok(None);
         }
+
+        let status_sync_enabled = parse_flag("ATTN_ENABLE_SQUADS_STATUS_SYNC")
+            .or_else(|| parse_flag("ATTN_API_SQUADS_STATUS_SYNC_ENABLED"))
+            .unwrap_or(false);
 
         let base_url = env::var("ATTN_API_SQUADS_BASE_URL")
             .ok()
@@ -182,6 +192,7 @@ impl SquadsConfig {
             &default_name_prefix,
             payer_wallet.as_deref(),
             rpc_url.as_deref(),
+            status_sync_enabled,
             &api_keys,
         );
         if let Some(expected) = expected_config_digest.as_ref() {
@@ -206,6 +217,7 @@ impl SquadsConfig {
             rpc_strict,
             expected_config_digest,
             config_digest,
+            status_sync_enabled,
         }))
     }
 }
@@ -307,6 +319,7 @@ impl SquadsService {
             api_keys,
             config_digest: config.config_digest,
             rpc,
+            status_sync_enabled: config.status_sync_enabled,
         };
 
         Ok(Self {
@@ -316,6 +329,10 @@ impl SquadsService {
 
     pub fn default_attn_wallet(&self) -> &str {
         &self.inner.default_attn_wallet
+    }
+
+    pub fn status_sync_enabled(&self) -> bool {
+        self.inner.status_sync_enabled
     }
 
     pub fn default_cluster(&self) -> &str {
@@ -788,6 +805,7 @@ fn compute_config_digest(
     name_prefix: &str,
     payer_wallet: Option<&str>,
     rpc_url: Option<&str>,
+    status_sync_enabled: bool,
     api_keys: &[String],
 ) -> String {
     let mut hasher = Sha256::new();
@@ -804,6 +822,7 @@ fn compute_config_digest(
     if let Some(rpc) = rpc_url {
         hasher.update(rpc.as_bytes());
     }
+    hasher.update(&[status_sync_enabled as u8]);
     let mut hashed_keys: Vec<String> = api_keys.iter().map(|key| hash_secret(key)).collect();
     hashed_keys.sort();
     for key in hashed_keys {
@@ -1193,6 +1212,56 @@ impl SquadsSafeRepository {
         )
         .bind(request_id)
         .bind(truncated)
+        .bind(next_retry_at)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(row_to_request(row))
+    }
+
+    pub async fn record_status_failure(
+        &self,
+        request_id: Uuid,
+        message: &str,
+    ) -> Result<SafeRequestRecord> {
+        let truncated = message
+            .chars()
+            .take(STATUS_ERROR_MAX_LEN)
+            .collect::<String>();
+        let row = sqlx::query(
+            "update squads_safe_requests set
+                status = 'failed',
+                status_last_checked_at = now(),
+                status_sync_error = $2,
+                error_code = 'status_sync_failed',
+                error_message = $2,
+                next_retry_at = null,
+                updated_at = now()
+             where id = $1
+             returning *",
+        )
+        .bind(request_id)
+        .bind(truncated)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(row_to_request(row))
+    }
+
+    pub async fn schedule_status_retry(
+        &self,
+        request_id: Uuid,
+        backoff: ChronoDuration,
+    ) -> Result<SafeRequestRecord> {
+        let next_retry_at = Utc::now() + backoff;
+        let row = sqlx::query(
+            "update squads_safe_requests set
+                next_retry_at = $2,
+                updated_at = now()
+             where id = $1
+             returning *",
+        )
+        .bind(request_id)
         .bind(next_retry_at)
         .fetch_one(&self.pool)
         .await?;

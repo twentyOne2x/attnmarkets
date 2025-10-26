@@ -8,7 +8,6 @@ import BorrowSlider from '../components/BorrowSlider';
 import RepaySlider from '../components/RepaySlider';
 import { useAppContext } from '../context/AppContext';
 import { calculateBorrowingTerms } from '../utils/borrowingCalculations';
-import SquadsSafeOnboarding from './components/SquadsSafeOnboarding';
 
 interface LoanDetails {
   originalAmount: number;
@@ -927,8 +926,6 @@ export default function CreatorPage(): React.JSX.Element {
             ← Back to Dashboard
           </a>
         </div>
-
-        <SquadsSafeOnboarding />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Main Actions */}

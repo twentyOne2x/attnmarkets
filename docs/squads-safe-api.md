@@ -86,6 +86,7 @@ The dapp reads the following public environment variables:
 | `NEXT_PUBLIC_CSRF_TOKEN` | Value for `X-ATTN-Client` header. |
 | `NEXT_PUBLIC_SQUADS_ATTN_MEMBER` | Default attn co-signer address surfaced in the UI. |
 | `NEXT_PUBLIC_SQUADS_ADMIN_MODE` | Set to `true`/`1` to expose admin tooling in the UI. |
+| `NEXT_PUBLIC_SQUADS_ENABLED` | Feature flag for the creator onboarding UI (defaults to disabled). |
 
 ## Runbook & failure modes
 
@@ -112,6 +113,8 @@ The dapp reads the following public environment variables:
 | `ATTN_API_SQUADS_PAYER` | Optional payer wallet recorded alongside requests. |
 | `ATTN_API_SQUADS_RPC_URL` / `_RPC_STRICT` | RPC endpoint used for wallet/safe sanity checks (strict mode fails creation when accounts are missing). |
 | `ATTN_API_SQUADS_CONFIG_DIGEST` | Expected SHA-256 digest of the Squads config; mismatches fail startup to catch drift. |
+| `ATTN_ENABLE_SQUADS` | Master toggle for the Squads integration (defaults to `0`). |
+| `ATTN_ENABLE_SQUADS_STATUS_SYNC` / `ATTN_API_SQUADS_STATUS_SYNC_ENABLED` | Enable the background status poller when explicitly set to `true`. |
 
 ## Curl quickstart
 
