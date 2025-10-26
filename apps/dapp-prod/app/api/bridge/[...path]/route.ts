@@ -42,11 +42,11 @@ const proxyRequest = async (request: Request, context: RouteParams) => {
   const start = Date.now();
 
   const headers = new Headers();
-  for (const [key, value] of request.headers.entries()) {
+  request.headers.forEach((value, key) => {
     if (FORWARDED_HEADERS.includes(key.toLowerCase())) {
       headers.set(key, value);
     }
-  }
+  });
 
   const init: RequestInit = {
     method,
