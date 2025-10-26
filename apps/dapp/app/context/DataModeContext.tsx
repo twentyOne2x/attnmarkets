@@ -13,9 +13,12 @@ interface DataModeContextValue {
   provider: DataProvider;
   cluster: string;
   apiBaseUrl: string | null;
+  apiKey: string | null;
+  csrfToken: string;
   programIds: Record<string, string>;
   healthStatus: HealthStatus;
   lastError?: string;
+  isAdmin: boolean;
 }
 
 const DataModeContext = createContext<DataModeContextValue | undefined>(undefined);
@@ -96,9 +99,12 @@ export const DataModeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       provider,
       cluster: runtimeEnv.cluster,
       apiBaseUrl,
+      apiKey: runtimeEnv.apiKey,
+      csrfToken: runtimeEnv.csrfToken,
       programIds,
       healthStatus,
       lastError,
+      isAdmin: runtimeEnv.isAdmin,
     }),
     [mode, setMode, toggleMode, provider, apiBaseUrl, programIds, healthStatus, lastError]
   );
