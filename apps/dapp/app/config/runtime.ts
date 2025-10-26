@@ -8,6 +8,10 @@ export interface RuntimeEnv {
   cluster: string;
   programIds: Record<string, Record<string, string>>;
   isValid: boolean;
+  attnSquadsMember: string;
+  apiKey: string | null;
+  csrfToken: string;
+  isAdmin: boolean;
 }
 
 const MODE_STORAGE_KEY = 'attn.mode';
@@ -63,6 +67,12 @@ export const runtimeEnv: RuntimeEnv = (() => {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE?.trim() || null;
   const cluster = process.env.NEXT_PUBLIC_CLUSTER?.trim() || 'devnet';
   const programIds = parseProgramIds(process.env.NEXT_PUBLIC_PROGRAM_IDS);
+  const attnSquadsMember =
+    process.env.NEXT_PUBLIC_SQUADS_ATTN_MEMBER?.trim() || 'Attn111111111111111111111111111111111111111';
+  const apiKey = process.env.NEXT_PUBLIC_ATTN_API_KEY?.trim() || null;
+  const csrfToken = process.env.NEXT_PUBLIC_CSRF_TOKEN?.trim() || 'attn-dapp';
+  const adminFlag = process.env.NEXT_PUBLIC_SQUADS_ADMIN_MODE?.trim().toLowerCase();
+  const isAdmin = adminFlag === '1' || adminFlag === 'true';
 
   const isValid = Boolean(apiBaseUrl && Object.keys(programIds).length > 0);
 
@@ -76,6 +86,10 @@ export const runtimeEnv: RuntimeEnv = (() => {
     cluster,
     programIds,
     isValid,
+    attnSquadsMember,
+    apiKey,
+    csrfToken,
+    isAdmin,
   };
 })();
 
@@ -99,6 +113,9 @@ export const useRuntimeMode = (mode: DataMode) => {
       apiBaseUrl: runtimeEnv.apiBaseUrl,
       cluster: runtimeEnv.cluster,
       programIds: runtimeEnv.programIds,
+      apiKey: runtimeEnv.apiKey,
+      csrfToken: runtimeEnv.csrfToken,
+      isAdmin: runtimeEnv.isAdmin,
     }),
     [mode]
   );
