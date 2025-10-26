@@ -91,6 +91,12 @@ trait StatusSyncStore: Clone + Send + Sync + 'static {
         message: &str,
         backoff: Duration,
     ) -> Result<SafeRequestRecord>;
+    async fn mark_failure(&self, request_id: Uuid, message: &str) -> Result<SafeRequestRecord>;
+    async fn schedule_retry(
+        &self,
+        request_id: Uuid,
+        backoff: Duration,
+    ) -> Result<SafeRequestRecord>;
 }
 
 #[async_trait]
@@ -123,6 +129,18 @@ impl StatusSyncStore for SquadsSafeRepository {
         backoff: Duration,
     ) -> Result<SafeRequestRecord> {
         self.record_status_error(request_id, message, backoff).await
+    }
+
+    async fn mark_failure(&self, request_id: Uuid, message: &str) -> Result<SafeRequestRecord> {
+        self.record_status_failure(request_id, message).await
+    }
+
+    async fn schedule_retry(
+        &self,
+        request_id: Uuid,
+        backoff: Duration,
+    ) -> Result<SafeRequestRecord> {
+        self.schedule_status_retry(request_id, backoff).await
     }
 }
 
@@ -907,12 +925,10 @@ where
     }
 
     if status_value == "failed" || status_value == "error" {
-        repo.mark_error(
-            job.id,
-            &format!("upstream reported {}", status_value),
-            Duration::seconds(STATUS_SYNC_ERROR_BACKOFF_SECS),
-        )
-        .await?;
+        let failure_message = format!("upstream reported {}", status_value);
+        repo.mark_failure(job.id, &failure_message).await?;
+        repo.schedule_retry(job.id, Duration::seconds(STATUS_SYNC_ERROR_BACKOFF_SECS))
+            .await?;
         counter!(
             "squads_status_sync_total",
             1,
@@ -1028,11 +1044,16 @@ async fn main() -> Result<()> {
             config_digest = %service.config_digest(),
             attn_wallet = service.default_attn_wallet(),
             payer = ?service.payer_wallet(),
+            status_sync = service.status_sync_enabled(),
             "squads service configured"
         );
     }
     if let (Some(service), Some(repo)) = (state.squads.clone(), state.squads_repo.clone()) {
-        spawn_status_sync(service, repo);
+        if service.status_sync_enabled() {
+            spawn_status_sync(service, repo);
+        } else {
+            info!("squads status sync worker disabled by configuration");
+        }
     }
     let app = build_router(state.clone());
     let listener = TcpListener::bind(bind_addr).await?;
