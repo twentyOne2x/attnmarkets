@@ -228,9 +228,6 @@ const SquadsSafeOnboarding: React.FC = () => {
       if (!canCallApi) {
         errors.push('Switch to live mode with API credentials to submit.');
       }
-      if (!apiBaseUrl) {
-        errors.push('API base URL is not configured.');
-      }
       if (errors.length > 0) {
         setError(errors.join(' '));
         return;
@@ -238,7 +235,12 @@ const SquadsSafeOnboarding: React.FC = () => {
 
       setSubmitting(true);
       try {
-        const response = await fetch(`${apiBaseUrl.replace(/\/$/, '')}/v1/squads/safes`, {
+        if (!apiBaseUrl) {
+          setError('API base URL is not configured.');
+          return;
+        }
+        const normalizedApiBase = apiBaseUrl.replace(/\/$/, '');
+        const response = await fetch(`${normalizedApiBase}/v1/squads/safes`, {
           method: 'POST',
           headers: {
             ...buildHeaders(),
