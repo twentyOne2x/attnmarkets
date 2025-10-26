@@ -11,12 +11,22 @@ declare_id!("DusRTfShkXozaatx71Qv413RNEXqPNZS8hg9BnBeAQQE");
 
 pub const FEE_INDEX_SCALE: u128 = 1_000_000_000;
 
+fn assert_token_program(program_id: &Pubkey) -> Result<()> {
+    require_keys_eq!(
+        *program_id,
+        anchor_spl::token::ID,
+        SplitterError::InvalidTokenProgram
+    );
+    Ok(())
+}
+
 #[program]
 pub mod splitter {
     use super::*;
 
     pub fn create_market(ctx: Context<CreateMarket>, maturity_ts: i64) -> Result<()> {
         require!(maturity_ts > 0, SplitterError::InvalidMaturity);
+        assert_token_program(ctx.accounts.token_program.key)?;
         require_keys_eq!(
             ctx.accounts.creator_vault.sy_mint,
             ctx.accounts.sy_mint.key()
@@ -25,6 +35,16 @@ pub mod splitter {
             ctx.accounts.creator_vault.splitter_program,
             crate::ID,
             SplitterError::SplitterProgramMismatch
+        );
+        require_eq!(
+            ctx.accounts.sy_mint.decimals,
+            ctx.accounts.pt_mint.decimals,
+            SplitterError::MintDecimalsMismatch
+        );
+        require_eq!(
+            ctx.accounts.sy_mint.decimals,
+            ctx.accounts.yt_mint.decimals,
+            SplitterError::MintDecimalsMismatch
         );
 
         let creator_vault_key = ctx.accounts.creator_vault.key();
@@ -69,6 +89,7 @@ pub mod splitter {
 
     pub fn mint_pt_yt(ctx: Context<MintPtYt>, amount: u64) -> Result<()> {
         require!(amount > 0, SplitterError::InvalidAmount);
+        assert_token_program(ctx.accounts.token_program.key)?;
         require_keys_eq!(
             ctx.accounts.market.creator_vault,
             ctx.accounts.creator_vault.key()
@@ -181,6 +202,7 @@ pub mod splitter {
     }
 
     pub fn redeem_yield(ctx: Context<RedeemYield>, new_fee_index: u128) -> Result<()> {
+        assert_token_program(ctx.accounts.token_program.key)?;
         let market = &mut ctx.accounts.market;
         require_keys_eq!(market.creator_vault, ctx.accounts.creator_vault.key());
         require!(
@@ -206,28 +228,15 @@ pub mod splitter {
             SplitterError::InvalidFeeVault
         );
 
-        let delta_for_market = new_fee_index
-            .checked_sub(market.fee_index)
-            .ok_or(SplitterError::MathOverflow)?;
+        let (claimable, remainder, delta_for_market) = compute_yield_claim(
+            market.fee_index,
+            position.last_fee_index,
+            position.pending_yield_scaled,
+            ctx.accounts.user_yt_ata.amount,
+            new_fee_index,
+        )?;
+
         market.fee_index = new_fee_index;
-
-        let delta = new_fee_index
-            .checked_sub(position.last_fee_index)
-            .ok_or(SplitterError::MathOverflow)?;
-        if delta == 0 && position.pending_yield_scaled == 0 {
-            return Ok(());
-        }
-
-        let user_balance = ctx.accounts.user_yt_ata.amount as u128;
-        let accrued_scaled = delta
-            .checked_mul(user_balance)
-            .ok_or(SplitterError::MathOverflow)?;
-        let total_scaled = accrued_scaled
-            .checked_add(position.pending_yield_scaled)
-            .ok_or(SplitterError::MathOverflow)?;
-        let claimable = (total_scaled / FEE_INDEX_SCALE) as u64;
-        let remainder = total_scaled % FEE_INDEX_SCALE;
-
         position.pending_yield_scaled = remainder;
         position.last_fee_index = new_fee_index;
 
@@ -285,6 +294,7 @@ pub mod splitter {
 
     pub fn redeem_principal(ctx: Context<RedeemPrincipal>, amount: u64) -> Result<()> {
         require!(amount > 0, SplitterError::InvalidAmount);
+        assert_token_program(ctx.accounts.token_program.key)?;
         let clock = Clock::get()?;
         require!(
             clock.unix_timestamp >= ctx.accounts.market.maturity_ts,
@@ -293,6 +303,10 @@ pub mod splitter {
         require!(
             ctx.accounts.user_pt_ata.amount >= amount,
             SplitterError::InsufficientPtBalance
+        );
+        require!(
+            ctx.accounts.user_yt_ata.amount >= amount,
+            SplitterError::InsufficientYieldTokens
         );
         require_keys_eq!(ctx.accounts.market.pt_mint, ctx.accounts.pt_mint.key());
         require_keys_eq!(ctx.accounts.market.sy_mint, ctx.accounts.sy_mint.key());
@@ -304,6 +318,17 @@ pub mod splitter {
         };
         let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), burn_accounts);
         token::burn(cpi_ctx, amount)?;
+
+        let yt_burn_accounts = Burn {
+            mint: ctx.accounts.yt_mint.to_account_info(),
+            from: ctx.accounts.user_yt_ata.to_account_info(),
+            authority: ctx.accounts.user.to_account_info(),
+        };
+        let yt_cpi_ctx = CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            yt_burn_accounts,
+        );
+        token::burn(yt_cpi_ctx, amount)?;
 
         let creator_vault_key = ctx.accounts.creator_vault.key();
         let (expected_authority, _) = Pubkey::find_program_address(
@@ -340,6 +365,10 @@ pub mod splitter {
             .total_pt_issued
             .checked_sub(amount)
             .ok_or(SplitterError::MathOverflow)?;
+        market.total_yt_issued = market
+            .total_yt_issued
+            .checked_sub(amount)
+            .ok_or(SplitterError::MathOverflow)?;
 
         emit!(PrincipalRedeemed {
             market: market.key(),
@@ -357,8 +386,9 @@ pub mod splitter {
         );
         require_keys_eq!(
             ctx.accounts.creator_vault.authority,
-            ctx.accounts.authority.key()
+            ctx.accounts.creator_authority.key()
         );
+        require_keys_eq!(ctx.accounts.creator_vault.admin, ctx.accounts.admin.key());
         require!(
             ctx.accounts.market.total_pt_issued == 0,
             SplitterError::OutstandingPrincipal
@@ -367,12 +397,27 @@ pub mod splitter {
             ctx.accounts.pt_mint.supply == 0,
             SplitterError::OutstandingPrincipal
         );
+        require_eq!(
+            ctx.accounts.market.total_yt_issued,
+            ctx.accounts.yt_mint.supply,
+            SplitterError::YieldSupplyMismatch
+        );
+        require_eq!(
+            ctx.accounts.market.total_yt_issued,
+            0,
+            SplitterError::OutstandingYield
+        );
+        require_eq!(
+            ctx.accounts.yt_mint.supply,
+            0,
+            SplitterError::OutstandingYield
+        );
 
         ctx.accounts.market.is_closed = true;
 
         emit!(MarketClosed {
             market: ctx.accounts.market.key(),
-            authority: ctx.accounts.authority.key(),
+            authority: ctx.accounts.creator_authority.key(),
         });
 
         Ok(())
@@ -413,6 +458,40 @@ fn mint_via_creator_vault<'info>(
     Ok(())
 }
 
+fn compute_yield_claim(
+    current_market_index: u128,
+    position_last_index: u128,
+    pending_scaled: u128,
+    user_yt_balance: u64,
+    new_fee_index: u128,
+) -> Result<(u64, u128, u128)> {
+    let delta_for_market = new_fee_index
+        .checked_sub(current_market_index)
+        .ok_or(SplitterError::MathOverflow)?;
+
+    let delta = new_fee_index
+        .checked_sub(position_last_index)
+        .ok_or(SplitterError::MathOverflow)?;
+
+    if delta == 0 && pending_scaled == 0 {
+        return Ok((0, 0, delta_for_market));
+    }
+
+    let user_balance = user_yt_balance as u128;
+    let accrued_scaled = delta
+        .checked_mul(user_balance)
+        .ok_or(SplitterError::MathOverflow)?;
+
+    let total_scaled = accrued_scaled
+        .checked_add(pending_scaled)
+        .ok_or(SplitterError::MathOverflow)?;
+
+    let claimable = (total_scaled / FEE_INDEX_SCALE) as u64;
+    let remainder = total_scaled % FEE_INDEX_SCALE;
+
+    Ok((claimable, remainder, delta_for_market))
+}
+
 #[derive(Accounts)]
 pub struct CreateMarket<'info> {
     #[account(mut)]
@@ -446,6 +525,7 @@ pub struct CreateMarket<'info> {
     )]
     pub yt_mint: Account<'info, Mint>,
     pub system_program: Program<'info, System>,
+    #[account(address = anchor_spl::token::ID)]
     pub token_program: Program<'info, Token>,
     pub rent: Sysvar<'info, Rent>,
 }
@@ -454,7 +534,12 @@ pub struct CreateMarket<'info> {
 pub struct MintPtYt<'info> {
     #[account(mut)]
     pub market: Account<'info, Market>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = creator_vault.sy_mint == market.sy_mint,
+        constraint = creator_vault.splitter_program == crate::ID,
+        constraint = creator_vault.key() == market.creator_vault
+    )]
     pub creator_vault: Account<'info, CreatorVault>,
     #[account(
         seeds = [b"splitter-authority", creator_vault.key().as_ref()],
@@ -469,11 +554,11 @@ pub struct MintPtYt<'info> {
     pub user_pt_ata: Account<'info, TokenAccount>,
     #[account(mut, constraint = user_yt_ata.owner == user.key(), constraint = user_yt_ata.mint == market.yt_mint)]
     pub user_yt_ata: Account<'info, TokenAccount>,
-    #[account(mut)]
+    #[account(mut, constraint = sy_mint.key() == market.sy_mint)]
     pub sy_mint: Account<'info, Mint>,
-    #[account(mut)]
+    #[account(mut, constraint = pt_mint.key() == market.pt_mint)]
     pub pt_mint: Account<'info, Mint>,
-    #[account(mut)]
+    #[account(mut, constraint = yt_mint.key() == market.yt_mint)]
     pub yt_mint: Account<'info, Mint>,
     #[account(
         init_if_needed,
@@ -484,6 +569,7 @@ pub struct MintPtYt<'info> {
     )]
     pub user_position: Account<'info, UserPosition>,
     pub system_program: Program<'info, System>,
+    #[account(address = anchor_spl::token::ID)]
     pub token_program: Program<'info, Token>,
     pub creator_vault_program: Program<'info, creator_vault::program::CreatorVault>,
 }
@@ -492,7 +578,7 @@ pub struct MintPtYt<'info> {
 pub struct RedeemYield<'info> {
     #[account(mut)]
     pub market: Account<'info, Market>,
-    #[account(mut)]
+    #[account(mut, constraint = creator_vault.key() == market.creator_vault)]
     pub creator_vault: Account<'info, CreatorVault>,
     #[account(
         seeds = [b"splitter-authority", creator_vault.key().as_ref()],
@@ -509,10 +595,17 @@ pub struct RedeemYield<'info> {
     pub user_position: Account<'info, UserPosition>,
     #[account(mut, constraint = user_yt_ata.owner == user.key(), constraint = user_yt_ata.mint == market.yt_mint)]
     pub user_yt_ata: Account<'info, TokenAccount>,
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"fee-vault", creator_vault.pump_mint.as_ref()],
+        bump = creator_vault.fee_vault_bump,
+        constraint = fee_vault.mint == creator_vault.quote_mint,
+        constraint = fee_vault.owner == creator_vault.key()
+    )]
     pub fee_vault: Account<'info, TokenAccount>,
     #[account(mut, constraint = user_quote_ata.owner == user.key(), constraint = user_quote_ata.mint == fee_vault.mint)]
     pub user_quote_ata: Account<'info, TokenAccount>,
+    #[account(address = anchor_spl::token::ID)]
     pub token_program: Program<'info, Token>,
     pub creator_vault_program: Program<'info, creator_vault::program::CreatorVault>,
 }
@@ -521,7 +614,12 @@ pub struct RedeemYield<'info> {
 pub struct RedeemPrincipal<'info> {
     #[account(mut)]
     pub market: Account<'info, Market>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = creator_vault.sy_mint == market.sy_mint,
+        constraint = creator_vault.splitter_program == crate::ID,
+        constraint = creator_vault.key() == market.creator_vault
+    )]
     pub creator_vault: Account<'info, CreatorVault>,
     #[account(
         seeds = [b"splitter-authority", creator_vault.key().as_ref()],
@@ -538,6 +636,11 @@ pub struct RedeemPrincipal<'info> {
     pub pt_mint: Account<'info, Mint>,
     #[account(mut, constraint = sy_mint.key() == market.sy_mint)]
     pub sy_mint: Account<'info, Mint>,
+    #[account(mut, constraint = user_yt_ata.owner == user.key(), constraint = user_yt_ata.mint == market.yt_mint)]
+    pub user_yt_ata: Account<'info, TokenAccount>,
+    #[account(mut, constraint = yt_mint.key() == market.yt_mint)]
+    pub yt_mint: Account<'info, Mint>,
+    #[account(address = anchor_spl::token::ID)]
     pub token_program: Program<'info, Token>,
     pub creator_vault_program: Program<'info, creator_vault::program::CreatorVault>,
 }
@@ -545,9 +648,14 @@ pub struct RedeemPrincipal<'info> {
 #[derive(Accounts)]
 pub struct CloseMarket<'info> {
     #[account(mut)]
-    pub authority: Signer<'info>,
+    pub creator_authority: Signer<'info>,
+    pub admin: Signer<'info>,
+    #[account(
+        constraint = creator_vault.authority == creator_authority.key(),
+        constraint = creator_vault.admin == admin.key()
+    )]
     pub creator_vault: Account<'info, CreatorVault>,
-    #[account(mut, close = authority, has_one = creator_vault)]
+    #[account(mut, close = creator_authority, has_one = creator_vault)]
     pub market: Account<'info, Market>,
     #[account(mut, constraint = pt_mint.key() == market.pt_mint)]
     pub pt_mint: Account<'info, Mint>,
@@ -658,8 +766,122 @@ pub enum SplitterError {
     MarketNotMatured,
     #[msg("User has insufficient PT balance")]
     InsufficientPtBalance,
+    #[msg("User has insufficient YT balance")]
+    InsufficientYieldTokens,
     #[msg("Outstanding principal prevents closing")]
     OutstandingPrincipal,
+    #[msg("Outstanding yield prevents closing")]
+    OutstandingYield,
     #[msg("User position PDA mismatch")]
     InvalidUserPosition,
+    #[msg("Token program must match the SPL Token program")]
+    InvalidTokenProgram,
+    #[msg("Mint decimals must be aligned")]
+    MintDecimalsMismatch,
+    #[msg("Yield token supply accounting mismatch")]
+    YieldSupplyMismatch,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    #[test]
+    fn compute_yield_claim_returns_zero_when_no_delta() {
+        let result = compute_yield_claim(10, 10, 0, 42, 10).unwrap();
+        assert_eq!(result, (0, 0, 0));
+    }
+
+    #[test]
+    fn compute_yield_claim_handles_pending_remainder() {
+        let delta = FEE_INDEX_SCALE + (FEE_INDEX_SCALE / 2);
+        let pending = FEE_INDEX_SCALE / 2;
+        let result =
+            compute_yield_claim(0, 0, pending, 1, delta).expect("calculation should succeed");
+        assert_eq!(result.0, 2);
+        assert_eq!(result.1, 0);
+        assert_eq!(result.2, delta);
+    }
+
+    #[test]
+    fn compute_yield_claim_overflow_propagates_error() {
+        let result = compute_yield_claim(0, 0, 0, 2, u128::MAX);
+        assert!(matches!(result, Err(e) if e == SplitterError::MathOverflow.into()));
+    }
+
+    proptest! {
+        #[test]
+        fn compute_yield_claim_conserves_scaled_value(
+            base_index in 0u128..1_000_000,
+            delta in 0u128..1_000_000,
+            lag in 0u128..1_000_000,
+            pending in 0u128..1_000_000,
+            user_balance in 0u64..1_000_000,
+        ) {
+            prop_assume!(lag <= base_index);
+            let current_market_index = base_index;
+            let position_last_index = base_index - lag;
+            let new_fee_index = base_index
+                .checked_add(delta)
+                .expect("bounded above to avoid overflow");
+
+            let (claimable, remainder, delta_for_market) = compute_yield_claim(
+                current_market_index,
+                position_last_index,
+                pending,
+                user_balance,
+                new_fee_index,
+            )
+            .expect("bounded inputs should not overflow");
+
+            prop_assert_eq!(delta_for_market, delta);
+            let total_scaled = pending
+                .checked_add((new_fee_index - position_last_index) * u128::from(user_balance))
+                .unwrap();
+            prop_assert_eq!(
+                total_scaled,
+                u128::from(claimable) * FEE_INDEX_SCALE + remainder
+            );
+            prop_assert!(remainder < FEE_INDEX_SCALE);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn compute_yield_claim_is_idempotent_when_recalled(
+            base_index in 0u128..1_000_000,
+            delta in 0u128..1_000_000,
+            user_balance in 0u64..1_000_000,
+        ) {
+            let new_fee_index = base_index
+                .checked_add(delta)
+                .expect("bounded above to avoid overflow");
+            let mut position_last_index = base_index;
+            let mut pending = 0u128;
+
+            let (_first_claim, first_remainder, _) = compute_yield_claim(
+                base_index,
+                position_last_index,
+                pending,
+                user_balance,
+                new_fee_index,
+            )
+            .expect("bounded inputs should not overflow");
+
+            position_last_index = new_fee_index;
+            pending = first_remainder;
+            let (second_claim, second_remainder, _) = compute_yield_claim(
+                new_fee_index,
+                position_last_index,
+                pending,
+                user_balance,
+                new_fee_index,
+            )
+            .expect("idempotent call should succeed");
+
+            prop_assert_eq!(second_claim, 0);
+            prop_assert_eq!(second_remainder, pending);
+        }
+    }
 }
