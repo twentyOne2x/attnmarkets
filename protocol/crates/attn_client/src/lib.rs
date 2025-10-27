@@ -1104,6 +1104,16 @@ pub mod creator {
         pub padding: [u8; 1],
     }
 
+    #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
+    pub struct CreatorVaultSweeperAccount {
+        pub bump: u8,
+        pub creator_vault: Pubkey,
+        pub delegate: Pubkey,
+        pub fee_bps: u16,
+        pub last_sweep_ts: i64,
+        pub padding: [u8; 5],
+    }
+
     #[derive(Debug, Clone)]
     pub struct CreatorVaultPdas {
         pub creator_vault: Pubkey,
@@ -1121,6 +1131,10 @@ pub mod creator {
 
     pub fn sy_mint_pda(pump_mint: &Pubkey) -> (Pubkey, u8) {
         Pubkey::find_program_address(&[b"sy-mint", pump_mint.as_ref()], &creator_vault::ID)
+    }
+
+    pub fn sweeper_pda(creator_vault: &Pubkey) -> (Pubkey, u8) {
+        Pubkey::find_program_address(&[b"sweeper", creator_vault.as_ref()], &creator_vault::ID)
     }
 
     pub fn derive_pdas(pump_mint: &Pubkey) -> CreatorVaultPdas {
@@ -1144,6 +1158,27 @@ pub mod creator {
     {
         let account = program.rpc().get_account(&address)?;
         decode_account::<CreatorVaultAccount>(&account.data)
+    }
+
+    pub async fn fetch_sweeper_account<C>(
+        program: &Program<C>,
+        creator_vault: Pubkey,
+    ) -> Result<Option<CreatorVaultSweeperAccount>>
+    where
+        C: Deref + Clone,
+        C::Target: Signer + Sized,
+    {
+        let (sweeper, _) = sweeper_pda(&creator_vault);
+        match program.rpc().get_account(&sweeper) {
+            Ok(account) => Ok(Some(decode_account::<CreatorVaultSweeperAccount>(&account.data)?)),
+            Err(err) => {
+                if err.to_string().contains("AccountNotFound") {
+                    Ok(None)
+                } else {
+                    Err(err.into())
+                }
+            }
+        }
     }
 
     pub fn build_initialize_vault_ix(
@@ -1195,6 +1230,74 @@ pub mod creator {
         Instruction {
             program_id: creator_vault::ID,
             accounts: accounts.to_account_metas(None),
+            data,
+        }
+    }
+
+    pub fn build_set_sweeper_delegate_ix(
+        creator_vault: Pubkey,
+        authority: Pubkey,
+        delegate: Pubkey,
+        fee_bps: u16,
+    ) -> Instruction {
+        let (sweeper, _) = sweeper_pda(&creator_vault);
+        let accounts = creator_accounts::SetSweeperDelegate {
+            creator_vault,
+            authority,
+            sweeper,
+            system_program: system_program::ID,
+        };
+        let data = creator_ix::SetSweeperDelegate { delegate, fee_bps }.data();
+        Instruction {
+            program_id: creator_vault::ID,
+            accounts: accounts.to_account_metas(None),
+            data,
+        }
+    }
+
+    pub fn build_clear_sweeper_delegate_ix(
+        creator_vault: Pubkey,
+        authority: Pubkey,
+    ) -> Instruction {
+        let (sweeper, _) = sweeper_pda(&creator_vault);
+        let accounts = creator_accounts::ClearSweeperDelegate {
+            creator_vault,
+            authority,
+            sweeper,
+        };
+        let data = creator_ix::ClearSweeperDelegate {}.data();
+        Instruction {
+            program_id: creator_vault::ID,
+            accounts: accounts.to_account_metas(None),
+            data,
+        }
+    }
+
+    pub fn build_delegate_sweep_ix(
+        creator_vault: Pubkey,
+        pump_mint: Pubkey,
+        delegate: Pubkey,
+        destination: Pubkey,
+        amount: u64,
+        delegate_fee_destination: Option<Pubkey>,
+    ) -> Instruction {
+        let (sweeper, _) = sweeper_pda(&creator_vault);
+        let (fee_vault, _) = fee_vault_pda(&pump_mint);
+        let mut accounts = vec![
+            AccountMeta::new(creator_vault, false),
+            AccountMeta::new(sweeper, false),
+            AccountMeta::new_readonly(delegate, true),
+            AccountMeta::new(fee_vault, false),
+            AccountMeta::new(destination, false),
+        ];
+        if let Some(fee_destination) = delegate_fee_destination {
+            accounts.push(AccountMeta::new(fee_destination, false));
+        }
+        accounts.push(AccountMeta::new_readonly(token::ID, false));
+        let data = creator_ix::DelegateSweep { amount }.data();
+        Instruction {
+            program_id: creator_vault::ID,
+            accounts,
             data,
         }
     }

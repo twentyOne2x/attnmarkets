@@ -10,7 +10,7 @@
 - Anchor 0.32.1 and Solana Agave 2.3.x are pinned via `Anchor.toml`; workspace builds use `rust-lld`.
 - `stable_vault` handles initialize/deposit/redeem plus creator fee sweeping with SOL reward splits into RewardsVault.
 - `rewards_vault` program live with stake/unstake/claim/fund, admin/allowed-funder controls, and property tests (linker crash still environmental).
-- `attn_client` + `attn_cli` expose CreatorVault lifecycle (wrap, withdraw, lock/unlock) alongside rewards builders/commands (initialize, stake, claim, fund) and stable vault flows.
+- `attn_client` + `attn_cli` expose CreatorVault lifecycle (wrap, withdraw, lock/unlock, sweeper delegate management) alongside rewards builders/commands (initialize, stake, claim, fund) and stable vault flows.
 - `attn_indexer` consumes program logs into Postgres with checkpoints, signature + operation-id dedupe, and cursor pagination; migrations 001–005 (`004_governance.sql`, `005_stable_pause.sql`) authored.
 - `attn_api` serves `/v1/overview`, `/v1/markets`, `/v1/markets/:id`, `/v1/portfolio/:wallet`, `/v1/attnusd`, `/v1/rewards`, `/v1/rewards/:pool`, `/v1/governance`, `/readyz`, `/version` with weak ETags.
 - Localnet E2E script in repo; devnet deploy + Squads migration scheduled next.
@@ -42,10 +42,13 @@ attnmarkets/
   - `CreatorVault`: main PDA storing Pump PDA, fee totals, SY mint, `authority_seed`, governance fields (`admin`, `emergency_admin`, `sol_rewards_bps`, `paused`).
   - `VaultAuthority`: signer PDA derived from seeds (`creator-vault`, pump mint) using Anchor 0.32 `ctx.bumps`.
   - `FeeEscrow`: token account for accumulated SOL (wrapped) or USDC, owned by vault.
+  - `CreatorVaultSweeper`: optional PDA (`["sweeper", creator_vault]`) that records the delegated autosweeper, fee bps, and last sweep timestamp.
 - **Instructions**
   - `initialize_vault { pump_creator_pda, quote_mint, admin, emergency_admin }`
   - `wrap_fees { creator_vault, user, amount }` – mints SY to user; blocked when `paused`.
   - `withdraw_fees { creator_vault, authority, destination, amount }` – creator-only sweep while the vault is unlocked; requires admin co-sign only when `locked` is true.
+  - `set_sweeper_delegate { delegate, fee_bps }` / `clear_sweeper_delegate {}` – creator/admin opt-in to attn’s autosweeper and configure an optional fee share.
+  - `delegate_sweep { amount }` – sweeper PDA moves fees to the creator destination (plus optional delegate fee) whenever the vault is unlocked.
   - `mint_for_splitter { creator_vault, splitter_authority, mint, destination, amount }` – CPI helper to mint PT/YT/SY on Splitter’s behalf.
   - `transfer_fees_for_splitter { creator_vault, splitter_authority, fee_vault, destination, amount }` – CPI helper moving accrued fees to Splitter users.
   - `lock_collateral { lock_expires_at? }`, `unlock_collateral {}` – admin toggles for advances; locks auto-expire at maturity to restore creator withdrawals.
@@ -53,10 +56,10 @@ attnmarkets/
 - **Out of scope**
   - Pump.fun fee sweeping via CPI (`collect_fees`) remains on the backlog; CreatorVault currently wraps fees that have already landed in the PDA.
 - **Events**
-  - `SYMinted`, `FeesWithdrawn`, `SplitterMinted`, `SplitterFeeTransfer`, `VaultLockStatusChanged`, `CreatorVaultPaused`, `RewardsSplitUpdated`.
+  - `SYMinted`, `FeesWithdrawn`, `SweeperDelegateUpdated`, `SweeperDelegateCleared`, `DelegatedFeesSwept`, `SplitterMinted`, `SplitterFeeTransfer`, `VaultLockStatusChanged`, `CreatorVaultPaused`, `RewardsSplitUpdated`.
 - **Key Considerations**
   - Support both direct Pump token deposits and raw SOL fee deposits (convert via wSOL).
-  - Track `total_fees_collected`, `total_sy_minted`, `locked`, `lock_expires_at`, and `cta_status` flag (optional) for UI gating and unstoppable-withdraw UX.
+  - Track `total_fees_collected`, `total_sy_minted`, `locked`, `lock_expires_at`, sweeper status, and `cta_status` flag (optional) for UI gating and unstoppable-withdraw UX.
 
 ### 2. Splitter Program (SY → PT/YT)
 - **Accounts**

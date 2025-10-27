@@ -13,6 +13,159 @@ export type CreatorVault = {
   },
   "instructions": [
     {
+      "name": "clearSweeperDelegate",
+      "discriminator": [
+        109,
+        228,
+        224,
+        119,
+        129,
+        4,
+        67,
+        59
+      ],
+      "accounts": [
+        {
+          "name": "creatorVault",
+          "writable": true,
+          "relations": [
+            "sweeper"
+          ]
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "creatorVault"
+          ]
+        },
+        {
+          "name": "sweeper",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  119,
+                  101,
+                  101,
+                  112,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creatorVault"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "delegateSweep",
+      "discriminator": [
+        77,
+        204,
+        156,
+        251,
+        18,
+        182,
+        230,
+        157
+      ],
+      "accounts": [
+        {
+          "name": "creatorVault",
+          "writable": true,
+          "relations": [
+            "sweeper"
+          ]
+        },
+        {
+          "name": "sweeper",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  119,
+                  101,
+                  101,
+                  112,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creatorVault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "delegate",
+          "signer": true,
+          "relations": [
+            "sweeper"
+          ]
+        },
+        {
+          "name": "feeVault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creatorVault.pumpMint",
+                "account": "CreatorVault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "destination",
+          "writable": true
+        },
+        {
+          "name": "delegateFeeDestination",
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "initializeVault",
       "discriminator": [
         48,
@@ -278,6 +431,71 @@ export type CreatorVault = {
       "args": [
         {
           "name": "solRewardsBps",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "setSweeperDelegate",
+      "discriminator": [
+        129,
+        1,
+        67,
+        201,
+        193,
+        147,
+        39,
+        248
+      ],
+      "accounts": [
+        {
+          "name": "creatorVault",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "creatorVault"
+          ]
+        },
+        {
+          "name": "sweeper",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  119,
+                  101,
+                  101,
+                  112,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creatorVault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "delegate",
+          "type": "pubkey"
+        },
+        {
+          "name": "feeBps",
           "type": "u16"
         }
       ]
@@ -573,6 +791,19 @@ export type CreatorVault = {
         238,
         12
       ]
+    },
+    {
+      "name": "CreatorVaultSweeper",
+      "discriminator": [
+        176,
+        5,
+        12,
+        173,
+        189,
+        21,
+        121,
+        199
+      ]
     }
   ],
   "events": [
@@ -587,6 +818,19 @@ export type CreatorVault = {
         3,
         80,
         161
+      ]
+    },
+    {
+      "name": "DelegatedFeesSwept",
+      "discriminator": [
+        207,
+        27,
+        189,
+        113,
+        157,
+        56,
+        181,
+        19
       ]
     },
     {
@@ -613,6 +857,32 @@ export type CreatorVault = {
         47,
         15,
         54
+      ]
+    },
+    {
+      "name": "SweeperDelegateCleared",
+      "discriminator": [
+        189,
+        57,
+        133,
+        82,
+        62,
+        57,
+        239,
+        251
+      ]
+    },
+    {
+      "name": "SweeperDelegateUpdated",
+      "discriminator": [
+        88,
+        217,
+        137,
+        129,
+        193,
+        154,
+        237,
+        248
       ]
     },
     {
@@ -738,6 +1008,36 @@ export type CreatorVault = {
       "code": 6013,
       "name": "InvalidLockExpiry",
       "msg": "Lock expiry must be greater than or equal to the current timestamp"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidSweeperDelegate",
+      "msg": "Sweeper delegate must be a non-default public key"
+    },
+    {
+      "code": 6015,
+      "name": "InvalidSweeperFee",
+      "msg": "Sweeper fee exceeds 100%"
+    },
+    {
+      "code": 6016,
+      "name": "VaultLockedForDelegate",
+      "msg": "Vault is locked; delegate sweep is unavailable"
+    },
+    {
+      "code": 6017,
+      "name": "UnauthorizedSweeper",
+      "msg": "Unauthorized sweeper delegate"
+    },
+    {
+      "code": 6018,
+      "name": "DelegateFeeDestinationRequired",
+      "msg": "Delegate fee destination required"
+    },
+    {
+      "code": 6019,
+      "name": "InvalidDelegateFeeDestination",
+      "msg": "Invalid delegate fee destination"
     }
   ],
   "types": [
@@ -843,6 +1143,71 @@ export type CreatorVault = {
       }
     },
     {
+      "name": "CreatorVaultSweeper",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "creatorVault",
+            "type": "pubkey"
+          },
+          {
+            "name": "delegate",
+            "type": "pubkey"
+          },
+          {
+            "name": "feeBps",
+            "type": "u16"
+          },
+          {
+            "name": "lastSweepTs",
+            "type": "i64"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                5
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "DelegatedFeesSwept",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "creatorVault",
+            "type": "pubkey"
+          },
+          {
+            "name": "delegate",
+            "type": "pubkey"
+          },
+          {
+            "name": "destination",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "feeAmount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
       "name": "FeesWithdrawn",
       "type": {
         "kind": "struct",
@@ -881,6 +1246,38 @@ export type CreatorVault = {
           },
           {
             "name": "solRewardsBps",
+            "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SweeperDelegateCleared",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "creatorVault",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SweeperDelegateUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "creatorVault",
+            "type": "pubkey"
+          },
+          {
+            "name": "delegate",
+            "type": "pubkey"
+          },
+          {
+            "name": "feeBps",
             "type": "u16"
           }
         ]
