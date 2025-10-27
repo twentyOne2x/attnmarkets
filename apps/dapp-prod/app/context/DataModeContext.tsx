@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { DataMode, persistMode, runtimeEnv, useStoredMode } from '../config/runtime';
 import { BridgeDataProvider, DataProvider, demoDataProvider } from '../lib/data-providers';
 
@@ -31,7 +31,7 @@ const checkHealth = async (apiBase: string): Promise<void> => {
   }
 };
 
-export const DataModeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const DataModeProvider = ({ children }: { children: ReactNode }) => {
   const stored = useStoredMode();
   const initialMode = runtimeEnv.isValid ? stored : 'demo';
 

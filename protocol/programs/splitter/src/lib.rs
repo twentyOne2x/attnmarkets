@@ -434,6 +434,7 @@ pub mod splitter {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn mint_via_creator_vault<'info>(
     program: AccountInfo<'info>,
     creator_vault: AccountInfo<'info>,
