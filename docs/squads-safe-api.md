@@ -5,6 +5,7 @@ This document describes the authenticated endpoints that power creator onboardin
 ## Authentication and security
 
 - **API keys & CSRF** – All POST/GET requests must include an `X-API-Key` header whose value matches an id configured in `ATTN_API_KEYS`, plus the `X-ATTN-Client` header (default `attn-dapp`). Requests lacking either header return `403 auth_failed`.
+- **KMS-backed signatures** – When `ATTN_KMS_SIGNER_KEY` (and optionally `ATTN_KMS_PAYER_KEY`) are configured the backend signs Squads transactions using Google Cloud KMS Ed25519 keys. Missing keys fall back to requester-supplied signatures only.
 - **Admin keys** – Keys listed in `ATTN_API_ADMIN_KEYS` (comma-separated key IDs) receive elevated privileges for list/resubmit/override routes. Non-admin keys receive `403 admin_required` on those endpoints.
 - **Wallet allowlist** – Optional `ATTN_API_WALLET_ALLOWLIST` (comma-separated, case-insensitive) constrains which creator wallets may request nonces or submit creation calls.
 - **IP allowlist** – Optional `ATTN_API_IP_ALLOWLIST` enforces source IPs for all authenticated calls.
@@ -115,6 +116,8 @@ The dapp reads the following public environment variables:
 | `ATTN_API_SQUADS_CONFIG_DIGEST` | Expected SHA-256 digest of the Squads config; mismatches fail startup to catch drift. |
 | `ATTN_ENABLE_SQUADS` | Master toggle for the Squads integration (defaults to `0`). |
 | `ATTN_ENABLE_SQUADS_STATUS_SYNC` / `ATTN_API_SQUADS_STATUS_SYNC_ENABLED` | Enable the background status poller when explicitly set to `true`. |
+| `ATTN_KMS_SIGNER_KEY` | Cloud KMS resource path for the attn signer (ed25519) used for backend signatures. |
+| `ATTN_KMS_PAYER_KEY` | Optional Cloud KMS resource path for the sponsored fee payer signer. |
 
 ## Curl quickstart
 
@@ -149,4 +152,3 @@ curl -H "X-API-Key: ${API_KEY}" -H "X-ATTN-Client: ${CSRF_TOKEN}" \
 - **Availability:** 99.5% of nonce and create requests succeed (non-`5xx`) over a rolling 30-day window.
 - **Status propagation:** 99% of submitted safes reach `ready` within 10 minutes when Squads reports success.
 - **Readiness checks:** `/readyz` must respond `200` within 250 ms; the UI surfaces the current state via the readiness badge.
-
