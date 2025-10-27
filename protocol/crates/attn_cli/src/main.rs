@@ -82,6 +82,11 @@ enum Commands {
         #[arg(long)]
         amount: u64,
     },
+    /// CreatorVault lifecycle helpers
+    Creator {
+        #[command(subcommand)]
+        command: CreatorCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -141,6 +146,29 @@ enum RewardsCommands {
         amount: u64,
         #[arg(long = "operation-id")]
         operation_id: u64,
+    },
+}
+
+#[derive(Subcommand)]
+enum CreatorCommands {
+    /// Lock collateral until market maturity; requires CreatorVault admin signer
+    Lock {
+        #[arg(long = "market", value_parser = parse_pubkey)]
+        market: Pubkey,
+    },
+    /// Unlock collateral after obligation is settled; requires CreatorVault admin signer
+    Unlock {
+        #[arg(long = "market", value_parser = parse_pubkey)]
+        market: Pubkey,
+    },
+    /// Withdraw accumulated fees; succeeds while the vault is unlocked
+    Withdraw {
+        #[arg(long = "creator-vault", value_parser = parse_pubkey)]
+        creator_vault: Pubkey,
+        #[arg(long)]
+        amount: u64,
+        #[arg(long = "destination", value_parser = parse_pubkey)]
+        destination: Option<Pubkey>,
     },
 }
 
@@ -218,6 +246,21 @@ async fn main() -> Result<()> {
         Commands::RedeemPt { market, amount } => {
             redeem_principal(&client, payer.clone(), market, amount).await?
         }
+        Commands::Creator { command } => match command {
+            CreatorCommands::Lock { market } => {
+                creator_lock(&client, payer.clone(), market).await?
+            }
+            CreatorCommands::Unlock { market } => {
+                creator_unlock(&client, payer.clone(), market).await?
+            }
+            CreatorCommands::Withdraw {
+                creator_vault,
+                amount,
+                destination,
+            } => {
+                creator_withdraw(&client, payer.clone(), creator_vault, destination, amount).await?
+            }
+        },
         Commands::Fund {
             creator_vault,
             amount,
@@ -524,10 +567,12 @@ async fn redeem_principal(
     let user = payer.pubkey();
     let user_pt_ata = associated_token_address(&user, &market.pt_mint);
     let user_sy_ata = associated_token_address(&user, &market.sy_mint);
+    let user_yt_ata = associated_token_address(&user, &market.yt_mint);
 
     let mut instructions = vec![
         create_associated_token_account_idempotent_ix(&payer.pubkey(), &user, &market.pt_mint),
         create_associated_token_account_idempotent_ix(&payer.pubkey(), &user, &market.sy_mint),
+        create_associated_token_account_idempotent_ix(&payer.pubkey(), &user, &market.yt_mint),
     ];
 
     let ix = splitter_client::build_redeem_principal_ix(
@@ -538,12 +583,151 @@ async fn redeem_principal(
         user_sy_ata,
         market.pt_mint,
         market.sy_mint,
+        user_yt_ata,
+        market.yt_mint,
         amount,
     );
     instructions.push(ix);
 
     let sig = send_instructions(splitter_program, instructions)?;
     println!("Redeem principal transaction signature: {}", sig);
+    Ok(())
+}
+
+async fn creator_lock(
+    client: &Client<Arc<Keypair>>,
+    payer: Arc<Keypair>,
+    market_pubkey: Pubkey,
+) -> Result<()> {
+    let splitter_program = client.program(splitter::ID)?;
+    let market = splitter_client::fetch_market(&splitter_program, market_pubkey)
+        .await
+        .context("failed to fetch market account")?;
+
+    let creator_program = client.program(creator_vault::ID)?;
+    let vault = creator::fetch_account(&creator_program, market.creator_vault)
+        .await
+        .context("failed to fetch creator vault account")?;
+
+    let admin = payer.pubkey();
+    if vault.admin != admin {
+        return Err(anyhow!(
+            "payer {} must match CreatorVault admin {}",
+            admin,
+            vault.admin
+        ));
+    }
+
+    let ix =
+        creator::build_lock_collateral_ix(market.creator_vault, admin, Some(market.maturity_ts));
+    let sig = send_instructions(creator_program, vec![ix])?;
+    println!(
+        "CreatorVault {} locked until maturity {} (tx: {})",
+        market.creator_vault, market.maturity_ts, sig
+    );
+    Ok(())
+}
+
+async fn creator_unlock(
+    client: &Client<Arc<Keypair>>,
+    payer: Arc<Keypair>,
+    market_pubkey: Pubkey,
+) -> Result<()> {
+    let splitter_program = client.program(splitter::ID)?;
+    let market = splitter_client::fetch_market(&splitter_program, market_pubkey)
+        .await
+        .context("failed to fetch market account")?;
+
+    let creator_program = client.program(creator_vault::ID)?;
+    let vault = creator::fetch_account(&creator_program, market.creator_vault)
+        .await
+        .context("failed to fetch creator vault account")?;
+
+    let admin = payer.pubkey();
+    if vault.admin != admin {
+        return Err(anyhow!(
+            "payer {} must match CreatorVault admin {}",
+            admin,
+            vault.admin
+        ));
+    }
+
+    if !vault.locked && vault.lock_expires_at == 0 {
+        println!(
+            "CreatorVault {} already unlocked; skipping transaction",
+            market.creator_vault
+        );
+        return Ok(());
+    }
+
+    let ix = creator::build_unlock_collateral_ix(market.creator_vault, admin);
+    let sig = send_instructions(creator_program, vec![ix])?;
+    println!(
+        "CreatorVault {} unlocked (tx: {})",
+        market.creator_vault, sig
+    );
+    Ok(())
+}
+
+async fn creator_withdraw(
+    client: &Client<Arc<Keypair>>,
+    payer: Arc<Keypair>,
+    creator_vault_pubkey: Pubkey,
+    destination: Option<Pubkey>,
+    amount: u64,
+) -> Result<()> {
+    if amount == 0 {
+        return Err(anyhow!("amount must be greater than zero"));
+    }
+
+    let creator_program = client.program(creator_vault::ID)?;
+    let vault = creator::fetch_account(&creator_program, creator_vault_pubkey)
+        .await
+        .context("failed to fetch creator vault account")?;
+
+    let authority = payer.pubkey();
+    if vault.authority != authority {
+        return Err(anyhow!(
+            "payer {} must match creator authority {}",
+            authority,
+            vault.authority
+        ));
+    }
+
+    if vault.locked {
+        return Err(anyhow!(
+            "creator vault is locked; admin signature is required until obligations settle (lock expires at {})",
+            vault.lock_expires_at
+        ));
+    }
+
+    let default_destination = associated_token_address(&authority, &vault.quote_mint);
+    let destination = destination.unwrap_or(default_destination);
+    let mut instructions = Vec::new();
+    if destination == default_destination {
+        instructions.push(create_associated_token_account_idempotent_ix(
+            &payer.pubkey(),
+            &authority,
+            &vault.quote_mint,
+        ));
+    }
+
+    let withdraw_ix = creator::build_withdraw_fees_ix(
+        vault.pump_mint,
+        creator_vault_pubkey,
+        authority,
+        destination,
+        vault.admin,
+        amount,
+        false,
+    );
+    instructions.push(withdraw_ix);
+
+    let sig = send_instructions(creator_program, instructions)?;
+    println!(
+        "Withdrawn {} units from CreatorVault {} into {} (tx: {})",
+        amount, creator_vault_pubkey, destination, sig
+    );
     Ok(())
 }
 

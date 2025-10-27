@@ -1081,7 +1081,7 @@ pub mod creator {
     use anchor_spl::token;
     use creator_vault::accounts as creator_accounts;
     use creator_vault::instruction as creator_ix;
-    use solana_sdk::{system_program, sysvar};
+    use solana_sdk::{instruction::AccountMeta, system_program, sysvar};
 
     #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize)]
     pub struct CreatorVaultAccount {
@@ -1099,7 +1099,9 @@ pub mod creator {
         pub admin: Pubkey,
         pub sol_rewards_bps: u16,
         pub paused: bool,
-        pub padding: [u8; 5],
+        pub locked: bool,
+        pub lock_expires_at: i64,
+        pub padding: [u8; 1],
     }
 
     #[derive(Debug, Clone)]
@@ -1254,6 +1256,70 @@ pub mod creator {
             data,
         }
     }
+
+    pub fn build_withdraw_fees_ix(
+        pump_mint: Pubkey,
+        creator_vault: Pubkey,
+        authority: Pubkey,
+        destination: Pubkey,
+        admin: Pubkey,
+        amount: u64,
+        require_admin_signature: bool,
+    ) -> Instruction {
+        let (fee_vault, _) = fee_vault_pda(&pump_mint);
+        let mut accounts = creator_accounts::WithdrawFees {
+            creator_vault,
+            authority,
+            fee_vault,
+            destination,
+            token_program: token::ID,
+            admin,
+        }
+        .to_account_metas(None);
+
+        if let Some(meta) = accounts.iter_mut().find(|meta| meta.pubkey == admin) {
+            meta.is_signer = require_admin_signature;
+        } else {
+            accounts.push(AccountMeta::new_readonly(admin, require_admin_signature));
+        }
+
+        let data = creator_ix::WithdrawFees { amount }.data();
+        Instruction {
+            program_id: creator_vault::ID,
+            accounts,
+            data,
+        }
+    }
+
+    pub fn build_lock_collateral_ix(
+        creator_vault: Pubkey,
+        admin: Pubkey,
+        lock_expires_at: Option<i64>,
+    ) -> Instruction {
+        let accounts = creator_accounts::UpdateLockState {
+            creator_vault,
+            admin,
+        };
+        let data = creator_ix::LockCollateral { lock_expires_at }.data();
+        Instruction {
+            program_id: creator_vault::ID,
+            accounts: accounts.to_account_metas(None),
+            data,
+        }
+    }
+
+    pub fn build_unlock_collateral_ix(creator_vault: Pubkey, admin: Pubkey) -> Instruction {
+        let accounts = creator_accounts::UpdateLockState {
+            creator_vault,
+            admin,
+        };
+        let data = creator_ix::UnlockCollateral {}.data();
+        Instruction {
+            program_id: creator_vault::ID,
+            accounts: accounts.to_account_metas(None),
+            data,
+        }
+    }
 }
 
 pub mod splitter {
@@ -1400,6 +1466,8 @@ pub mod splitter {
         user_sy_ata: Pubkey,
         pt_mint: Pubkey,
         sy_mint: Pubkey,
+        user_yt_ata: Pubkey,
+        yt_mint: Pubkey,
         amount: u64,
     ) -> Instruction {
         let (splitter_authority, _) = splitter_authority_pda(&creator_vault);
@@ -1412,6 +1480,8 @@ pub mod splitter {
             user_sy_ata,
             pt_mint,
             sy_mint,
+            user_yt_ata,
+            yt_mint,
             token_program: token::ID,
             creator_vault_program: creator_vault::ID,
         };
