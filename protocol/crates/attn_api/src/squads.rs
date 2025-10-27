@@ -14,11 +14,11 @@ use sha2::{Digest, Sha256};
 use sqlx::{PgPool, QueryBuilder, Row};
 use uuid::Uuid;
 
+use crate::kms::{HttpKmsClient, KmsSigner};
 use solana_client::client_error::ClientErrorKind;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_client::rpc_request::RpcError;
-use solana_sdk::commitment_config::CommitmentConfig;
-use solana_sdk::pubkey::Pubkey;
+use solana_sdk::{commitment_config::CommitmentConfig, pubkey::Pubkey, signature::Signature};
 
 #[derive(Debug, Clone)]
 pub struct SquadsService {
@@ -37,6 +37,8 @@ struct SquadsInner {
     config_digest: String,
     rpc: Option<RpcSanity>,
     status_sync_enabled: bool,
+    kms_signer: Option<Arc<KmsSigner<HttpKmsClient>>>,
+    kms_payer: Option<Arc<KmsSigner<HttpKmsClient>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -109,6 +111,8 @@ pub struct SquadsConfig {
     pub expected_config_digest: Option<String>,
     pub config_digest: String,
     pub status_sync_enabled: bool,
+    pub kms_signer_resource: Option<String>,
+    pub kms_payer_resource: Option<String>,
 }
 
 impl SquadsConfig {
@@ -208,6 +212,15 @@ impl SquadsConfig {
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty());
 
+        let kms_signer_resource = env::var("ATTN_KMS_SIGNER_KEY")
+            .ok()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty());
+        let kms_payer_resource = env::var("ATTN_KMS_PAYER_KEY")
+            .ok()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty());
+
         let config_digest = compute_config_digest(
             base_url.as_deref(),
             &default_attn_wallet,
@@ -218,6 +231,8 @@ impl SquadsConfig {
             rpc_url.as_deref(),
             status_sync_enabled,
             &api_keys,
+            kms_signer_resource.as_deref(),
+            kms_payer_resource.as_deref(),
         );
         if let Some(expected) = expected_config_digest.as_ref() {
             if expected != &config_digest {
@@ -242,6 +257,8 @@ impl SquadsConfig {
             expected_config_digest,
             config_digest,
             status_sync_enabled,
+            kms_signer_resource,
+            kms_payer_resource,
         }))
     }
 }
@@ -336,6 +353,24 @@ impl SquadsService {
         } else {
             None
         };
+        let kms_signer = config
+            .kms_signer_resource
+            .as_ref()
+            .map(|resource| {
+                KmsSigner::google_cloud(resource.clone())
+                    .context("initialize kms signer")
+                    .map(Arc::new)
+            })
+            .transpose()?;
+        let kms_payer = config
+            .kms_payer_resource
+            .as_ref()
+            .map(|resource| {
+                KmsSigner::google_cloud(resource.clone())
+                    .context("initialize kms payer signer")
+                    .map(Arc::new)
+            })
+            .transpose()?;
         let inner = SquadsInner {
             mode,
             default_attn_wallet: config.default_attn_wallet,
@@ -347,6 +382,8 @@ impl SquadsService {
             config_digest: config.config_digest,
             rpc,
             status_sync_enabled: config.status_sync_enabled,
+            kms_signer,
+            kms_payer,
         };
 
         Ok(Self {
@@ -370,6 +407,14 @@ impl SquadsService {
         self.inner.payer_wallet.as_deref()
     }
 
+    pub fn attn_signer(&self) -> Option<Arc<KmsSigner<HttpKmsClient>>> {
+        self.inner.kms_signer.as_ref().map(Arc::clone)
+    }
+
+    pub fn payer_signer(&self) -> Option<Arc<KmsSigner<HttpKmsClient>>> {
+        self.inner.kms_payer.as_ref().map(Arc::clone)
+    }
+
     pub fn default_threshold(&self) -> u8 {
         self.inner.default_threshold
     }
@@ -382,6 +427,30 @@ impl SquadsService {
         let prefix = &self.inner.default_name_prefix;
         let short = creator_wallet.chars().take(6).collect::<String>();
         format!("{}{}", prefix, short)
+    }
+
+    pub async fn sign_with_attn(&self, message: &[u8]) -> Result<Signature> {
+        let signer = self
+            .inner
+            .kms_signer
+            .as_ref()
+            .ok_or_else(|| anyhow!("ATTN_KMS_SIGNER_KEY not configured"))?;
+        signer.sign(message).await
+    }
+
+    pub async fn sign_with_payer(&self, message: &[u8]) -> Result<Option<Signature>> {
+        match self.inner.kms_payer.as_ref() {
+            Some(signer) => Ok(Some(signer.sign(message).await?)),
+            None => Ok(None),
+        }
+    }
+
+    pub fn attn_kms_configured(&self) -> bool {
+        self.inner.kms_signer.is_some()
+    }
+
+    pub fn payer_kms_configured(&self) -> bool {
+        self.inner.kms_payer.is_some()
     }
 
     pub async fn check_wallets_on_chain(
@@ -834,6 +903,8 @@ fn compute_config_digest(
     rpc_url: Option<&str>,
     status_sync_enabled: bool,
     api_keys: &[String],
+    kms_signer_resource: Option<&str>,
+    kms_payer_resource: Option<&str>,
 ) -> String {
     let mut hasher = Sha256::new();
     if let Some(url) = base_url {
@@ -850,6 +921,12 @@ fn compute_config_digest(
         hasher.update(rpc.as_bytes());
     }
     hasher.update(&[status_sync_enabled as u8]);
+    if let Some(resource) = kms_signer_resource {
+        hasher.update(resource.as_bytes());
+    }
+    if let Some(resource) = kms_payer_resource {
+        hasher.update(resource.as_bytes());
+    }
     let mut hashed_keys: Vec<String> = api_keys.iter().map(|key| hash_secret(key)).collect();
     hashed_keys.sort();
     for key in hashed_keys {
@@ -1487,13 +1564,36 @@ mod tests {
             }));
         });
 
+        let base_url = server.uri();
+        let api_keys = vec!["token".to_string()];
+        let digest = compute_config_digest(
+            Some(base_url.as_str()),
+            "Attn111111111111111111111111111111111111111",
+            "mainnet-beta",
+            2,
+            "CreatorVault-",
+            None,
+            None,
+            false,
+            &api_keys,
+            None,
+            None,
+        );
         let config = SquadsConfig {
-            base_url: Some(server.uri()),
-            api_key: Some("token".to_string()),
+            base_url: Some(base_url),
+            api_keys,
             default_attn_wallet: "Attn111111111111111111111111111111111111111".to_string(),
             default_cluster: "mainnet-beta".to_string(),
             default_threshold: 2,
             default_name_prefix: "CreatorVault-".to_string(),
+            payer_wallet: None,
+            rpc_url: None,
+            rpc_strict: false,
+            expected_config_digest: None,
+            config_digest: digest,
+            status_sync_enabled: false,
+            kms_signer_resource: None,
+            kms_payer_resource: None,
         };
         let service = SquadsService::new(config).unwrap();
 

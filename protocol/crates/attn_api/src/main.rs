@@ -1,4 +1,5 @@
 mod advance;
+mod kms;
 mod security;
 mod squads;
 
@@ -1050,6 +1051,8 @@ async fn main() -> Result<()> {
             attn_wallet = service.default_attn_wallet(),
             payer = ?service.payer_wallet(),
             status_sync = service.status_sync_enabled(),
+            attn_kms = service.attn_kms_configured(),
+            payer_kms = service.payer_kms_configured(),
             "squads service configured"
         );
     }
