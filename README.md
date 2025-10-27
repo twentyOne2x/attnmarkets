@@ -7,7 +7,7 @@
 - Forum post: https://arena.colosseum.org/posts/3308
 
 ## TL;DR
-- Tokenize Solana fee streams (starting with Pump.fun) into SY → PT/YT, `attnUSD`, SOL rewards.
+- Tokenize Solana fee streams (starting with Pump.fun) into Standardized Yield `SY` → Principal `PT` + / Yield `YT`, `attnUSD`, SOL rewards.
 - Dual-control via Squads 2-of-2; pause + idempotent keeper ops, with creator withdrawals remaining single-signer while the vault is unlocked.
 - Splitter markets close only when PT/YT supply is zero and both the creator authority and admin signers co-authorize; CPIs require the classic SPL Token program (Tokenkeg...).
 - **15-day advance UX:** mint PT/YT, sell YT for upfront USDC, buy back any time (devnet RFQ).
