@@ -1,0 +1,20 @@
+substitutions:
+  _REGION: us-central1
+  _SERVICE_NAME: attn-api
+
+steps:
+  - id: 'Build attn_api image'
+    name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - -f
+      - protocol/crates/attn_api/Dockerfile
+      - -t
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:$SHORT_SHA'
+      - .
+
+images:
+  - '$_REGION-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:$SHORT_SHA'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

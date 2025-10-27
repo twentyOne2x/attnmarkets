@@ -31,7 +31,6 @@ use axum::{
 };
 use chrono::{DateTime, Duration, SecondsFormat, Utc};
 use ed25519_dalek::{PublicKey, Signature};
-use metrics::{counter, histogram};
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -45,13 +44,13 @@ use sha2::{Digest, Sha256};
 use sqlx::Error as SqlxError;
 use squads::{
     is_valid_pubkey, sanitize_wallet, CreateSafeInput, NewSafeRequest, SafeRequestRecord,
-    SafeStatusResult, SquadsConfig, SquadsSafeRepository, SquadsService, StatusSyncUpdate,
+    SquadsConfig, SquadsSafeRepository, SquadsService, StatusSyncUpdate,
 };
 use tokio::time::Duration as TokioDuration;
 use tokio::{net::TcpListener, time::sleep};
 use tower_http::{
     cors::{AllowHeaders, AllowOrigin, CorsLayer},
-    trace::{DefaultMakeSpan, DefaultOnFailure, TraceLayer},
+    trace::{DefaultOnFailure, TraceLayer},
 };
 use tracing::{error, info, info_span, warn, Level};
 use uuid::Uuid;
@@ -340,10 +339,13 @@ struct ApiConfig {
 
 impl ApiConfig {
     fn from_env() -> Result<Self> {
-        let bind_addr = env::var("ATTN_API_BIND_ADDR")
-            .unwrap_or_else(|_| "0.0.0.0:8080".to_string())
+        let bind_addr_raw = env::var("ATTN_API_BIND_ADDR").unwrap_or_else(|_| {
+            let port = env::var("PORT").unwrap_or_else(|_| "8080".to_string());
+            format!("0.0.0.0:{port}")
+        });
+        let bind_addr = bind_addr_raw
             .parse()
-            .context("invalid ATTN_API_BIND_ADDR")?;
+            .with_context(|| format!("invalid bind address: {bind_addr_raw}"))?;
         let mode_raw = env::var("ATTN_API_DATA_MODE")
             .unwrap_or_else(|_| "postgres".to_string())
             .to_lowercase()
@@ -742,7 +744,19 @@ fn build_router(state: AppState) -> Router {
             post(link_squads_safe_governance),
         )
         .with_state(state)
-        .layer(trace_layer())
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(|request: &Request<_>| {
+                    let request_id = Uuid::new_v4();
+                    info_span!(
+                        "http_request",
+                        %request_id,
+                        method = %request.method(),
+                        uri = %request.uri()
+                    )
+                })
+                .on_failure(DefaultOnFailure::new().level(Level::ERROR)),
+        )
         .layer(cors_layer())
 }
 
@@ -835,13 +849,13 @@ where
             Duration::seconds(STATUS_SYNC_ERROR_BACKOFF_SECS),
         )
         .await?;
-        counter!(
+        metrics::counter!(
             "squads_status_sync_total",
-            1,
             "result" => "error",
-            "cluster" => job.cluster.as_str(),
+            "cluster" => job.cluster.clone(),
             "reason" => "missing_url"
-        );
+        )
+        .increment(1);
         return Ok(());
     };
     let start = Instant::now();
@@ -854,13 +868,13 @@ where
                 Duration::seconds(STATUS_SYNC_ERROR_BACKOFF_SECS),
             )
             .await?;
-            counter!(
+            metrics::counter!(
                 "squads_status_sync_total",
-                1,
                 "result" => "error",
-                "cluster" => job.cluster.as_str(),
+                "cluster" => job.cluster.clone(),
                 "reason" => "fetch"
-            );
+            )
+            .increment(1);
             return Ok(());
         }
     };
@@ -887,18 +901,18 @@ where
             .unwrap_or(false);
     if ready {
         repo.mark_ready(job.id, &update).await?;
-        counter!(
+        metrics::counter!(
             "squads_status_sync_total",
-            1,
             "result" => "ready",
-            "cluster" => job.cluster.as_str()
-        );
-        histogram!(
+            "cluster" => job.cluster.clone()
+        )
+        .increment(1);
+        metrics::histogram!(
             "squads_status_sync_latency_seconds",
-            start.elapsed().as_secs_f64(),
-            "cluster" => job.cluster.as_str(),
+            "cluster" => job.cluster.clone(),
             "result" => "ready"
-        );
+        )
+        .record(start.elapsed().as_secs_f64());
         if let Some(address) = update.safe_address.as_ref() {
             match service.verify_safe_account(&job.cluster, address).await {
                 Ok(Some(false)) => warn!(
@@ -929,18 +943,18 @@ where
         repo.mark_failure(job.id, &failure_message).await?;
         repo.schedule_retry(job.id, Duration::seconds(STATUS_SYNC_ERROR_BACKOFF_SECS))
             .await?;
-        counter!(
+        metrics::counter!(
             "squads_status_sync_total",
-            1,
             "result" => "failed",
-            "cluster" => job.cluster.as_str()
-        );
-        histogram!(
+            "cluster" => job.cluster.clone()
+        )
+        .increment(1);
+        metrics::histogram!(
             "squads_status_sync_latency_seconds",
-            start.elapsed().as_secs_f64(),
-            "cluster" => job.cluster.as_str(),
+            "cluster" => job.cluster.clone(),
             "result" => "failed"
-        );
+        )
+        .record(start.elapsed().as_secs_f64());
         warn!(request_id = %job.id, status = status_value, "squads status marked failed");
         return Ok(());
     }
@@ -951,33 +965,24 @@ where
         Duration::seconds(STATUS_SYNC_PENDING_BACKOFF_SECS),
     )
     .await?;
-    counter!(
+    metrics::counter!(
         "squads_status_sync_total",
-        1,
         "result" => "pending",
-        "cluster" => job.cluster.as_str()
-    );
-    histogram!(
+        "cluster" => job.cluster.clone()
+    )
+    .increment(1);
+    metrics::histogram!(
         "squads_status_sync_latency_seconds",
-        start.elapsed().as_secs_f64(),
-        "cluster" => job.cluster.as_str(),
+        "cluster" => job.cluster.clone(),
         "result" => "pending"
-    );
+    )
+    .record(start.elapsed().as_secs_f64());
     info!(
         request_id = %job.id,
         status = status_value,
         "squads status still pending"
     );
     Ok(())
-}
-
-fn trace_layer() -> TraceLayer<DefaultMakeSpan> {
-    TraceLayer::new_for_http()
-        .make_span_with(|request: &Request<_>| {
-            let request_id = Uuid::new_v4();
-            info_span!("http_request", %request_id, method = %request.method(), uri = %request.uri())
-        })
-        .on_failure(DefaultOnFailure::new().level(Level::ERROR))
 }
 
 #[tokio::main]
@@ -1544,12 +1549,12 @@ async fn create_squads_safe(
         }
     }
     let request_timer = Instant::now();
-    counter!(
+    metrics::counter!(
         "squads_safe_requests_total",
-        1,
         "event" => "attempt",
-        "cluster" => cluster.as_str()
-    );
+        "cluster" => cluster.clone()
+    )
+    .increment(1);
     let request_payload = json!({
         "creator_wallet": creator_wallet.clone(),
         "attn_wallet": attn_wallet.clone(),
@@ -1619,18 +1624,18 @@ async fn create_squads_safe(
     let created = match service.create_safe(input).await {
         Ok(result) => result,
         Err(err) => {
-            counter!(
+            metrics::counter!(
                 "squads_safe_requests_total",
-                1,
                 "event" => "failure",
-                "cluster" => cluster.as_str()
-            );
-            histogram!(
+                "cluster" => cluster.clone()
+            )
+            .increment(1);
+            metrics::histogram!(
                 "squads_safe_request_latency_seconds",
-                request_timer.elapsed().as_secs_f64(),
-                "cluster" => cluster.as_str(),
+                "cluster" => cluster.clone(),
                 "outcome" => "error"
-            );
+            )
+            .record(request_timer.elapsed().as_secs_f64());
             error!(
                 request_id = %pending.id,
                 error = %err,
@@ -1671,28 +1676,28 @@ async fn create_squads_safe(
             _ => {}
         }
     }
-    let status_label = stored.status.as_str();
+    let status_label = stored.status.clone();
     if status_label == "ready" {
-        counter!(
+        metrics::counter!(
             "squads_safe_requests_total",
-            1,
             "event" => "success",
-            "cluster" => cluster.as_str()
-        );
+            "cluster" => cluster.clone()
+        )
+        .increment(1);
     } else {
-        counter!(
+        metrics::counter!(
             "squads_safe_requests_total",
-            1,
             "event" => "submitted",
-            "cluster" => cluster.as_str()
-        );
+            "cluster" => cluster.clone()
+        )
+        .increment(1);
     }
-    histogram!(
+    metrics::histogram!(
         "squads_safe_request_latency_seconds",
-        request_timer.elapsed().as_secs_f64(),
-        "cluster" => cluster.as_str(),
-        "outcome" => status_label
-    );
+        "cluster" => cluster.clone(),
+        "outcome" => status_label.clone()
+    )
+    .record(request_timer.elapsed().as_secs_f64());
     info!(
         request_id = %stored.id,
         status = %stored.status,
@@ -1750,11 +1755,11 @@ async fn issue_squads_nonce(
         .issue_nonce(&wallet, ttl)
         .await
         .map_err(ApiError::from)?;
-    counter!(
+    metrics::counter!(
         "squads_safe_nonce_requests_total",
-        1,
         "result" => "issued"
-    );
+    )
+    .increment(1);
     info!(wallet = %wallet, "issued squads nonce");
     let response = IssueNonceResponse {
         nonce: nonce.nonce,
