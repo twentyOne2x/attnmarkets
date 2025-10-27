@@ -577,6 +577,20 @@ export type Splitter = {
         0,
         217,
         113
+      ],
+      "fields": [
+        {
+          "name": "market",
+          "type": "publicKey"
+        },
+        {
+          "name": "creatorAuthority",
+          "type": "publicKey"
+        },
+        {
+          "name": "admin",
+          "type": "publicKey"
+        }
       ]
     },
     {
@@ -590,6 +604,20 @@ export type Splitter = {
         84,
         6,
         58
+      ],
+      "fields": [
+        {
+          "name": "market",
+          "type": "publicKey"
+        },
+        {
+          "name": "pumpMint",
+          "type": "publicKey"
+        },
+        {
+          "name": "maturityTs",
+          "type": "i64"
+        }
       ]
     },
     {
@@ -603,6 +631,20 @@ export type Splitter = {
         84,
         242,
         15
+      ],
+      "fields": [
+        {
+          "name": "market",
+          "type": "publicKey"
+        },
+        {
+          "name": "user",
+          "type": "publicKey"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
       ]
     },
     {
@@ -616,6 +658,20 @@ export type Splitter = {
         106,
         82,
         222
+      ],
+      "fields": [
+        {
+          "name": "market",
+          "type": "publicKey"
+        },
+        {
+          "name": "user",
+          "type": "publicKey"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        }
       ]
     },
     {
@@ -629,6 +685,28 @@ export type Splitter = {
         193,
         102,
         135
+      ],
+      "fields": [
+        {
+          "name": "market",
+          "type": "publicKey"
+        },
+        {
+          "name": "user",
+          "type": "publicKey"
+        },
+        {
+          "name": "claimedAmount",
+          "type": "u64"
+        },
+        {
+          "name": "feeIndex",
+          "type": "u128"
+        },
+        {
+          "name": "marketDelta",
+          "type": "u128"
+        }
       ]
     }
   ],
