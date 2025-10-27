@@ -138,6 +138,40 @@
       ]
     },
     {
+      "name": "lock_collateral",
+      "discriminator": [
+        161,
+        216,
+        135,
+        122,
+        12,
+        104,
+        211,
+        101
+      ],
+      "accounts": [
+        {
+          "name": "creator_vault",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "creator_vault"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "lock_expires_at",
+          "type": {
+            "option": "i64"
+          }
+        }
+      ]
+    },
+    {
       "name": "mint_for_splitter",
       "discriminator": [
         152,
@@ -284,6 +318,33 @@
       ]
     },
     {
+      "name": "unlock_collateral",
+      "discriminator": [
+        167,
+        213,
+        221,
+        147,
+        129,
+        209,
+        132,
+        190
+      ],
+      "accounts": [
+        {
+          "name": "creator_vault",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "creator_vault"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "update_admin",
       "discriminator": [
         161,
@@ -312,6 +373,76 @@
         {
           "name": "new_admin",
           "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "withdraw_fees",
+      "discriminator": [
+        198,
+        212,
+        171,
+        109,
+        144,
+        215,
+        174,
+        89
+      ],
+      "accounts": [
+        {
+          "name": "creator_vault",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "creator_vault"
+          ]
+        },
+        {
+          "name": "fee_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creator_vault.pump_mint",
+                "account": "CreatorVault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "destination",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "admin"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
         }
       ]
     },
@@ -453,6 +584,19 @@
       ]
     },
     {
+      "name": "FeesWithdrawn",
+      "discriminator": [
+        234,
+        15,
+        0,
+        119,
+        148,
+        241,
+        40,
+        21
+      ]
+    },
+    {
       "name": "RewardsSplitUpdated",
       "discriminator": [
         23,
@@ -489,6 +633,19 @@
         71,
         3,
         75
+      ]
+    },
+    {
+      "name": "VaultLockStatusChanged",
+      "discriminator": [
+        251,
+        23,
+        252,
+        89,
+        195,
+        190,
+        11,
+        197
       ]
     },
     {
@@ -550,6 +707,31 @@
       "code": 6008,
       "name": "VaultPaused",
       "msg": "Vault is paused"
+    },
+    {
+      "code": 6009,
+      "name": "AdminSignatureRequired",
+      "msg": "Admin signature required while vault is locked"
+    },
+    {
+      "code": 6010,
+      "name": "InsufficientVaultBalance",
+      "msg": "Insufficient balance in fee vault"
+    },
+    {
+      "code": 6011,
+      "name": "InvalidWithdrawalDestination",
+      "msg": "Withdrawal destination must be owned by the creator authority"
+    },
+    {
+      "code": 6012,
+      "name": "InvalidWithdrawalMint",
+      "msg": "Withdrawal destination mint must match quote mint"
+    },
+    {
+      "code": 6013,
+      "name": "InvalidLockExpiry",
+      "msg": "Lock expiry must be greater than or equal to the current timestamp"
     }
   ],
   "types": [
@@ -635,13 +817,49 @@
             "type": "bool"
           },
           {
+            "name": "locked",
+            "type": "bool"
+          },
+          {
+            "name": "lock_expires_at",
+            "type": "i64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                5
+                1
               ]
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "FeesWithdrawn",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "creator_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "destination",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "locked",
+            "type": "bool"
           }
         ]
       }
@@ -710,6 +928,30 @@
           {
             "name": "admin",
             "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultLockStatusChanged",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "creator_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "locked",
+            "type": "bool"
+          },
+          {
+            "name": "lock_expires_at",
+            "type": "i64"
+          },
+          {
+            "name": "is_auto",
+            "type": "bool"
           }
         ]
       }

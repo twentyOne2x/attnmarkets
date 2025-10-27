@@ -144,6 +144,40 @@ export type CreatorVault = {
       ]
     },
     {
+      "name": "lockCollateral",
+      "discriminator": [
+        161,
+        216,
+        135,
+        122,
+        12,
+        104,
+        211,
+        101
+      ],
+      "accounts": [
+        {
+          "name": "creatorVault",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "creatorVault"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "lockExpiresAt",
+          "type": {
+            "option": "i64"
+          }
+        }
+      ]
+    },
+    {
       "name": "mintForSplitter",
       "discriminator": [
         152,
@@ -290,6 +324,33 @@ export type CreatorVault = {
       ]
     },
     {
+      "name": "unlockCollateral",
+      "discriminator": [
+        167,
+        213,
+        221,
+        147,
+        129,
+        209,
+        132,
+        190
+      ],
+      "accounts": [
+        {
+          "name": "creatorVault",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "creatorVault"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "updateAdmin",
       "discriminator": [
         161,
@@ -318,6 +379,76 @@ export type CreatorVault = {
         {
           "name": "newAdmin",
           "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "withdrawFees",
+      "discriminator": [
+        198,
+        212,
+        171,
+        109,
+        144,
+        215,
+        174,
+        89
+      ],
+      "accounts": [
+        {
+          "name": "creatorVault",
+          "writable": true
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "creatorVault"
+          ]
+        },
+        {
+          "name": "feeVault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creatorVault.pumpMint",
+                "account": "CreatorVault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "destination",
+          "writable": true
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "admin"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
         }
       ]
     },
@@ -431,7 +562,7 @@ export type CreatorVault = {
   ],
   "accounts": [
     {
-      "name": "creatorVault",
+      "name": "CreatorVault",
       "discriminator": [
         200,
         135,
@@ -446,7 +577,7 @@ export type CreatorVault = {
   ],
   "events": [
     {
-      "name": "adminUpdated",
+      "name": "AdminUpdated",
       "discriminator": [
         69,
         82,
@@ -459,7 +590,20 @@ export type CreatorVault = {
       ]
     },
     {
-      "name": "rewardsSplitUpdated",
+      "name": "FeesWithdrawn",
+      "discriminator": [
+        234,
+        15,
+        0,
+        119,
+        148,
+        241,
+        40,
+        21
+      ]
+    },
+    {
+      "name": "RewardsSplitUpdated",
       "discriminator": [
         23,
         15,
@@ -472,7 +616,7 @@ export type CreatorVault = {
       ]
     },
     {
-      "name": "syMinted",
+      "name": "SyMinted",
       "discriminator": [
         117,
         38,
@@ -485,7 +629,7 @@ export type CreatorVault = {
       ]
     },
     {
-      "name": "vaultInitialized",
+      "name": "VaultInitialized",
       "discriminator": [
         180,
         43,
@@ -498,7 +642,20 @@ export type CreatorVault = {
       ]
     },
     {
-      "name": "vaultPauseToggled",
+      "name": "VaultLockStatusChanged",
+      "discriminator": [
+        251,
+        23,
+        252,
+        89,
+        195,
+        190,
+        11,
+        197
+      ]
+    },
+    {
+      "name": "VaultPauseToggled",
       "discriminator": [
         109,
         49,
@@ -514,53 +671,78 @@ export type CreatorVault = {
   "errors": [
     {
       "code": 6000,
-      "name": "invalidAmount",
+      "name": "InvalidAmount",
       "msg": "Amount must be greater than zero"
     },
     {
       "code": 6001,
-      "name": "mathOverflow",
+      "name": "MathOverflow",
       "msg": "Math overflow"
     },
     {
       "code": 6002,
-      "name": "splitterProgramUnset",
+      "name": "SplitterProgramUnset",
       "msg": "Splitter program not registered"
     },
     {
       "code": 6003,
-      "name": "unauthorizedSplitter",
+      "name": "UnauthorizedSplitter",
       "msg": "Unauthorized splitter authority"
     },
     {
       "code": 6004,
-      "name": "invalidFeeVault",
+      "name": "InvalidFeeVault",
       "msg": "Fee vault address mismatch"
     },
     {
       "code": 6005,
-      "name": "unauthorizedAdmin",
+      "name": "UnauthorizedAdmin",
       "msg": "Unauthorized admin"
     },
     {
       "code": 6006,
-      "name": "invalidAdmin",
+      "name": "InvalidAdmin",
       "msg": "Invalid admin public key"
     },
     {
       "code": 6007,
-      "name": "invalidBps",
+      "name": "InvalidBps",
       "msg": "Invalid basis points"
     },
     {
       "code": 6008,
-      "name": "vaultPaused",
+      "name": "VaultPaused",
       "msg": "Vault is paused"
+    },
+    {
+      "code": 6009,
+      "name": "AdminSignatureRequired",
+      "msg": "Admin signature required while vault is locked"
+    },
+    {
+      "code": 6010,
+      "name": "InsufficientVaultBalance",
+      "msg": "Insufficient balance in fee vault"
+    },
+    {
+      "code": 6011,
+      "name": "InvalidWithdrawalDestination",
+      "msg": "Withdrawal destination must be owned by the creator authority"
+    },
+    {
+      "code": 6012,
+      "name": "InvalidWithdrawalMint",
+      "msg": "Withdrawal destination mint must match quote mint"
+    },
+    {
+      "code": 6013,
+      "name": "InvalidLockExpiry",
+      "msg": "Lock expiry must be greater than or equal to the current timestamp"
     }
   ],
   "types": [
     {
-      "name": "adminUpdated",
+      "name": "AdminUpdated",
       "type": {
         "kind": "struct",
         "fields": [
@@ -580,7 +762,7 @@ export type CreatorVault = {
       }
     },
     {
-      "name": "creatorVault",
+      "name": "CreatorVault",
       "type": {
         "kind": "struct",
         "fields": [
@@ -641,11 +823,19 @@ export type CreatorVault = {
             "type": "bool"
           },
           {
+            "name": "locked",
+            "type": "bool"
+          },
+          {
+            "name": "lockExpiresAt",
+            "type": "i64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                5
+                1
               ]
             }
           }
@@ -653,7 +843,35 @@ export type CreatorVault = {
       }
     },
     {
-      "name": "rewardsSplitUpdated",
+      "name": "FeesWithdrawn",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "creatorVault",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "destination",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "locked",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RewardsSplitUpdated",
       "type": {
         "kind": "struct",
         "fields": [
@@ -669,7 +887,7 @@ export type CreatorVault = {
       }
     },
     {
-      "name": "syMinted",
+      "name": "SyMinted",
       "type": {
         "kind": "struct",
         "fields": [
@@ -689,7 +907,7 @@ export type CreatorVault = {
       }
     },
     {
-      "name": "vaultInitialized",
+      "name": "VaultInitialized",
       "type": {
         "kind": "struct",
         "fields": [
@@ -721,7 +939,31 @@ export type CreatorVault = {
       }
     },
     {
-      "name": "vaultPauseToggled",
+      "name": "VaultLockStatusChanged",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "creatorVault",
+            "type": "pubkey"
+          },
+          {
+            "name": "locked",
+            "type": "bool"
+          },
+          {
+            "name": "lockExpiresAt",
+            "type": "i64"
+          },
+          {
+            "name": "isAuto",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultPauseToggled",
       "type": {
         "kind": "struct",
         "fields": [
@@ -737,4 +979,5 @@ export type CreatorVault = {
       }
     }
   ]
+}
 };
