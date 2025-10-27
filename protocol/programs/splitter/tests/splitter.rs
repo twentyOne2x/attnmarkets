@@ -1,3 +1,5 @@
+#![cfg(feature = "program-test")]
+
 use anchor_lang::error::ErrorCode;
 use anchor_lang::prelude::*;
 use anchor_lang::Discriminator;
