@@ -31,6 +31,9 @@ pub mod creator_vault {
         vault.admin = admin;
         vault.sol_rewards_bps = 0;
         vault.paused = false;
+        vault.locked = false;
+        vault.lock_expires_at = 0;
+        vault.padding = [0; 1];
         emit!(VaultInitialized {
             creator_vault: vault.key(),
             pump_mint: vault.pump_mint,
@@ -89,6 +92,68 @@ pub mod creator_vault {
             user: ctx.accounts.user.key(),
             pump_mint: ctx.accounts.pump_mint.key(),
             amount,
+        });
+
+        Ok(())
+    }
+
+    pub fn withdraw_fees(ctx: Context<WithdrawFees>, amount: u64) -> Result<()> {
+        require!(amount > 0, AttnError::InvalidAmount);
+
+        let vault = &mut ctx.accounts.creator_vault;
+        vault.assert_not_paused()?;
+
+        let now = Clock::get()?.unix_timestamp;
+        let auto_unlocked = vault.refresh_lock(now);
+        if auto_unlocked {
+            emit!(VaultLockStatusChanged {
+                creator_vault: vault.key(),
+                locked: false,
+                lock_expires_at: 0,
+                is_auto: true,
+            });
+        }
+
+        if vault.locked {
+            vault.require_admin_signature(&ctx.accounts.admin)?;
+        }
+
+        require_keys_eq!(
+            ctx.accounts.destination.owner,
+            ctx.accounts.authority.key(),
+            AttnError::InvalidWithdrawalDestination
+        );
+        require_keys_eq!(
+            ctx.accounts.destination.mint,
+            vault.quote_mint,
+            AttnError::InvalidWithdrawalMint
+        );
+        require!(
+            ctx.accounts.fee_vault.amount >= amount,
+            AttnError::InsufficientVaultBalance
+        );
+
+        let vault_bump = [vault.bump];
+        let seeds: [&[u8]; 3] = [b"creator-vault", vault.pump_mint.as_ref(), &vault_bump];
+        let signer_seeds = &[&seeds[..]];
+        let transfer_accounts = Transfer {
+            from: ctx.accounts.fee_vault.to_account_info(),
+            to: ctx.accounts.destination.to_account_info(),
+            authority: vault.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            transfer_accounts,
+            signer_seeds,
+        );
+        token::transfer(cpi_ctx, amount)?;
+
+        emit!(FeesWithdrawn {
+            creator_vault: vault.key(),
+            authority: ctx.accounts.authority.key(),
+            destination: ctx.accounts.destination.key(),
+            amount,
+            locked: vault.locked,
         });
 
         Ok(())
@@ -229,6 +294,52 @@ pub mod creator_vault {
         });
         Ok(())
     }
+
+    pub fn lock_collateral(
+        ctx: Context<UpdateLockState>,
+        lock_expires_at: Option<i64>,
+    ) -> Result<()> {
+        let vault = &mut ctx.accounts.creator_vault;
+        vault.assert_admin(&ctx.accounts.admin.key())?;
+
+        let now = Clock::get()?.unix_timestamp;
+        if let Some(expiry) = lock_expires_at {
+            require!(expiry >= now, AttnError::InvalidLockExpiry);
+            vault.lock_expires_at = expiry;
+        } else {
+            vault.lock_expires_at = 0;
+        }
+        vault.locked = true;
+
+        emit!(VaultLockStatusChanged {
+            creator_vault: vault.key(),
+            locked: true,
+            lock_expires_at: vault.lock_expires_at,
+            is_auto: false,
+        });
+
+        Ok(())
+    }
+
+    pub fn unlock_collateral(ctx: Context<UpdateLockState>) -> Result<()> {
+        let vault = &mut ctx.accounts.creator_vault;
+        vault.assert_admin(&ctx.accounts.admin.key())?;
+
+        let was_locked = vault.locked || vault.lock_expires_at != 0;
+        vault.locked = false;
+        vault.lock_expires_at = 0;
+
+        if was_locked {
+            emit!(VaultLockStatusChanged {
+                creator_vault: vault.key(),
+                locked: false,
+                lock_expires_at: 0,
+                is_auto: false,
+            });
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -298,6 +409,25 @@ pub struct WrapFees<'info> {
 }
 
 #[derive(Accounts)]
+pub struct WithdrawFees<'info> {
+    #[account(mut, has_one = authority)]
+    pub creator_vault: Account<'info, CreatorVault>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"fee-vault", creator_vault.pump_mint.as_ref()],
+        bump = creator_vault.fee_vault_bump,
+    )]
+    pub fee_vault: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub destination: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+    /// CHECK: Must match creator_vault.admin; signature enforced in handler when locked
+    #[account(address = creator_vault.admin)]
+    pub admin: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
 pub struct MintForSplitter<'info> {
     #[account(mut)]
     pub creator_vault: Account<'info, CreatorVault>,
@@ -344,6 +474,13 @@ pub struct SetPause<'info> {
     pub admin: Signer<'info>,
 }
 
+#[derive(Accounts)]
+pub struct UpdateLockState<'info> {
+    #[account(mut, has_one = admin)]
+    pub creator_vault: Account<'info, CreatorVault>,
+    pub admin: Signer<'info>,
+}
+
 #[account]
 pub struct CreatorVault {
     pub bump: u8,
@@ -360,11 +497,13 @@ pub struct CreatorVault {
     pub admin: Pubkey,
     pub sol_rewards_bps: u16,
     pub paused: bool,
-    pub padding: [u8; 5],
+    pub locked: bool,
+    pub lock_expires_at: i64,
+    pub padding: [u8; 1],
 }
 
 impl CreatorVault {
-    pub const INIT_SPACE: usize = 1 + 1 + 1 + 32 + 32 + 32 + 32 + 32 + 32 + 8 + 8 + 32 + 2 + 1 + 5;
+    pub const INIT_SPACE: usize = 256;
 
     fn assert_admin(&self, signer: &Pubkey) -> Result<()> {
         require_keys_eq!(self.admin, *signer, AttnError::UnauthorizedAdmin);
@@ -374,6 +513,21 @@ impl CreatorVault {
     fn assert_not_paused(&self) -> Result<()> {
         require!(!self.paused, AttnError::VaultPaused);
         Ok(())
+    }
+
+    fn require_admin_signature(&self, admin: &AccountInfo<'_>) -> Result<()> {
+        require_keys_eq!(self.admin, admin.key(), AttnError::UnauthorizedAdmin);
+        require!(admin.is_signer, AttnError::AdminSignatureRequired);
+        Ok(())
+    }
+
+    fn refresh_lock(&mut self, now: i64) -> bool {
+        if self.locked && self.lock_expires_at > 0 && now >= self.lock_expires_at {
+            self.locked = false;
+            self.lock_expires_at = 0;
+            return true;
+        }
+        false
     }
 }
 
@@ -392,6 +546,23 @@ pub struct SyMinted {
     pub user: Pubkey,
     pub pump_mint: Pubkey,
     pub amount: u64,
+}
+
+#[event]
+pub struct FeesWithdrawn {
+    pub creator_vault: Pubkey,
+    pub authority: Pubkey,
+    pub destination: Pubkey,
+    pub amount: u64,
+    pub locked: bool,
+}
+
+#[event]
+pub struct VaultLockStatusChanged {
+    pub creator_vault: Pubkey,
+    pub locked: bool,
+    pub lock_expires_at: i64,
+    pub is_auto: bool,
 }
 
 #[event]
@@ -433,6 +604,16 @@ pub enum AttnError {
     InvalidBps,
     #[msg("Vault is paused")]
     VaultPaused,
+    #[msg("Admin signature required while vault is locked")]
+    AdminSignatureRequired,
+    #[msg("Insufficient balance in fee vault")]
+    InsufficientVaultBalance,
+    #[msg("Withdrawal destination must be owned by the creator authority")]
+    InvalidWithdrawalDestination,
+    #[msg("Withdrawal destination mint must match quote mint")]
+    InvalidWithdrawalMint,
+    #[msg("Lock expiry must be greater than or equal to the current timestamp")]
+    InvalidLockExpiry,
 }
 
 #[cfg(test)]
@@ -455,7 +636,9 @@ mod tests {
             admin: Pubkey::new_unique(),
             sol_rewards_bps: 0,
             paused: false,
-            padding: [0; 5],
+            locked: false,
+            lock_expires_at: 0,
+            padding: [0; 1],
         }
     }
 
@@ -474,5 +657,25 @@ mod tests {
         vault.paused = true;
         let err = vault.assert_not_paused().unwrap_err();
         assert_eq!(err, AttnError::VaultPaused.into());
+    }
+
+    #[test]
+    fn refresh_lock_clears_expired_state() {
+        let mut vault = mock_creator_vault();
+        vault.locked = true;
+        vault.lock_expires_at = 100;
+        assert!(vault.refresh_lock(150));
+        assert!(!vault.locked);
+        assert_eq!(vault.lock_expires_at, 0);
+    }
+
+    #[test]
+    fn refresh_lock_noop_when_unlocked_or_not_expired() {
+        let mut vault = mock_creator_vault();
+        assert!(!vault.refresh_lock(50));
+        vault.locked = true;
+        vault.lock_expires_at = 200;
+        assert!(!vault.refresh_lock(150));
+        assert!(vault.locked);
     }
 }
