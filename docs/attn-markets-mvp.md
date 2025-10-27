@@ -5,7 +5,7 @@ Ship the minimum set of contracts and tooling that turn a Pump.fun creator-fee P
 
 ## End-to-End Flow
 1. **CTO Hand-Off** – A sponsor (creator, business, or DAO) submits the Pump.fun CTO form nominating the CreatorVault safe (Squads `{creator, attn}` 2-of-2) as the new creator. Pump executes `set_creator` / `set_creator_authority`.
-2. **Fee Custody** – CreatorVault PDA receives all future fees (SOL/USDC). Existing balances are swept via `collectCreatorFee`.
+2. **Fee Custody** – CreatorVault PDA receives all future fees (SOL/USDC). Financing events flip the vault’s `locked` flag via `lock_collateral` (auto-expiring at maturity) so the creator can always call `withdraw_fees` solo when no advance is active. Existing balances are swept via `collectCreatorFee`.
 3. **SY Mint** – Users deposit Pump tokens or raw fees into CreatorVault, receiving SY that represents “1 unit” of that fee stream.
 4. **PT/YT Split** – SY is burned and equal amounts of PT (principal) and YT (yield) SPL tokens are minted for a chosen maturity.
 5. **Stable Yield Routing** – LPs deposit approved stablecoins (USDC/USDT/USDe, etc.) into the Stable Yield Vault to mint `attnUSD` shares. `sweep_creator_fees` splits incoming SOL: a configured basis-point slice funds RewardsVault, the remainder converts into the stable basket so attnUSD NAV grows.
@@ -22,11 +22,11 @@ Ship the minimum set of contracts and tooling that turn a Pump.fun creator-fee P
   - Control PDAs: `fee_vault`, `sy_mint` (derived each instruction, no stored bump reliance).
 - Instructions:
   - `initialize_vault(admin, emergency_admin, pump_creator_pda, quote_mint)`
-  - `collect_fees()` – backlog: Pump.fun CPI not yet implemented; current MVP assumes fees already reside in CreatorVault.
   - `wrap_fees(amount)` – mints SY SPL token when vault is unpaused.
+  - `withdraw_fees(amount)` – lets the creator sweep fees solo while unlocked; requires admin co-sign only when `locked` is true.
+  - `lock_collateral(lock_expires_at)` / `unlock_collateral()` – admin-gated toggles for advances; locks auto-expire at maturity to restore creator-only withdrawals.
   - `set_rewards_split(sol_rewards_bps)` – configures default basis points for SOL rewards sweep.
-  - `toggle_pause(is_paused)` – admin/emergency admin guard for all mutating instructions.
-  - `sweep_unassigned()` – admin recovers dust/fees if creator opts out.
+  - `set_pause(is_paused)` / `update_admin(new_admin)` – governance controls; `collect_fees()` remains backlog if Pump exposes CPI.
 
 ### 2. SY Token Mint
 - SPL mint controlled by CreatorVault program.

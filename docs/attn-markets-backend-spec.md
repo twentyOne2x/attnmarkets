@@ -10,7 +10,7 @@
 - Anchor 0.32.1 and Solana Agave 2.3.x are pinned via `Anchor.toml`; workspace builds use `rust-lld`.
 - `stable_vault` handles initialize/deposit/redeem plus creator fee sweeping with SOL reward splits into RewardsVault.
 - `rewards_vault` program live with stake/unstake/claim/fund, admin/allowed-funder controls, and property tests (linker crash still environmental).
-- `attn_client` + `attn_cli` expose full rewards builders/commands (initialize, stake, claim, fund) in addition to stable vault flows.
+- `attn_client` + `attn_cli` expose CreatorVault lifecycle (wrap, withdraw, lock/unlock) alongside rewards builders/commands (initialize, stake, claim, fund) and stable vault flows.
 - `attn_indexer` consumes program logs into Postgres with checkpoints, signature + operation-id dedupe, and cursor pagination; migrations 001–005 (`004_governance.sql`, `005_stable_pause.sql`) authored.
 - `attn_api` serves `/v1/overview`, `/v1/markets`, `/v1/markets/:id`, `/v1/portfolio/:wallet`, `/v1/attnusd`, `/v1/rewards`, `/v1/rewards/:pool`, `/v1/governance`, `/readyz`, `/version` with weak ETags.
 - Localnet E2E script in repo; devnet deploy + Squads migration scheduled next.
@@ -45,17 +45,18 @@ attnmarkets/
 - **Instructions**
   - `initialize_vault { pump_creator_pda, quote_mint, admin, emergency_admin }`
   - `wrap_fees { creator_vault, user, amount }` – mints SY to user; blocked when `paused`.
+  - `withdraw_fees { creator_vault, authority, destination, amount }` – creator-only sweep while the vault is unlocked; requires admin co-sign only when `locked` is true.
   - `mint_for_splitter { creator_vault, splitter_authority, mint, destination, amount }` – CPI helper to mint PT/YT/SY on Splitter’s behalf.
   - `transfer_fees_for_splitter { creator_vault, splitter_authority, fee_vault, destination, amount }` – CPI helper moving accrued fees to Splitter users.
-  - `set_rewards_split { sol_rewards_bps }`, `update_admin`, `update_emergency_admin`.
-  - `toggle_pause { is_paused }` – guard rails for emergencies.
+  - `lock_collateral { lock_expires_at? }`, `unlock_collateral {}` – admin toggles for advances; locks auto-expire at maturity to restore creator withdrawals.
+  - `set_rewards_split { sol_rewards_bps }`, `update_admin`, `set_pause { is_paused }`.
 - **Out of scope**
   - Pump.fun fee sweeping via CPI (`collect_fees`) remains on the backlog; CreatorVault currently wraps fees that have already landed in the PDA.
 - **Events**
-  - `FeeCollected`, `SYMinted`, `SplitterMinted`, `SplitterFeeTransfer`, `CreatorVaultPaused`, `RewardsSplitUpdated`.
+  - `SYMinted`, `FeesWithdrawn`, `SplitterMinted`, `SplitterFeeTransfer`, `VaultLockStatusChanged`, `CreatorVaultPaused`, `RewardsSplitUpdated`.
 - **Key Considerations**
   - Support both direct Pump token deposits and raw SOL fee deposits (convert via wSOL).
-  - Track `total_fees_collected`, `total_sy_minted`, `cta_status` flag (optional) for UI gating.
+  - Track `total_fees_collected`, `total_sy_minted`, `locked`, `lock_expires_at`, and `cta_status` flag (optional) for UI gating and unstoppable-withdraw UX.
 
 ### 2. Splitter Program (SY → PT/YT)
 - **Accounts**
@@ -147,7 +148,7 @@ attnmarkets/
   - Periodically read account state for derived metrics (total fees, indexes, treasury balances, pause/admin state).
   - Ingest Pump.fun CTO approvals manually (if we store status) or via form webhook.
 - **Schema (Postgres)** – migrations `001`–`005` (including `004_governance.sql`, `005_stable_pause.sql`) lay down these tables/columns:
-- `creator_vaults` (pump_mint, vault_pubkey, authority_seed, authority, admin, emergency_admin, sol_rewards_bps, paused, total_fees, total_sy, last_collected_slot).
+- `creator_vaults` (pump_mint, vault_pubkey, authority_seed, authority, admin, emergency_admin, sol_rewards_bps, paused, locked, lock_expires_at, total_fees, total_sy, last_collected_slot).
 - `stable_vaults` (vault_pubkey, authority_seed, admin, emergency_admin, keeper_authority, share_mint, stable_mint, pending_sol_lamports, paused, last_sweep_id, last_conversion_id, updated_at).
 - `markets` (market_pubkey, pump_mint, maturity_ts, pt_supply, yt_supply, fee_index, apy metrics).
 - `user_positions` (wallet, market, pt_balance, yt_balance, last_index, accrued_yield).
