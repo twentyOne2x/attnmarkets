@@ -1,0 +1,17 @@
+.git
+.github
+node_modules
+target
+tmp
+dist
+**/.DS_Store
+**/*.log
+/apps/node_modules
+/apps/*/.next
+/apps/*/dist
+/protocol/target
+/sdk/target
+pnpm-store
+.pnpm
+.idea
+.vscode

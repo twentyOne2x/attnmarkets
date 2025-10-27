@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 use std::env;
+use std::fmt;
 use std::net::IpAddr;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -13,11 +14,9 @@ use sha2::{Digest, Sha256};
 use sqlx::{PgPool, QueryBuilder, Row};
 use uuid::Uuid;
 
-use async_trait::async_trait;
 use solana_client::client_error::ClientErrorKind;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_client::rpc_request::RpcError;
-use solana_client::rpc_response::RpcResponseErrorData;
 use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::pubkey::Pubkey;
 
@@ -53,11 +52,20 @@ struct HttpMode {
     api_keys: Arc<Vec<String>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct RpcSanity {
-    client: RpcClient,
+    client: Arc<RpcClient>,
     strict: bool,
     cluster: String,
+}
+
+impl fmt::Debug for RpcSanity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RpcSanity")
+            .field("strict", &self.strict)
+            .field("cluster", &self.cluster)
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -72,6 +80,18 @@ impl SquadsModeKind {
             SquadsModeKind::Local => "local",
             SquadsModeKind::Http => "http",
         }
+    }
+}
+
+fn is_account_not_found(kind: &ClientErrorKind) -> bool {
+    match kind {
+        ClientErrorKind::RpcError(RpcError::ForUser(message)) => {
+            message.contains("AccountNotFound")
+        }
+        ClientErrorKind::RpcError(RpcError::RpcResponseError { message, .. }) => {
+            message.contains("AccountNotFound")
+        }
+        _ => false,
     }
 }
 
@@ -120,8 +140,12 @@ impl SquadsConfig {
         let mut api_keys: Vec<String> = env::var("ATTN_API_SQUADS_API_KEYS")
             .ok()
             .into_iter()
-            .flat_map(|raw| raw.split(','))
-            .map(|value| value.trim().to_string())
+            .flat_map(|raw| {
+                raw.split(',')
+                    .map(|value| value.trim().to_string())
+                    .collect::<Vec<_>>()
+                    .into_iter()
+            })
             .filter(|value| !value.is_empty())
             .collect();
         if let Some(primary) = env::var("ATTN_API_SQUADS_API_KEY")
@@ -300,7 +324,10 @@ impl SquadsService {
             _ => SquadsMode::Local,
         };
         let rpc = if let Some(url) = config.rpc_url.as_ref() {
-            let client = RpcClient::new_with_commitment(url.clone(), CommitmentConfig::confirmed());
+            let client = Arc::new(RpcClient::new_with_commitment(
+                url.clone(),
+                CommitmentConfig::confirmed(),
+            ));
             Some(RpcSanity {
                 client,
                 strict: config.rpc_strict,
@@ -374,25 +401,24 @@ impl SquadsService {
                 .map_err(|_| anyhow!("wallet {} failed base58 decoding", wallet))?;
             match rpc.client.get_account(&pubkey).await {
                 Ok(_) => {}
-                Err(err) => match err.kind() {
-                    ClientErrorKind::RpcError(RpcError::RpcResponseError { data, .. }) => {
-                        match data {
-                            RpcResponseErrorData::AccountNotFound => {
+                Err(err) => {
+                    if is_account_not_found(err.kind()) {
+                        missing.push(wallet.clone());
+                        continue;
+                    }
+                    match err.kind() {
+                        ClientErrorKind::RpcError(_) => {
+                            if rpc.strict {
+                                return Err(anyhow!("rpc error checking {}: {}", wallet, err));
+                            } else {
                                 missing.push(wallet.clone());
                             }
-                            _ => {
-                                if rpc.strict {
-                                    return Err(anyhow!("rpc error checking {}: {}", wallet, err));
-                                } else {
-                                    missing.push(wallet.clone());
-                                }
-                            }
+                        }
+                        _ => {
+                            return Err(anyhow!("rpc transport error: {}", err));
                         }
                     }
-                    _ => {
-                        return Err(anyhow!("rpc transport error: {}", err));
-                    }
-                },
+                }
             }
         }
 
@@ -418,31 +444,32 @@ impl SquadsService {
             .map_err(|_| anyhow!("safe_address {} failed base58 decoding", safe_address))?;
         match rpc.client.get_account(&pubkey).await {
             Ok(_) => Ok(Some(true)),
-            Err(err) => match err.kind() {
-                ClientErrorKind::RpcError(RpcError::RpcResponseError { data, .. }) => match data {
-                    RpcResponseErrorData::AccountNotFound => {
-                        if rpc.strict {
-                            Err(anyhow!(
-                                "safe {} missing from cluster {}",
-                                safe_address,
-                                cluster
-                            ))
-                        } else {
-                            Ok(Some(false))
-                        }
+            Err(err) => {
+                if is_account_not_found(err.kind()) {
+                    if rpc.strict {
+                        Err(anyhow!(
+                            "safe {} missing from cluster {}",
+                            safe_address,
+                            cluster
+                        ))
+                    } else {
+                        Ok(Some(false))
                     }
-                    _ => Err(anyhow!(
-                        "rpc error verifying safe {}: {}",
-                        safe_address,
-                        err
-                    )),
-                },
-                _ => Err(anyhow!(
-                    "rpc transport error verifying safe {}: {}",
-                    safe_address,
-                    err
-                )),
-            },
+                } else {
+                    match err.kind() {
+                        ClientErrorKind::RpcError(_) => Err(anyhow!(
+                            "rpc error verifying safe {}: {}",
+                            safe_address,
+                            err
+                        )),
+                        _ => Err(anyhow!(
+                            "rpc transport error verifying safe {}: {}",
+                            safe_address,
+                            err
+                        )),
+                    }
+                }
+            }
         }
     }
 
