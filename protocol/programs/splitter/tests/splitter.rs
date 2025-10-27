@@ -337,20 +337,29 @@ fn splitter_entry_shim(
 #[tokio::test]
 async fn full_market_flow() {
     let mut fixture = setup_market_fixture().await;
-    let context = &mut fixture.context;
-    let user = &fixture.user;
+    let user = clone_keypair(&fixture.user);
+    let user_quote_ata = fixture.user_quote_ata;
+    let user_pt_ata = fixture.user_pt_ata;
+    let user_yt_ata = fixture.user_yt_ata;
+    let user_sy_ata = fixture.user_sy_ata;
+    let fee_vault = fixture.fee_vault;
+    let quote_mint = fixture.quote_mint.pubkey();
+    let market_pubkey = fixture.market.pubkey();
+    let creator_vault = fixture.creator_vault;
+    let pt_mint = fixture.pt_mint.pubkey();
+    let yt_mint = fixture.yt_mint.pubkey();
 
     let mint_ix = fixture.mint_pt_yt_ix(250_000);
-    send_tx(context, &[mint_ix], &[user]).await;
+    send_tx(&mut fixture.context, &[mint_ix], &[&user]).await;
 
     // Validate PT/YT balances
-    let pt_account = get_token_account(context, &fixture.user_pt_ata).await;
-    let yt_account = get_token_account(context, &fixture.user_yt_ata).await;
+    let pt_account = get_token_account(&mut fixture.context, &user_pt_ata).await;
+    let yt_account = get_token_account(&mut fixture.context, &user_yt_ata).await;
     assert_eq!(pt_account.amount, 250_000);
     assert_eq!(yt_account.amount, 250_000);
 
     // Validate market state
-    let market_state = fetch_market(context, fixture.market.pubkey()).await;
+    let market_state = fetch_market(&mut fixture.context, market_pubkey).await;
     assert_eq!(market_state.total_pt_issued, 250_000);
     assert_eq!(market_state.total_yt_issued, 250_000);
     assert_eq!(market_state.fee_index, 0);
@@ -359,15 +368,15 @@ async fn full_market_flow() {
     let accrue_amount: u64 = 100_000;
     let mint_yield_ix = token_instruction::mint_to(
         &spl_token::id(),
-        &fixture.quote_mint.pubkey(),
-        &fixture.fee_vault,
-        &context.payer.pubkey(),
+        &quote_mint,
+        &fee_vault,
+        &fixture.context.payer.pubkey(),
         &[],
         accrue_amount,
     )
     .unwrap();
-    let payer_clone = clone_keypair(&context.payer);
-    send_tx_owned(context, &[mint_yield_ix], vec![payer_clone]).await;
+    let payer_clone = clone_keypair(&fixture.context.payer);
+    send_tx_owned(&mut fixture.context, &[mint_yield_ix], vec![payer_clone]).await;
 
     // Redeem yield with updated index
     let delta_index =
@@ -375,65 +384,71 @@ async fn full_market_flow() {
     let new_fee_index = market_state.fee_index + delta_index;
 
     let redeem_ix = fixture.redeem_yield_ix(new_fee_index);
-    let pre_quote_balance = get_token_account(context, &fixture.user_quote_ata)
+    let pre_quote_balance = get_token_account(&mut fixture.context, &user_quote_ata)
         .await
         .amount;
-    send_tx(context, &[redeem_ix], &[user]).await;
-    let post_quote_balance = get_token_account(context, &fixture.user_quote_ata)
+    send_tx(&mut fixture.context, &[redeem_ix], &[&user]).await;
+    let post_quote_balance = get_token_account(&mut fixture.context, &user_quote_ata)
         .await
         .amount;
     assert_eq!(post_quote_balance - pre_quote_balance, accrue_amount);
 
     // Redeem principal in two steps
     let redeem_ix = fixture.redeem_principal_ix(100_000);
-    send_tx(context, &[redeem_ix], &[user]).await;
+    send_tx(&mut fixture.context, &[redeem_ix], &[&user]).await;
 
-    let market_state = fetch_market(context, fixture.market.pubkey()).await;
+    let market_state = fetch_market(&mut fixture.context, market_pubkey).await;
     assert_eq!(market_state.total_pt_issued, 150_000);
     assert_eq!(market_state.total_yt_issued, 150_000);
 
     let redeem_ix = fixture.redeem_principal_ix(150_000);
-    send_tx(context, &[redeem_ix], &[user]).await;
+    send_tx(&mut fixture.context, &[redeem_ix], &[&user]).await;
 
-    let pt_account = get_token_account(context, &fixture.user_pt_ata).await;
+    let pt_account = get_token_account(&mut fixture.context, &user_pt_ata).await;
     assert_eq!(pt_account.amount, 0);
 
-    let sy_account = get_token_account(context, &fixture.user_sy_ata).await;
+    let sy_account = get_token_account(&mut fixture.context, &user_sy_ata).await;
     assert_eq!(sy_account.amount, 400_000);
 
-    let pt_mint_state = get_mint(context, &fixture.pt_mint.pubkey()).await;
+    let pt_mint_state = get_mint(&mut fixture.context, &pt_mint).await;
     assert_eq!(pt_mint_state.supply, 0);
-    let yt_mint_state = get_mint(context, &fixture.yt_mint.pubkey()).await;
+    let yt_mint_state = get_mint(&mut fixture.context, &yt_mint).await;
     assert_eq!(yt_mint_state.supply, 0);
 
-    let yt_account = get_token_account(context, &fixture.user_yt_ata).await;
+    let yt_account = get_token_account(&mut fixture.context, &user_yt_ata).await;
     assert_eq!(yt_account.amount, 0);
 
-    let market_state = fetch_market(context, fixture.market.pubkey()).await;
+    let market_state = fetch_market(&mut fixture.context, market_pubkey).await;
     assert_eq!(market_state.total_pt_issued, 0);
     assert_eq!(market_state.total_yt_issued, 0);
 
     // Close market
     let close_accounts = accounts::CloseMarket {
         creator_authority: fixture.pump_creator.pubkey(),
-        admin: context.payer.pubkey(),
-        creator_vault: fixture.creator_vault,
-        market: fixture.market.pubkey(),
-        pt_mint: fixture.pt_mint.pubkey(),
-        yt_mint: fixture.yt_mint.pubkey(),
+        admin: fixture.context.payer.pubkey(),
+        creator_vault,
+        market: market_pubkey,
+        pt_mint,
+        yt_mint,
     };
     let close_ix = Instruction {
         program_id: splitter::id(),
         accounts: close_accounts.to_account_metas(None),
         data: instruction::CloseMarket {}.data(),
     };
-    let payer_clone = clone_keypair(&context.payer);
+    let payer_clone = clone_keypair(&fixture.context.payer);
     let authority_clone = clone_keypair(&fixture.pump_creator);
-    send_tx_owned(context, &[close_ix], vec![payer_clone, authority_clone]).await;
+    send_tx_owned(
+        &mut fixture.context,
+        &[close_ix],
+        vec![payer_clone, authority_clone],
+    )
+    .await;
 
-    let market_account_result = context
+    let market_account_result = fixture
+        .context
         .banks_client
-        .get_account(fixture.market.pubkey())
+        .get_account(market_pubkey)
         .await
         .unwrap();
     assert!(market_account_result.is_none());
@@ -442,105 +457,107 @@ async fn full_market_flow() {
 #[tokio::test]
 async fn redeem_principal_requires_yt_balance() {
     let mut fixture = setup_market_fixture().await;
-    let context = &mut fixture.context;
-    let user = &fixture.user;
+    let user = clone_keypair(&fixture.user);
+    let user_yt_ata = fixture.user_yt_ata;
+    let yt_mint = fixture.yt_mint.pubkey();
 
     let mint_ix = fixture.mint_pt_yt_ix(100_000);
-    send_tx(context, &[mint_ix], &[user]).await;
+    send_tx(&mut fixture.context, &[mint_ix], &[&user]).await;
 
     let counterparty = Keypair::new();
-    let counter_yt_ata =
-        get_associated_token_address(&counterparty.pubkey(), &fixture.yt_mint.pubkey());
+    let counter_yt_ata = get_associated_token_address(&counterparty.pubkey(), &yt_mint);
     let create_counter_ata = ata_instruction::create_associated_token_account(
         &user.pubkey(),
         &counterparty.pubkey(),
-        &fixture.yt_mint.pubkey(),
+        &yt_mint,
         &spl_token::id(),
     );
-    send_tx(context, &[create_counter_ata], &[user, &counterparty]).await;
+    send_tx(
+        &mut fixture.context,
+        &[create_counter_ata],
+        &[&user, &counterparty],
+    )
+    .await;
 
     let transfer_ix = token_instruction::transfer(
         &spl_token::id(),
-        &fixture.user_yt_ata,
+        &user_yt_ata,
         &counter_yt_ata,
         &user.pubkey(),
         &[],
         50_000,
     )
     .unwrap();
-    send_tx(context, &[transfer_ix], &[user]).await;
+    send_tx(&mut fixture.context, &[transfer_ix], &[&user]).await;
 
     let redeem_ix = fixture.redeem_principal_ix(100_000);
-    let err = send_tx_expect_err(context, &[redeem_ix], &[user]).await;
+    let err = send_tx_expect_err(&mut fixture.context, &[redeem_ix], &[&user]).await;
     assert_custom_error(err, SplitterError::InsufficientYieldTokens as u32);
 }
 
 #[tokio::test]
 async fn redeem_yield_rejects_fee_vault_spoof() {
     let mut fixture = setup_market_fixture().await;
-    let context = &mut fixture.context;
-    let user = &fixture.user;
+    let user = clone_keypair(&fixture.user);
+    let fee_vault = fixture.fee_vault;
 
     let mint_ix = fixture.mint_pt_yt_ix(10_000);
-    send_tx(context, &[mint_ix], &[user]).await;
+    send_tx(&mut fixture.context, &[mint_ix], &[&user]).await;
 
     let mut spoof_ix = fixture.redeem_yield_ix(0);
     if let Some(account_meta) = spoof_ix
         .accounts
         .iter_mut()
-        .find(|meta| meta.pubkey == fixture.fee_vault)
+        .find(|meta| meta.pubkey == fee_vault)
     {
         account_meta.pubkey = fixture.user_quote_ata;
     } else {
         panic!("fee vault account meta not found");
     }
 
-    let err = send_tx_expect_err(context, &[spoof_ix], &[user]).await;
+    let err = send_tx_expect_err(&mut fixture.context, &[spoof_ix], &[&user]).await;
     assert_custom_error(err, ErrorCode::ConstraintSeeds as u32);
 }
 
 #[tokio::test]
 async fn redeem_yield_liquidity_shortfall() {
     let mut fixture = setup_market_fixture().await;
-    let context = &mut fixture.context;
-    let user = &fixture.user;
+    let user = clone_keypair(&fixture.user);
 
     let mint_ix = fixture.mint_pt_yt_ix(50_000);
-    send_tx(context, &[mint_ix], &[user]).await;
+    send_tx(&mut fixture.context, &[mint_ix], &[&user]).await;
 
     let excessive_index = FEE_INDEX_SCALE * 10_000u128;
     let redeem_ix = fixture.redeem_yield_ix(excessive_index);
-    let err = send_tx_expect_err(context, &[redeem_ix], &[user]).await;
+    let err = send_tx_expect_err(&mut fixture.context, &[redeem_ix], &[&user]).await;
     assert_custom_error(err, SplitterError::InsufficientYieldLiquidity as u32);
 }
 
 #[tokio::test]
 async fn redeem_yield_fee_index_regression() {
     let mut fixture = setup_market_fixture().await;
-    let context = &mut fixture.context;
-    let user = &fixture.user;
+    let user = clone_keypair(&fixture.user);
 
     let mint_ix = fixture.mint_pt_yt_ix(10_000);
-    send_tx(context, &[mint_ix], &[user]).await;
+    send_tx(&mut fixture.context, &[mint_ix], &[&user]).await;
 
     let forward_ix = fixture.redeem_yield_ix(FEE_INDEX_SCALE);
-    send_tx(context, &[forward_ix], &[user]).await;
+    send_tx(&mut fixture.context, &[forward_ix], &[&user]).await;
 
     let regression_ix = fixture.redeem_yield_ix(FEE_INDEX_SCALE - 1);
-    let err = send_tx_expect_err(context, &[regression_ix], &[user]).await;
+    let err = send_tx_expect_err(&mut fixture.context, &[regression_ix], &[&user]).await;
     assert_custom_error(err, SplitterError::FeeIndexRegression as u32);
 }
 
 #[tokio::test]
 async fn mint_pt_yt_rejects_wrong_token_program() {
     let mut fixture = setup_market_fixture().await;
-    let context = &mut fixture.context;
-    let user = &fixture.user;
+    let user = clone_keypair(&fixture.user);
 
     let fake_program = Pubkey::new_unique();
     let mut fake_account = AccountSharedData::new(0, 0, &Pubkey::default());
     fake_account.set_executable(true);
-    context.set_account(&fake_program, &fake_account);
+    fixture.context.set_account(&fake_program, &fake_account);
 
     let mut mint_ix = fixture.mint_pt_yt_ix(1);
     if let Some(account_meta) = mint_ix
@@ -553,90 +570,101 @@ async fn mint_pt_yt_rejects_wrong_token_program() {
         panic!("token program account meta not found");
     }
 
-    let err = send_tx_expect_err(context, &[mint_ix], &[user]).await;
+    let err = send_tx_expect_err(&mut fixture.context, &[mint_ix], &[&user]).await;
     assert_custom_error(err, ErrorCode::ConstraintAddress as u32);
 }
 
 #[tokio::test]
 async fn mint_pt_yt_rejects_mismatched_ata() {
     let mut fixture = setup_market_fixture().await;
-    let context = &mut fixture.context;
-    let user = &fixture.user;
+    let user = clone_keypair(&fixture.user);
+    let user_pt_ata = fixture.user_pt_ata;
+    let pt_mint = fixture.pt_mint.pubkey();
 
     let imposter = Keypair::new();
-    let imposter_pt_ata =
-        get_associated_token_address(&imposter.pubkey(), &fixture.pt_mint.pubkey());
+    let imposter_pt_ata = get_associated_token_address(&imposter.pubkey(), &pt_mint);
     let create_imposter_pt = ata_instruction::create_associated_token_account(
         &user.pubkey(),
         &imposter.pubkey(),
-        &fixture.pt_mint.pubkey(),
+        &pt_mint,
         &spl_token::id(),
     );
-    send_tx(context, &[create_imposter_pt], &[user, &imposter]).await;
+    send_tx(
+        &mut fixture.context,
+        &[create_imposter_pt],
+        &[&user, &imposter],
+    )
+    .await;
 
     let mut mint_ix = fixture.mint_pt_yt_ix(1);
     if let Some(account_meta) = mint_ix
         .accounts
         .iter_mut()
-        .find(|meta| meta.pubkey == fixture.user_pt_ata)
+        .find(|meta| meta.pubkey == user_pt_ata)
     {
         account_meta.pubkey = imposter_pt_ata;
     } else {
         panic!("user PT ATA meta missing");
     }
 
-    let err = send_tx_expect_err(context, &[mint_ix], &[user]).await;
+    let err = send_tx_expect_err(&mut fixture.context, &[mint_ix], &[&user]).await;
     assert_custom_error(err, ErrorCode::ConstraintOwner as u32);
 }
 
 #[tokio::test]
 async fn close_market_requires_dual_admin_signers() {
     let mut fixture = setup_market_fixture().await;
-    let context = &mut fixture.context;
-    let user = &fixture.user;
+    let user = clone_keypair(&fixture.user);
+    let creator_vault = fixture.creator_vault;
+    let market = fixture.market.pubkey();
+    let pt_mint = fixture.pt_mint.pubkey();
+    let yt_mint = fixture.yt_mint.pubkey();
 
     let mint_ix = fixture.mint_pt_yt_ix(10_000);
-    send_tx(context, &[mint_ix], &[user]).await;
+    send_tx(&mut fixture.context, &[mint_ix], &[&user]).await;
 
     let redeem_ix = fixture.redeem_principal_ix(10_000);
-    send_tx(context, &[redeem_ix], &[user]).await;
+    send_tx(&mut fixture.context, &[redeem_ix], &[&user]).await;
 
     let close_accounts = accounts::CloseMarket {
         creator_authority: user.pubkey(),
         admin: user.pubkey(),
-        creator_vault: fixture.creator_vault,
-        market: fixture.market.pubkey(),
-        pt_mint: fixture.pt_mint.pubkey(),
-        yt_mint: fixture.yt_mint.pubkey(),
+        creator_vault,
+        market,
+        pt_mint,
+        yt_mint,
     };
     let close_ix = Instruction {
         program_id: splitter::id(),
         accounts: close_accounts.to_account_metas(None),
         data: instruction::CloseMarket {}.data(),
     };
-    let err = send_tx_expect_err(context, &[close_ix], &[user]).await;
+    let err = send_tx_expect_err(&mut fixture.context, &[close_ix], &[&user]).await;
     assert_custom_error(err, ErrorCode::ConstraintAddress as u32);
 }
 
 #[tokio::test]
 async fn close_market_missing_creator_authority_signature_fails() {
     let mut fixture = setup_market_fixture().await;
-    let context = &mut fixture.context;
-    let user = &fixture.user;
+    let user = clone_keypair(&fixture.user);
+    let creator_vault = fixture.creator_vault;
+    let market = fixture.market.pubkey();
+    let pt_mint = fixture.pt_mint.pubkey();
+    let yt_mint = fixture.yt_mint.pubkey();
 
     let mint_ix = fixture.mint_pt_yt_ix(5_000);
-    send_tx(context, &[mint_ix], &[user]).await;
+    send_tx(&mut fixture.context, &[mint_ix], &[&user]).await;
 
     let redeem_ix = fixture.redeem_principal_ix(5_000);
-    send_tx(context, &[redeem_ix], &[user]).await;
+    send_tx(&mut fixture.context, &[redeem_ix], &[&user]).await;
 
     let close_accounts = accounts::CloseMarket {
         creator_authority: fixture.pump_creator.pubkey(),
-        admin: context.payer.pubkey(),
-        creator_vault: fixture.creator_vault,
-        market: fixture.market.pubkey(),
-        pt_mint: fixture.pt_mint.pubkey(),
-        yt_mint: fixture.yt_mint.pubkey(),
+        admin: fixture.context.payer.pubkey(),
+        creator_vault,
+        market,
+        pt_mint,
+        yt_mint,
     };
     let close_ix = Instruction {
         program_id: splitter::id(),
@@ -644,8 +672,8 @@ async fn close_market_missing_creator_authority_signature_fails() {
         data: instruction::CloseMarket {}.data(),
     };
 
-    let payer_clone = clone_keypair(&context.payer);
-    let err = send_tx_expect_err_owned(context, &[close_ix], vec![payer_clone]).await;
+    let payer_clone = clone_keypair(&fixture.context.payer);
+    let err = send_tx_expect_err_owned(&mut fixture.context, &[close_ix], vec![payer_clone]).await;
     match err {
         TransportError::TransactionError(TransactionError::InstructionError(
             _,
@@ -658,30 +686,33 @@ async fn close_market_missing_creator_authority_signature_fails() {
 #[tokio::test]
 async fn close_market_missing_admin_signature_fails() {
     let mut fixture = setup_market_fixture().await;
-    let context = &mut fixture.context;
-    let user = &fixture.user;
+    let user = clone_keypair(&fixture.user);
+    let creator_vault = fixture.creator_vault;
+    let market = fixture.market.pubkey();
+    let pt_mint = fixture.pt_mint.pubkey();
+    let yt_mint = fixture.yt_mint.pubkey();
 
     let mint_ix = fixture.mint_pt_yt_ix(8_000);
-    send_tx(context, &[mint_ix], &[user]).await;
+    send_tx(&mut fixture.context, &[mint_ix], &[&user]).await;
 
     let redeem_ix = fixture.redeem_principal_ix(8_000);
-    send_tx(context, &[redeem_ix], &[user]).await;
+    send_tx(&mut fixture.context, &[redeem_ix], &[&user]).await;
 
     let transfer_ix = system_instruction::transfer(
-        &context.payer.pubkey(),
+        &fixture.context.payer.pubkey(),
         &fixture.pump_creator.pubkey(),
         1_000_000,
     );
-    let payer_clone = clone_keypair(&context.payer);
-    send_tx_owned(context, &[transfer_ix], vec![payer_clone]).await;
+    let payer_clone = clone_keypair(&fixture.context.payer);
+    send_tx_owned(&mut fixture.context, &[transfer_ix], vec![payer_clone]).await;
 
     let close_accounts = accounts::CloseMarket {
         creator_authority: fixture.pump_creator.pubkey(),
-        admin: context.payer.pubkey(),
-        creator_vault: fixture.creator_vault,
-        market: fixture.market.pubkey(),
-        pt_mint: fixture.pt_mint.pubkey(),
-        yt_mint: fixture.yt_mint.pubkey(),
+        admin: fixture.context.payer.pubkey(),
+        creator_vault,
+        market,
+        pt_mint,
+        yt_mint,
     };
     let close_ix = Instruction {
         program_id: splitter::id(),
@@ -690,7 +721,8 @@ async fn close_market_missing_admin_signature_fails() {
     };
 
     let authority_clone = clone_keypair(&fixture.pump_creator);
-    let err = send_tx_expect_err_owned(context, &[close_ix], vec![authority_clone]).await;
+    let err =
+        send_tx_expect_err_owned(&mut fixture.context, &[close_ix], vec![authority_clone]).await;
     match err {
         TransportError::TransactionError(TransactionError::InstructionError(
             _,
@@ -703,97 +735,108 @@ async fn close_market_missing_admin_signature_fails() {
 #[tokio::test]
 async fn close_market_rejects_remaining_yt_supply() {
     let mut fixture = setup_market_fixture().await;
-    let context = &mut fixture.context;
-    let user = &fixture.user;
+    let user = clone_keypair(&fixture.user);
+    let creator_vault = fixture.creator_vault;
+    let market = fixture.market.pubkey();
+    let pt_mint = fixture.pt_mint.pubkey();
+    let yt_mint = fixture.yt_mint.pubkey();
 
     let mint_ix = fixture.mint_pt_yt_ix(25_000);
-    send_tx(context, &[mint_ix], &[user]).await;
+    send_tx(&mut fixture.context, &[mint_ix], &[&user]).await;
 
     let close_accounts = accounts::CloseMarket {
         creator_authority: fixture.pump_creator.pubkey(),
-        admin: context.payer.pubkey(),
-        creator_vault: fixture.creator_vault,
-        market: fixture.market.pubkey(),
-        pt_mint: fixture.pt_mint.pubkey(),
-        yt_mint: fixture.yt_mint.pubkey(),
+        admin: fixture.context.payer.pubkey(),
+        creator_vault,
+        market,
+        pt_mint,
+        yt_mint,
     };
     let close_ix = Instruction {
         program_id: splitter::id(),
         accounts: close_accounts.to_account_metas(None),
         data: instruction::CloseMarket {}.data(),
     };
-    let payer_clone = clone_keypair(&context.payer);
+    let payer_clone = clone_keypair(&fixture.context.payer);
     let authority_clone = clone_keypair(&fixture.pump_creator);
-    let err =
-        send_tx_expect_err_owned(context, &[close_ix], vec![payer_clone, authority_clone]).await;
+    let err = send_tx_expect_err_owned(
+        &mut fixture.context,
+        &[close_ix],
+        vec![payer_clone, authority_clone],
+    )
+    .await;
     assert_custom_error(err, SplitterError::OutstandingYield as u32);
 }
 
 #[tokio::test]
 async fn mint_pt_yt_fails_when_market_is_closed() {
     let mut fixture = setup_market_fixture().await;
-    let context = &mut fixture.context;
-    let user = &fixture.user;
+    let user = clone_keypair(&fixture.user);
+    let market = fixture.market.pubkey();
 
-    mark_market_closed(context, fixture.market.pubkey()).await;
+    mark_market_closed(&mut fixture.context, market).await;
 
     let mint_ix = fixture.mint_pt_yt_ix(1);
-    let err = send_tx_expect_err(context, &[mint_ix], &[user]).await;
+    let err = send_tx_expect_err(&mut fixture.context, &[mint_ix], &[&user]).await;
     assert_custom_error(err, SplitterError::MarketClosed as u32);
 }
 
 #[tokio::test]
 async fn redeem_yield_rejects_closed_market_flag() {
     let mut fixture = setup_market_fixture().await;
-    let context = &mut fixture.context;
-    let user = &fixture.user;
+    let user = clone_keypair(&fixture.user);
+    let market = fixture.market.pubkey();
 
     let mint_ix = fixture.mint_pt_yt_ix(10_000);
-    send_tx(context, &[mint_ix], &[user]).await;
+    send_tx(&mut fixture.context, &[mint_ix], &[&user]).await;
 
-    mark_market_closed(context, fixture.market.pubkey()).await;
+    mark_market_closed(&mut fixture.context, market).await;
 
     let redeem_ix = fixture.redeem_yield_ix(FEE_INDEX_SCALE);
-    let err = send_tx_expect_err(context, &[redeem_ix], &[user]).await;
+    let err = send_tx_expect_err(&mut fixture.context, &[redeem_ix], &[&user]).await;
     assert_custom_error(err, SplitterError::MarketClosed as u32);
 }
 
 #[tokio::test]
 async fn redeem_principal_rejects_closed_market_flag() {
     let mut fixture = setup_market_fixture().await;
-    let context = &mut fixture.context;
-    let user = &fixture.user;
+    let user = clone_keypair(&fixture.user);
+    let market = fixture.market.pubkey();
 
     let mint_ix = fixture.mint_pt_yt_ix(5_000);
-    send_tx(context, &[mint_ix], &[user]).await;
+    send_tx(&mut fixture.context, &[mint_ix], &[&user]).await;
 
-    mark_market_closed(context, fixture.market.pubkey()).await;
+    mark_market_closed(&mut fixture.context, market).await;
 
     let redeem_ix = fixture.redeem_principal_ix(1_000);
-    let err = send_tx_expect_err(context, &[redeem_ix], &[user]).await;
+    let err = send_tx_expect_err(&mut fixture.context, &[redeem_ix], &[&user]).await;
     assert_custom_error(err, SplitterError::MarketClosed as u32);
 }
 
 #[tokio::test]
 async fn create_market_rejects_decimal_mismatch() {
     let mut fixture = setup_market_fixture().await;
-    let context = &mut fixture.context;
+    let creator_vault = fixture.creator_vault;
+    let splitter_authority = fixture.splitter_authority;
+    let pump_mint = fixture.pump_mint.pubkey();
+    let sy_mint = fixture.sy_mint;
+    let maturity_ts = fixture.maturity_ts;
 
     let market = Keypair::new();
     let pt_mint = Keypair::new();
     let yt_mint = Keypair::new();
 
-    let payer_clone = clone_keypair(&context.payer);
-    create_mint(context, &pt_mint, &payer_clone, DECIMALS - 1).await;
-    let payer_clone = clone_keypair(&context.payer);
-    create_mint(context, &yt_mint, &payer_clone, DECIMALS).await;
+    let payer_clone = clone_keypair(&fixture.context.payer);
+    create_mint(&mut fixture.context, &pt_mint, &payer_clone, DECIMALS - 1).await;
+    let payer_clone = clone_keypair(&fixture.context.payer);
+    create_mint(&mut fixture.context, &yt_mint, &payer_clone, DECIMALS).await;
 
     let create_accounts = accounts::CreateMarket {
-        authority: context.payer.pubkey(),
-        creator_vault: fixture.creator_vault,
-        splitter_authority: fixture.splitter_authority,
-        pump_mint: fixture.pump_mint.pubkey(),
-        sy_mint: fixture.sy_mint,
+        authority: fixture.context.payer.pubkey(),
+        creator_vault,
+        splitter_authority,
+        pump_mint,
+        sy_mint,
         market: market.pubkey(),
         pt_mint: pt_mint.pubkey(),
         yt_mint: yt_mint.pubkey(),
@@ -804,17 +847,14 @@ async fn create_market_rejects_decimal_mismatch() {
     let ix = Instruction {
         program_id: splitter::id(),
         accounts: create_accounts.to_account_metas(None),
-        data: instruction::CreateMarket {
-            maturity_ts: fixture.maturity_ts,
-        }
-        .data(),
+        data: instruction::CreateMarket { maturity_ts }.data(),
     };
 
     let err = send_tx_expect_err_owned(
-        context,
+        &mut fixture.context,
         &[ix],
         vec![
-            clone_keypair(&context.payer),
+            clone_keypair(&fixture.context.payer),
             clone_keypair(&market),
             clone_keypair(&pt_mint),
             clone_keypair(&yt_mint),
