@@ -36,6 +36,7 @@ pub mod creator_vault {
             pump_mint: vault.pump_mint,
             quote_mint: vault.quote_mint,
             sy_mint: vault.sy_mint,
+            authority: ctx.accounts.authority.key(),
             admin,
         });
         Ok(())
@@ -382,6 +383,7 @@ pub struct VaultInitialized {
     pub pump_mint: Pubkey,
     pub quote_mint: Pubkey,
     pub sy_mint: Pubkey,
+    pub authority: Pubkey,
     pub admin: Pubkey,
 }
 

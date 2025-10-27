@@ -15,6 +15,8 @@ const AppFooter: React.FC = () => {
   const { data } = useETag<VersionPayload>('/version', {
     enabled: mode === 'live' && !!apiBaseUrl,
     deps: [mode, apiBaseUrl],
+    ttlMs: 60_000,
+    maxRetries: 1,
   });
 
   const shortSha = data?.git_sha ? data.git_sha.slice(0, 7) : 'demo';

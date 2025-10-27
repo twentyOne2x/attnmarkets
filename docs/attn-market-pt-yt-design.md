@@ -73,6 +73,7 @@ When creator-fee authority cannot be reassigned (e.g., Meteora, Bags, Moonshot),
 - **MigrationManager**: orchestrates deployments; validates creator ownership; stores registry of vaults and supported maturities.
 - **CreatorVault**: receives fees, escrows principal, mints/burns PT and YT, handles settlement and emergency controls.
 - **PTToken / YTToken Contracts**: SPL tokens with metadata for `creator`, `maturity`, and `trancheId`; support allowance-less transfers via permit or CPI helpers.
+- **Token Program Scope**: All mint/burn CPIs target the classic SPL Token program (`Tokenkeg...`). Token-2022 compatibility is explicitly deferred.
 - **FeeRouter**: upgradeable contract forwarding fees from legacy token/DEX distributions into the vault; includes pause and fallback paths.
 - **AuctionModule**: manages fixed/English/Dutch auctions for upcoming YT tranches, distributing proceeds to creators minus protocol fees.
 - **StakingPool (YT Aggregator)**: pools YT streams, routes yield into curated DeFi strategies, issues LP/shares, enforces risk caps.

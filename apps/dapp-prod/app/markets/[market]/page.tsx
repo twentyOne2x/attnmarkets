@@ -11,7 +11,7 @@ import type {
   GovernanceState,
   MarketDetail,
 } from '@/app/lib/data-providers';
-import { mintPtYt, sellYt, buybackYt } from '@/app/actions';
+import { mintPtYt, sellYt, buybackYt, closeMarket } from '@/app/actions';
 
 interface PageProps {
   params: {
@@ -58,6 +58,9 @@ export default function MarketAdvancePage({ params }: PageProps): React.JSX.Elem
   const [processingBuyback, setProcessingBuyback] = useState(false);
   const [buybackStatus, setBuybackStatus] = useState<string | null>(null);
   const [isBuyQuoting, setIsBuyQuoting] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [closeStatus, setCloseStatus] = useState<string | null>(null);
+  const [closeError, setCloseError] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -107,6 +110,21 @@ export default function MarketAdvancePage({ params }: PageProps): React.JSX.Elem
     advancePolicy.enabled &&
     !advancePolicy.paused &&
     isWalletConnected;
+  const marketSummary = marketDetail?.summary;
+  const walletBase58 = publicKey?.toBase58();
+  const hasOutstandingSupply =
+    (marketSummary?.pt_supply ?? 0) > 0 || (marketSummary?.yt_supply ?? 0) > 0;
+  const matchesDualRole =
+    Boolean(walletBase58 && marketSummary) &&
+    walletBase58 === marketSummary?.creator_authority &&
+    walletBase58 === marketSummary?.admin;
+  const canCloseMarket =
+    Boolean(marketSummary) &&
+    matchesDualRole &&
+    !hasOutstandingSupply &&
+    isLiveMode &&
+    isDevnet &&
+    healthStatus === 'healthy';
 
   const getQuote = useCallback(async () => {
     if (!marketDetail) return;
@@ -159,6 +177,34 @@ export default function MarketAdvancePage({ params }: PageProps): React.JSX.Elem
       setIsBuyQuoting(false);
     }
   }, [buyAmountUi, marketDetail, provider]);
+
+  const handleCloseMarket = useCallback(async () => {
+    if (!marketSummary || !walletAdapter) return;
+    if (!canCloseMarket) {
+      setCloseError('Closing requires zero outstanding PT/YT supply, Live devnet mode, and the same wallet for creator authority and admin.');
+      return;
+    }
+    setCloseError(null);
+    setCloseStatus('Submitting close transaction...');
+    setClosing(true);
+    try {
+      const signature = await closeMarket({
+        wallet: walletAdapter,
+        market: marketSummary.market,
+        creatorVault: marketSummary.creator_vault,
+        ptMint: marketSummary.pt_mint,
+        ytMint: marketSummary.yt_mint,
+        creatorAuthority: marketSummary.creator_authority,
+        admin: marketSummary.admin,
+      });
+      setCloseStatus(`Submitted transaction ${signature}`);
+    } catch (err) {
+      console.error('[advance] close market failed', err);
+      setCloseError(err instanceof Error ? err.message : 'Failed to close market');
+    } finally {
+      setClosing(false);
+    }
+  }, [walletAdapter, marketSummary, canCloseMarket]);
 
   const runAdvance = useCallback(async () => {
     if (!marketDetail || !quote) return;
@@ -402,6 +448,44 @@ export default function MarketAdvancePage({ params }: PageProps): React.JSX.Elem
               ))}
             </ul>
           )}
+        </section>
+
+        <section className="bg-dark-card border border-gray-700 rounded-xl p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-semibold">Admin controls</h2>
+              <p className="text-sm text-text-secondary">
+                Markets can only be closed in Live devnet mode when both admin and creator authority signers match the connected wallet.
+              </p>
+            </div>
+            <div className="text-xs text-text-secondary space-y-1">
+              <div>Creator authority: {marketSummary?.creator_authority ?? '—'}</div>
+              <div>Admin: {marketSummary?.admin ?? '—'}</div>
+            </div>
+          </div>
+
+          {closeError && <p className="text-sm text-warning">{closeError}</p>}
+          {closeStatus && <p className="text-sm text-text-secondary">{closeStatus}</p>}
+
+          <button
+            className="w-full sm:w-auto bg-error text-dark font-semibold px-4 py-2 rounded-lg disabled:opacity-40"
+            onClick={handleCloseMarket}
+            disabled={!canCloseMarket || closing}
+          >
+            {closing ? 'Closing market...' : 'Close market'}
+          </button>
+
+          <ul className="text-xs text-text-secondary space-y-1">
+            {hasOutstandingSupply && (
+              <li>• Burn remaining PT and YT supply before closing.</li>
+            )}
+            {!matchesDualRole && (
+              <li>• Connect the wallet that controls both the creator authority and admin roles.</li>
+            )}
+            {!isLiveMode && (
+              <li>• Enable Live devnet mode to submit admin transactions.</li>
+            )}
+          </ul>
         </section>
 
         <section className="bg-dark-card border border-gray-700 rounded-xl p-6 space-y-4">

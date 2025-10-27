@@ -20,8 +20,12 @@
       ],
       "accounts": [
         {
-          "name": "authority",
+          "name": "creator_authority",
           "writable": true,
+          "signer": true
+        },
+        {
+          "name": "admin",
           "signer": true
         },
         {
@@ -556,71 +560,149 @@
     }
   ],
   "events": [
-    {
-      "name": "MarketClosed",
-      "discriminator": [
-        86,
-        91,
-        119,
-        43,
-        94,
-        0,
-        217,
-        113
-      ]
-    },
-    {
-      "name": "MarketCreated",
-      "discriminator": [
-        88,
-        184,
-        130,
-        231,
-        226,
-        84,
-        6,
-        58
-      ]
-    },
-    {
-      "name": "PrincipalRedeemed",
-      "discriminator": [
-        114,
-        199,
-        124,
-        179,
-        158,
-        84,
-        242,
-        15
-      ]
-    },
-    {
-      "name": "PtYtMinted",
-      "discriminator": [
-        147,
-        17,
-        51,
-        128,
-        18,
-        106,
-        82,
-        222
-      ]
-    },
-    {
-      "name": "YieldRedeemed",
-      "discriminator": [
-        146,
-        205,
-        76,
-        218,
-        82,
-        193,
-        102,
-        135
-      ]
-    }
+  {
+    "name": "MarketClosed",
+    "discriminator": [
+      86,
+      91,
+      119,
+      43,
+      94,
+      0,
+      217,
+      113
+    ],
+    "fields": [
+      {
+        "name": "market",
+        "type": "publicKey"
+      },
+      {
+        "name": "creatorAuthority",
+        "type": "publicKey"
+      },
+      {
+        "name": "admin",
+        "type": "publicKey"
+      }
+    ]
+  },
+  {
+    "name": "MarketCreated",
+    "discriminator": [
+      88,
+      184,
+      130,
+      231,
+      226,
+      84,
+      6,
+      58
+    ],
+    "fields": [
+      {
+        "name": "market",
+        "type": "publicKey"
+      },
+      {
+        "name": "pumpMint",
+        "type": "publicKey"
+      },
+      {
+        "name": "maturityTs",
+        "type": "i64"
+      }
+    ]
+  },
+  {
+    "name": "PrincipalRedeemed",
+    "discriminator": [
+      114,
+      199,
+      124,
+      179,
+      158,
+      84,
+      242,
+      15
+    ],
+    "fields": [
+      {
+        "name": "market",
+        "type": "publicKey"
+      },
+      {
+        "name": "user",
+        "type": "publicKey"
+      },
+      {
+        "name": "amount",
+        "type": "u64"
+      }
+    ]
+  },
+  {
+    "name": "PtYtMinted",
+    "discriminator": [
+      147,
+      17,
+      51,
+      128,
+      18,
+      106,
+      82,
+      222
+    ],
+    "fields": [
+      {
+        "name": "market",
+        "type": "publicKey"
+      },
+      {
+        "name": "user",
+        "type": "publicKey"
+      },
+      {
+        "name": "amount",
+        "type": "u64"
+      }
+    ]
+  },
+  {
+    "name": "YieldRedeemed",
+    "discriminator": [
+      146,
+      205,
+      76,
+      218,
+      82,
+      193,
+      102,
+      135
+    ],
+    "fields": [
+      {
+        "name": "market",
+        "type": "publicKey"
+      },
+      {
+        "name": "user",
+        "type": "publicKey"
+      },
+      {
+        "name": "claimedAmount",
+        "type": "u64"
+      },
+      {
+        "name": "feeIndex",
+        "type": "u128"
+      },
+      {
+        "name": "marketDelta",
+        "type": "u128"
+      }
+    ]
+  }
   ],
   "errors": [
     {
@@ -835,7 +917,11 @@
             "type": "pubkey"
           },
           {
-            "name": "authority",
+            "name": "creator_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "admin",
             "type": "pubkey"
           }
         ]
