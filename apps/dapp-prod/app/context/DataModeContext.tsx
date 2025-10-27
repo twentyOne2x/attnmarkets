@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { DataMode, persistMode, runtimeEnv, useStoredMode } from '../config/runtime';
 import { BridgeDataProvider, DataProvider, demoDataProvider } from '../lib/data-providers';
 
@@ -42,7 +42,7 @@ const checkHealth = async (apiBase: string): Promise<void> => {
   }
 };
 
-export const DataModeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const DataModeProvider = ({ children }: { children: ReactNode }) => {
   const stored = useStoredMode();
   const initialMode = runtimeEnv.isValid ? stored : 'demo';
 
@@ -52,6 +52,27 @@ export const DataModeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const programIds = useMemo(() => runtimeEnv.programIds[runtimeEnv.cluster] ?? {}, []);
   const apiBaseUrl = runtimeEnv.apiBaseUrl;
+
+  useEffect(() => {
+    if (initialMode === 'live' && apiBaseUrl) {
+      setHealthStatus('checking');
+      (async () => {
+        try {
+          await checkHealth(apiBaseUrl);
+          setHealthStatus('healthy');
+          setLastError(undefined);
+          setModeState('live');
+          persistMode('live');
+        } catch (error) {
+          console.warn('[attn] Live mode startup health check failed', error);
+          setLastError(error instanceof Error ? error.message : 'Live mode unavailable');
+          setHealthStatus('unhealthy');
+          setModeState('demo');
+          persistMode('demo');
+        }
+      })();
+    }
+  }, [initialMode, apiBaseUrl]);
 
   const provider = useMemo<DataProvider>(() => {
     if (mode === 'live' && apiBaseUrl) {

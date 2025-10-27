@@ -84,6 +84,8 @@ export default function DepositPage(): React.JSX.Element {
   const { data: rewardsData } = useETag<RewardsListResponse>('/v1/rewards?limit=5', {
     enabled: mode === 'live',
     deps: [mode, rewardsRefresh],
+    ttlMs: 30_000,
+    maxRetries: 2,
   });
   const activePool = rewardsData?.pools?.[0];
   const poolPaused = activePool?.paused ?? false;
@@ -100,6 +102,8 @@ export default function DepositPage(): React.JSX.Element {
   useETag<PortfolioResponse>(portfolioPath, {
     enabled: mode === 'live' && !!currentUserWallet,
     deps: [mode, currentUserWallet, portfolioRefresh],
+    ttlMs: 15_000,
+    maxRetries: 2,
   });
 
   const guardReason = () => {

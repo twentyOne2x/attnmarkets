@@ -71,6 +71,7 @@ const DEMO_MARKET_SUMMARY: MarketSummary = {
   market: 'MarketDemo1111111111111111111111111111111',
   pump_mint: 'PumpMintDemo1111111111111111111111111111111',
   creator_vault: 'CreatorVaultDemo1111111111111111111111111111',
+  creator_authority: 'AuthorityDemo1111111111111111111111111111',
   sy_mint: 'SyMintDemo11111111111111111111111111111111',
   pt_mint: 'PtMintDemo11111111111111111111111111111111',
   yt_mint: 'YtMintDemo11111111111111111111111111111111',
@@ -79,6 +80,7 @@ const DEMO_MARKET_SUMMARY: MarketSummary = {
   yt_supply: 125_000,
   implied_apy: 0.18,
   status: 'active',
+  admin: 'AdminDemo1111111111111111111111111111111',
 };
 
 const DEMO_MARKET_DETAIL: MarketDetail = {

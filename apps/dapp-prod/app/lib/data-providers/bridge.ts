@@ -42,6 +42,7 @@ interface MarketSummaryResponse {
   market: string;
   pump_mint: string;
   creator_vault: string;
+  creator_authority: string;
   sy_mint: string;
   pt_mint: string;
   yt_mint: string;
@@ -50,6 +51,7 @@ interface MarketSummaryResponse {
   yt_supply: number;
   implied_apy: number;
   status: MarketStatus;
+  admin: string;
 }
 
 interface MarketDetailResponse {
@@ -128,19 +130,51 @@ interface RewardsEndpointResponse {
 export class BridgeDataProvider implements DataProvider {
   private readonly etags = new Map<string, string>();
   private readonly cache = new Map<string, unknown>();
+  private readonly cacheTimestamps = new Map<string, number>();
 
-  private async fetchJson<T>(path: string, init?: RequestInit, cacheKey?: string): Promise<T> {
+  private async fetchJson<T>(path: string, init?: RequestInit, cacheKey?: string, ttlMs?: number): Promise<T> {
     const key = cacheKey ?? path;
-    const etag = this.etags.get(key);
-    const response = await api<T>(path, etag, init);
+    let etag = this.etags.get(key);
+    const lastFetched = this.cacheTimestamps.get(key);
+    if (ttlMs && etag && lastFetched && Date.now() - lastFetched > ttlMs) {
+      this.etags.delete(key);
+      this.cacheTimestamps.delete(key);
+      etag = undefined;
+    }
+
+    const response = await api<T>(path, etag, init, { maxRetries: 2 });
     if (!response.notModified) {
       this.cache.set(key, response.data);
       if (response.etag) {
         this.etags.set(key, response.etag);
+      } else {
+        this.etags.delete(key);
       }
+      this.cacheTimestamps.set(key, Date.now());
       return response.data;
     }
-    return this.cache.get(key) as T;
+
+    if (this.cache.has(key)) {
+      if (ttlMs) {
+        this.cacheTimestamps.set(key, Date.now());
+      }
+      return this.cache.get(key) as T;
+    }
+
+    // 304 without cached payload implies the upstream evicted our content. Retry without the ETag.
+    this.etags.delete(key);
+    this.cacheTimestamps.delete(key);
+    const retry = await api<T>(path, undefined, init, { maxRetries: 1 });
+    if (retry.notModified) {
+      throw new Error(`Cache miss for ${key} after retrying without ETag`);
+    }
+
+    this.cache.set(key, retry.data);
+    if (retry.etag) {
+      this.etags.set(key, retry.etag);
+    }
+    this.cacheTimestamps.set(key, Date.now());
+    return retry.data;
   }
 
   private mapMarketsToCreators(markets: MarketSummary[]): CreatorSummary[] {
@@ -171,6 +205,7 @@ export class BridgeDataProvider implements DataProvider {
       market: source.market,
       pump_mint: source.pump_mint,
       creator_vault: source.creator_vault,
+      creator_authority: source.creator_authority,
       sy_mint: source.sy_mint,
       pt_mint: source.pt_mint,
       yt_mint: source.yt_mint,
@@ -179,13 +214,14 @@ export class BridgeDataProvider implements DataProvider {
       yt_supply: source.yt_supply,
       implied_apy: source.implied_apy,
       status,
+      admin: source.admin,
     };
   }
 
   async getPoolOverview(): Promise<PoolOverview> {
     const [overview, attnusd] = await Promise.all([
-      this.fetchJson<OverviewResponse>('/v1/overview'),
-      this.fetchJson<AttnUsdResponse>('/v1/attnusd'),
+      this.fetchJson<OverviewResponse>('/v1/overview', undefined, '/v1/overview', 30_000),
+      this.fetchJson<AttnUsdResponse>('/v1/attnusd', undefined, '/v1/attnusd', 30_000),
     ]);
 
     return {
@@ -206,7 +242,9 @@ export class BridgeDataProvider implements DataProvider {
   async getMarkets(params?: { signal?: AbortSignal }): Promise<MarketSummary[]> {
     const markets = await this.fetchJson<MarketSummaryResponse[]>(
       '/v1/markets',
-      { signal: params?.signal }
+      { signal: params?.signal },
+      '/v1/markets',
+      30_000,
     );
     return markets.map((market) => this.normalizeMarketSummary(market));
   }
@@ -214,7 +252,9 @@ export class BridgeDataProvider implements DataProvider {
   async getMarket(market: string, params?: { signal?: AbortSignal }): Promise<MarketDetail> {
     const detail = await this.fetchJson<MarketDetailResponse>(
       `/v1/markets/${market}`,
-      { signal: params?.signal }
+      { signal: params?.signal },
+      `/v1/markets/${market}`,
+      15_000,
     );
     return {
       summary: this.normalizeMarketSummary(detail.summary),
@@ -228,7 +268,12 @@ export class BridgeDataProvider implements DataProvider {
 
   async getUserPortfolio(wallet: string): Promise<UserPortfolio> {
     try {
-      const portfolio = await this.fetchJson<PortfolioResponse>(`/v1/portfolio/${wallet}`);
+      const portfolio = await this.fetchJson<PortfolioResponse>(
+        `/v1/portfolio/${wallet}`,
+        undefined,
+        `/v1/portfolio/${wallet}`,
+        15_000,
+      );
       const positions = portfolio.positions.map((position) => ({
         deposited_usdc: toDisplayAmount(position.pt_balance),
         cyt_tokens: position.yt_balance,
@@ -267,7 +312,12 @@ export class BridgeDataProvider implements DataProvider {
   async getRewards(params?: CursorParams): Promise<PaginatedResponse<RewardPosition>> {
     const limit = params?.limit ?? 20;
     const cursor = params?.cursor ? `&cursor=${encodeURIComponent(params.cursor)}` : '';
-    const response = await this.fetchJson<RewardsEndpointResponse>(`/v1/rewards?limit=${limit}${cursor}`);
+    const response = await this.fetchJson<RewardsEndpointResponse>(
+      `/v1/rewards?limit=${limit}${cursor}`,
+      undefined,
+      `/v1/rewards?limit=${limit}${cursor}`,
+      30_000,
+    );
 
     const items = response.pools.map((pool): RewardPosition => ({
       id: pool.pool,
@@ -290,7 +340,12 @@ export class BridgeDataProvider implements DataProvider {
   }
 
   async getRewardsSummary(): Promise<RewardsSummary> {
-    const response = await this.fetchJson<RewardsEndpointResponse>('/v1/rewards?limit=100');
+    const response = await this.fetchJson<RewardsEndpointResponse>(
+      '/v1/rewards?limit=100',
+      undefined,
+      '/v1/rewards?limit=100',
+      30_000,
+    );
     const totals = response.pools.reduce(
       (acc, pool) => {
         acc.total += pool.total_staked_attnusd;
@@ -315,7 +370,7 @@ export class BridgeDataProvider implements DataProvider {
       query.set('side', params.side);
     }
     const path = `/v1/markets/${market}/yt-quote?${query.toString()}`;
-    return this.fetchJson<AdvanceQuote>(path, { signal: params.signal }, path);
+    return this.fetchJson<AdvanceQuote>(path, { signal: params.signal }, path, 10_000);
   }
 
   async postSellYt(payload: { quoteId: string; wallet: string }): Promise<AdvanceTrade> {
@@ -351,7 +406,9 @@ export class BridgeDataProvider implements DataProvider {
   async getGovernance(params?: { signal?: AbortSignal }): Promise<GovernanceState> {
     return this.fetchJson<GovernanceState>(
       '/v1/governance',
-      { signal: params?.signal }
+      { signal: params?.signal },
+      '/v1/governance',
+      10_000,
     );
   }
 }

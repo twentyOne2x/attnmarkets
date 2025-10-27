@@ -8460,6 +8460,7 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "creator_vault",
+ "proptest",
  "solana-program",
  "solana-program-test",
  "solana-sdk",
