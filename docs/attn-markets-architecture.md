@@ -22,7 +22,7 @@ PT, attnUSD, and sAttnUSD trade/settle across pools; indexer + SDK expose state 
 
 | Program        | Purpose                                                                 | Key PDAs / Seeds                                              | Key Instructions (idempotency & pause highlights)                                                 |
 |----------------|-------------------------------------------------------------------------|----------------------------------------------------------------|----------------------------------------------------------------------------------------------------|
-| **CreatorVault** | Custodies creator fees, mints Standardized Yield (SY), and exposes CPI hooks for downstream programs. | `creator-vault` (pump mint), `fee-vault` (pump mint), `sy-mint` (pump mint)                      | `initialize_vault`, `wrap_fees`, `mint_for_splitter`, `transfer_fees_for_splitter`; vault-level pause gate and admin/emergency controls. |
+| **CreatorVault** | Custodies creator fees, mints Standardized Yield (SY), and exposes CPI hooks plus creator-only withdrawals while unlocked. | `creator-vault` (pump mint), `fee-vault` (pump mint), `sy-mint` (pump mint)                      | `initialize_vault`, `wrap_fees`, `withdraw_fees`, `mint_for_splitter`, `transfer_fees_for_splitter`, `lock_collateral`, `unlock_collateral`; vault-level pause gate, auto-expiring lock, and admin/emergency controls. |
 | **Splitter**     | Burns SY and mints PT/YT per maturity, accounts for yield, invokes CreatorVault CPI helpers.            | `market` (pump mint + maturity), `user-position`, `splitter-authority` (creator vault, bump from `ctx.bumps`) | `create_market`, `mint_pt_yt`, `redeem_yield`, `redeem_principal`, `close_market` (dual creator authority + admin signatures, zero PT/YT supply); mint/fee transfers execute via CreatorVault CPI constrained to the classic SPL Token program. |
 | **StableVault**  | Accepts stablecoin deposits, converts creator-fee inflows to same basket, issues attnUSD shares.         | `stable-vault` (authority seed + bump), `share-mint`, accepted-mint custody PDAs, `sol-vault`    | `initialize_stable_vault`, `deposit_stable`, `redeem_attnusd`, `sweep_creator_fees` (requires `operation_id`, routes SOL bps to RewardsVault before conversion), `process_conversion` (`operation_id`). |
 | **RewardsVault** | Lets attnUSD holders stake for SOL rewards while preserving stable NAV.                                  | `rewards-pool` (creator vault), `rewards-authority`, `stake-position`, `s-attn-mint`, `sol-treasury`, `attn-vault` | `initialize_pool`, `stake_attnusd`, `unstake_attnusd`, `claim_rewards`, `fund_rewards` (`operation_id`, allowed funder); pool pause flag for staking/claim circuits. |
@@ -57,7 +57,7 @@ PT, attnUSD, and sAttnUSD trade/settle across pools; indexer + SDK expose state 
 
 ## Cash Flow Paths & Idempotent Keepers
 
-1. **Creator fees** enter CreatorVault, increment TVL only when the vault is unpaused. `wrap_fees` is the sole authority to mint SY.
+1. **Creator fees** enter CreatorVault, increment TVL only when the vault is unpaused. `wrap_fees` is the sole authority to mint SY, while `withdraw_fees` stays creator-only whenever the vault is unlocked (locks auto-expire at maturity).
 2. **Splitter CPI**: `mint_pt_yt` and `redeem_yield`/`redeem_principal` recompute their signer PDAs (splitter-authority + user-position) via `ctx.bumps`. No stored bump state remains.
 3. **Keeper loop**:
    - `sweep_creator_fees` accepts an `operation_id`. It splits SOL rewards (bps) and performs a CPI into RewardsVault `fund_rewards` before queuing the remainder for StableVault conversion.
@@ -140,7 +140,7 @@ PT, attnUSD, and sAttnUSD trade/settle across pools; indexer + SDK expose state 
 
 | Account                | Fields / Authorities                                                     | Notes                                                                                |
 |------------------------|---------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
-| CreatorVault           | `authority_seed`, `admin`, `emergency_admin`, `paused`, `sol_rewards_bps` | Admin owns config updates; emergency admin can pause.                               |
+| CreatorVault           | `authority_seed`, `admin`, `emergency_admin`, `paused`, `locked`, `lock_expires_at`, `sol_rewards_bps` | Admin owns config updates; emergency admin can pause; lock auto-expires to restore creator-only withdrawals. |
 | StableVault            | `authority_seed`, `keeper_authority`, `admin`, `emergency_admin`, `paused`, `pending_sol_lamports` | Keeper-only instructions require matching PDA; pause prevents deposits/conversions. |
 | RewardsPool            | `admin`, `allowed_funder`, `is_paused`, `last_fund_id`, `last_treasury_balance` | Funding and staking honour pause & monotonic SOL/share index invariants.            |
 

@@ -46,16 +46,17 @@
 
 - **Creator Portal**
   - **Step 1: CTO Checklist** – instructions, pre-filled template for Pump CTO form (with vault PDA address), status tracker (Manual input: “Pending / Approved / Rejected”).
-  - **Step 2: Vault Setup** – once CTO approved, show `collect_fees` status, allow sweeping existing fees.
+  - **Step 2: Vault Setup** – once CTO approved, surface current lock state (`locked`, `lock_expires_at`), expose creator-side `withdraw_fees` when unlocked, and stage Squads instructions for `lock_collateral` / `unlock_collateral` around advances; show `collect_fees` status and allow sweeping existing balances.
   - **Step 3: Wrap & Split** – form to enter amount of Pump tokens or raw SOL to wrap, select maturity (1D/1W/1M), preview PT/YT output, confirm split.
   - **Step 4: Post-Split Actions** – link to attnUSD vault, sAttnUSD staking (Rewards vault), auctions, and AMM liquidity pages.
   - Analytics panel: historical fees, maturity schedule, attnUSD yield contributions, SOL reward share (bps).
 
 - **Portfolio (user-specific)**
-  - Summary cards: PT balance, YT balance, attnUSD balance (showing NAV growth), sAttnUSD balance (claimable SOL), next maturities.
+  - Summary cards: PT balance, YT balance, attnUSD balance (showing NAV growth), sAttnUSD balance (claimable SOL), next maturities, plus a creator-only widget that highlights vault lock status and unlock ETA.
   - Positions table grouped by market:
     - For PT: quantity, market price, next maturity, `Redeem` button (enabled post-maturity).
     - For YT: quantity, accrued yield (SOL & USD), `Claim` button.
+    - For CreatorVault owners: fee vault balance, `Withdraw fees` action (enabled only when unlocked), lock toggle CTA that routes to Squads proposal when a loan is active, and copy explaining auto-expiry at maturity.
     - For attnUSD: balance, current APY, NAV delta, StableVault keeper status/pause badge; no claim actions while paused.
     - For sAttnUSD: staked balance, pending SOL, last fund id, `Claim SOL`, `Unstake`; disables buttons if Rewards pool paused.
   - Activity feed: recent wrap/mint/redeem/swap transactions with links to Solscan.
@@ -167,7 +168,7 @@
 - Guard rails if CTO not approved yet (disable split actions).
 - Display health status (vault paused, AMM paused) if governance toggles stop conditions; disable buttons and highlight paused banner.
 - Validate user cluster before enabling Live actions; surface low SOL warning.
-- Require the same wallet to match both creator authority and admin before exposing market close controls; surface guidance when roles differ.
+- Require the same wallet to match both creator authority and admin before exposing market close or lock toggles; surface guidance when roles differ and highlight the co-sign path for `lock_collateral` / `unlock_collateral`.
 - Cache `/v1/*` responses behind weak ETags with a configurable TTL and retry/backoff for transient 5xx/429 responses.
 
 ## Demo vs Live Modes
