@@ -388,14 +388,9 @@ pub mod splitter {
 
     pub fn close_market(ctx: Context<CloseMarket>) -> Result<()> {
         require_keys_eq!(
-            ctx.accounts.market.creator_vault,
-            ctx.accounts.creator_vault.key()
-        );
-        require_keys_eq!(
             ctx.accounts.creator_vault.authority,
             ctx.accounts.creator_authority.key()
         );
-        require_keys_eq!(ctx.accounts.creator_vault.admin, ctx.accounts.admin.key());
         require!(
             ctx.accounts.market.total_pt_issued == 0,
             SplitterError::OutstandingPrincipal
