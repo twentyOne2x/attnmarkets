@@ -159,6 +159,158 @@ pub mod creator_vault {
         Ok(())
     }
 
+    pub fn set_sweeper_delegate(
+        ctx: Context<SetSweeperDelegate>,
+        delegate: Pubkey,
+        fee_bps: u16,
+    ) -> Result<()> {
+        require!(delegate != Pubkey::default(), AttnError::InvalidSweeperDelegate);
+        require!(
+            fee_bps as u64 <= TOTAL_BPS,
+            AttnError::InvalidSweeperFee
+        );
+
+        let sweeper = &mut ctx.accounts.sweeper;
+        sweeper.bump = ctx.bumps.sweeper;
+        sweeper.creator_vault = ctx.accounts.creator_vault.key();
+        sweeper.delegate = delegate;
+        sweeper.fee_bps = fee_bps;
+        sweeper.last_sweep_ts = 0;
+
+        emit!(SweeperDelegateUpdated {
+            creator_vault: sweeper.creator_vault,
+            delegate,
+            fee_bps,
+        });
+
+        Ok(())
+    }
+
+    pub fn clear_sweeper_delegate(ctx: Context<ClearSweeperDelegate>) -> Result<()> {
+        let creator_vault = ctx.accounts.creator_vault.key();
+        emit!(SweeperDelegateCleared { creator_vault });
+        Ok(())
+    }
+
+    pub fn delegate_sweep(ctx: Context<DelegateSweep>, amount: u64) -> Result<()> {
+        require!(amount > 0, AttnError::InvalidAmount);
+
+        let vault = &mut ctx.accounts.creator_vault;
+        vault.assert_not_paused()?;
+
+        let now = Clock::get()?.unix_timestamp;
+        let auto_unlocked = vault.refresh_lock(now);
+        if auto_unlocked {
+            emit!(VaultLockStatusChanged {
+                creator_vault: vault.key(),
+                locked: false,
+                lock_expires_at: 0,
+                is_auto: true,
+            });
+        }
+
+        require!(!vault.locked, AttnError::VaultLockedForDelegate);
+
+        let sweeper = &mut ctx.accounts.sweeper;
+        require_keys_eq!(
+            sweeper.delegate,
+            ctx.accounts.delegate.key(),
+            AttnError::UnauthorizedSweeper
+        );
+
+        require!(
+            ctx.accounts.fee_vault.amount >= amount,
+            AttnError::InsufficientVaultBalance
+        );
+
+        require_keys_eq!(
+            ctx.accounts.destination.owner,
+            vault.authority,
+            AttnError::InvalidWithdrawalDestination
+        );
+        require_keys_eq!(
+            ctx.accounts.destination.mint,
+            vault.quote_mint,
+            AttnError::InvalidWithdrawalMint
+        );
+
+        let mut fee_amount = 0u64;
+        if sweeper.fee_bps > 0 {
+            let fee_destination = ctx
+                .accounts
+                .delegate_fee_destination
+                .as_ref()
+                .ok_or(AttnError::DelegateFeeDestinationRequired)?;
+            require_keys_eq!(
+                fee_destination.owner,
+                sweeper.delegate,
+                AttnError::InvalidDelegateFeeDestination
+            );
+            require_keys_eq!(
+                fee_destination.mint,
+                vault.quote_mint,
+                AttnError::InvalidWithdrawalMint
+            );
+            fee_amount = ((amount as u128)
+                .checked_mul(sweeper.fee_bps as u128)
+                .ok_or(AttnError::MathOverflow)?
+                / TOTAL_BPS as u128) as u64;
+        }
+
+        let creator_amount = amount
+            .checked_sub(fee_amount)
+            .ok_or(AttnError::MathOverflow)?;
+
+        let vault_bump = [vault.bump];
+        let seeds: [&[u8]; 3] = [b"creator-vault", vault.pump_mint.as_ref(), &vault_bump];
+        let signer_seeds = &[&seeds[..]];
+
+        if creator_amount > 0 {
+            let transfer_accounts = Transfer {
+                from: ctx.accounts.fee_vault.to_account_info(),
+                to: ctx.accounts.destination.to_account_info(),
+                authority: vault.to_account_info(),
+            };
+            let cpi_ctx = CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                transfer_accounts,
+                signer_seeds,
+            );
+            token::transfer(cpi_ctx, creator_amount)?;
+        }
+
+        if fee_amount > 0 {
+            let fee_destination = ctx
+                .accounts
+                .delegate_fee_destination
+                .as_ref()
+                .ok_or(AttnError::DelegateFeeDestinationRequired)?;
+            let transfer_accounts = Transfer {
+                from: ctx.accounts.fee_vault.to_account_info(),
+                to: fee_destination.to_account_info(),
+                authority: vault.to_account_info(),
+            };
+            let cpi_ctx = CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                transfer_accounts,
+                signer_seeds,
+            );
+            token::transfer(cpi_ctx, fee_amount)?;
+        }
+
+        sweeper.last_sweep_ts = now;
+
+        emit!(DelegatedFeesSwept {
+            creator_vault: vault.key(),
+            delegate: sweeper.delegate,
+            destination: ctx.accounts.destination.key(),
+            amount,
+            fee_amount,
+        });
+
+        Ok(())
+    }
+
     pub fn mint_for_splitter(ctx: Context<MintForSplitter>, amount: u64) -> Result<()> {
         require!(amount > 0, AttnError::InvalidAmount);
 
@@ -428,6 +580,64 @@ pub struct WithdrawFees<'info> {
 }
 
 #[derive(Accounts)]
+pub struct SetSweeperDelegate<'info> {
+    #[account(mut, has_one = authority)]
+    pub creator_vault: Account<'info, CreatorVault>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    #[account(
+        init_if_needed,
+        payer = authority,
+        space = 8 + CreatorVaultSweeper::INIT_SPACE,
+        seeds = [b"sweeper", creator_vault.key().as_ref()],
+        bump
+    )]
+    pub sweeper: Account<'info, CreatorVaultSweeper>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct ClearSweeperDelegate<'info> {
+    #[account(mut, has_one = authority)]
+    pub creator_vault: Account<'info, CreatorVault>,
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        close = authority,
+        seeds = [b"sweeper", creator_vault.key().as_ref()],
+        bump = sweeper.bump,
+        has_one = creator_vault
+    )]
+    pub sweeper: Account<'info, CreatorVaultSweeper>,
+}
+
+#[derive(Accounts)]
+pub struct DelegateSweep<'info> {
+    #[account(mut)]
+    pub creator_vault: Account<'info, CreatorVault>,
+    #[account(
+        mut,
+        seeds = [b"sweeper", creator_vault.key().as_ref()],
+        bump = sweeper.bump,
+        has_one = creator_vault,
+        has_one = delegate
+    )]
+    pub sweeper: Account<'info, CreatorVaultSweeper>,
+    pub delegate: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [b"fee-vault", creator_vault.pump_mint.as_ref()],
+        bump = creator_vault.fee_vault_bump,
+    )]
+    pub fee_vault: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub destination: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub delegate_fee_destination: Option<Account<'info, TokenAccount>>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
 pub struct MintForSplitter<'info> {
     #[account(mut)]
     pub creator_vault: Account<'info, CreatorVault>,
@@ -531,6 +741,20 @@ impl CreatorVault {
     }
 }
 
+#[account]
+pub struct CreatorVaultSweeper {
+    pub bump: u8,
+    pub creator_vault: Pubkey,
+    pub delegate: Pubkey,
+    pub fee_bps: u16,
+    pub last_sweep_ts: i64,
+    pub padding: [u8; 5],
+}
+
+impl CreatorVaultSweeper {
+    pub const INIT_SPACE: usize = 1 + 32 + 32 + 2 + 8 + 5;
+}
+
 #[event]
 pub struct VaultInitialized {
     pub creator_vault: Pubkey,
@@ -563,6 +787,27 @@ pub struct VaultLockStatusChanged {
     pub locked: bool,
     pub lock_expires_at: i64,
     pub is_auto: bool,
+}
+
+#[event]
+pub struct SweeperDelegateUpdated {
+    pub creator_vault: Pubkey,
+    pub delegate: Pubkey,
+    pub fee_bps: u16,
+}
+
+#[event]
+pub struct SweeperDelegateCleared {
+    pub creator_vault: Pubkey,
+}
+
+#[event]
+pub struct DelegatedFeesSwept {
+    pub creator_vault: Pubkey,
+    pub delegate: Pubkey,
+    pub destination: Pubkey,
+    pub amount: u64,
+    pub fee_amount: u64,
 }
 
 #[event]
@@ -614,6 +859,18 @@ pub enum AttnError {
     InvalidWithdrawalMint,
     #[msg("Lock expiry must be greater than or equal to the current timestamp")]
     InvalidLockExpiry,
+    #[msg("Sweeper delegate must be a non-default public key")]
+    InvalidSweeperDelegate,
+    #[msg("Sweeper fee exceeds 100%")]
+    InvalidSweeperFee,
+    #[msg("Vault is locked; delegate sweep is unavailable")]
+    VaultLockedForDelegate,
+    #[msg("Unauthorized sweeper delegate")]
+    UnauthorizedSweeper,
+    #[msg("Delegate fee destination required")]
+    DelegateFeeDestinationRequired,
+    #[msg("Invalid delegate fee destination")]
+    InvalidDelegateFeeDestination,
 }
 
 #[cfg(test)]

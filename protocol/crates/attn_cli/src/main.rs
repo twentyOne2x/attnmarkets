@@ -170,6 +170,31 @@ enum CreatorCommands {
         #[arg(long = "destination", value_parser = parse_pubkey)]
         destination: Option<Pubkey>,
     },
+    /// Set the sweeper delegate
+    SetSweeper {
+        #[arg(long = "creator-vault", value_parser = parse_pubkey)]
+        creator_vault: Pubkey,
+        #[arg(long = "delegate", value_parser = parse_pubkey)]
+        delegate: Pubkey,
+        #[arg(long = "fee-bps")]
+        fee_bps: u16,
+    },
+    /// Clear the sweeper delegate configuration
+    ClearSweeper {
+        #[arg(long = "creator-vault", value_parser = parse_pubkey)]
+        creator_vault: Pubkey,
+    },
+    /// Sweep fees as the configured delegate
+    DelegateSweep {
+        #[arg(long = "creator-vault", value_parser = parse_pubkey)]
+        creator_vault: Pubkey,
+        #[arg(long)]
+        amount: u64,
+        #[arg(long = "destination", value_parser = parse_pubkey)]
+        destination: Option<Pubkey>,
+        #[arg(long = "delegate-fee-destination", value_parser = parse_pubkey)]
+        delegate_fee_destination: Option<Pubkey>,
+    },
 }
 
 #[tokio::main]
@@ -259,6 +284,33 @@ async fn main() -> Result<()> {
                 destination,
             } => {
                 creator_withdraw(&client, payer.clone(), creator_vault, destination, amount).await?
+            }
+            CreatorCommands::SetSweeper {
+                creator_vault,
+                delegate,
+                fee_bps,
+            } => {
+                creator_set_sweeper(&client, payer.clone(), creator_vault, delegate, fee_bps)
+                    .await?
+            }
+            CreatorCommands::ClearSweeper { creator_vault } => {
+                creator_clear_sweeper(&client, payer.clone(), creator_vault).await?
+            }
+            CreatorCommands::DelegateSweep {
+                creator_vault,
+                amount,
+                destination,
+                delegate_fee_destination,
+            } => {
+                creator_delegate_sweep(
+                    &client,
+                    payer.clone(),
+                    creator_vault,
+                    amount,
+                    destination,
+                    delegate_fee_destination,
+                )
+                .await?
             }
         },
         Commands::Fund {
@@ -727,6 +779,122 @@ async fn creator_withdraw(
     println!(
         "Withdrawn {} units from CreatorVault {} into {} (tx: {})",
         amount, creator_vault_pubkey, destination, sig
+    );
+    Ok(())
+}
+
+async fn creator_set_sweeper(
+    client: &Client<Arc<Keypair>>,
+    payer: Arc<Keypair>,
+    creator_vault: Pubkey,
+    delegate: Pubkey,
+    fee_bps: u16,
+) -> Result<()> {
+    let creator_program = client.program(creator_vault::ID)?;
+    let vault = creator::fetch_account(&creator_program, creator_vault)
+        .await
+        .context("failed to fetch creator vault account")?;
+
+    let authority = payer.pubkey();
+    if vault.authority != authority {
+        return Err(anyhow!(
+            "payer {} must match creator authority {}",
+            authority,
+            vault.authority
+        ));
+    }
+
+    let ix = creator::build_set_sweeper_delegate_ix(creator_vault, authority, delegate, fee_bps);
+    let sig = send_instructions(creator_program, vec![ix])?;
+    println!(
+        "Sweeper delegate {} set on CreatorVault {} with fee {} bps (tx: {})",
+        delegate, creator_vault, fee_bps, sig
+    );
+    Ok(())
+}
+
+async fn creator_clear_sweeper(
+    client: &Client<Arc<Keypair>>,
+    payer: Arc<Keypair>,
+    creator_vault: Pubkey,
+) -> Result<()> {
+    let creator_program = client.program(creator_vault::ID)?;
+    let vault = creator::fetch_account(&creator_program, creator_vault)
+        .await
+        .context("failed to fetch creator vault account")?;
+
+    let authority = payer.pubkey();
+    if vault.authority != authority {
+        return Err(anyhow!(
+            "payer {} must match creator authority {}",
+            authority,
+            vault.authority
+        ));
+    }
+
+    let ix = creator::build_clear_sweeper_delegate_ix(creator_vault, authority);
+    let sig = send_instructions(creator_program, vec![ix])?;
+    println!(
+        "Cleared sweeper delegate for CreatorVault {} (tx: {})",
+        creator_vault, sig
+    );
+    Ok(())
+}
+
+async fn creator_delegate_sweep(
+    client: &Client<Arc<Keypair>>,
+    payer: Arc<Keypair>,
+    creator_vault: Pubkey,
+    amount: u64,
+    destination: Option<Pubkey>,
+    delegate_fee_destination: Option<Pubkey>,
+) -> Result<()> {
+    let creator_program = client.program(creator_vault::ID)?;
+    let vault = creator::fetch_account(&creator_program, creator_vault)
+        .await
+        .context("failed to fetch creator vault account")?;
+
+    let Some(sweeper) = creator::fetch_sweeper_account(&creator_program, creator_vault)
+        .await?
+    else {
+        return Err(anyhow!("sweeper delegate not configured for this CreatorVault"));
+    };
+
+    let delegate = payer.pubkey();
+    if sweeper.delegate != delegate {
+        return Err(anyhow!(
+            "sweeper delegate mismatch (expected {}, got {})",
+            sweeper.delegate,
+            delegate
+        ));
+    }
+
+    let creator_destination = destination.unwrap_or_else(|| {
+        associated_token_address(&vault.authority, &vault.quote_mint)
+    });
+
+    let fee_destination = if sweeper.fee_bps > 0 {
+        Some(
+            delegate_fee_destination.unwrap_or_else(|| {
+                associated_token_address(&delegate, &vault.quote_mint)
+            }),
+        )
+    } else {
+        delegate_fee_destination
+    };
+
+    let ix = creator::build_delegate_sweep_ix(
+        creator_vault,
+        vault.pump_mint,
+        delegate,
+        creator_destination,
+        amount,
+        fee_destination,
+    );
+    let sig = send_instructions(creator_program, vec![ix])?;
+    println!(
+        "Delegate {} swept {} units from CreatorVault {} (tx: {})",
+        delegate, amount, creator_vault, sig
     );
     Ok(())
 }

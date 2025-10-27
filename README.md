@@ -45,7 +45,7 @@ attn.markets tokenises Solana fee streams (ICM, creator token) into Pendle-style
 - **Active communities** – Migrating fee ownership unlocks new hedging and upfront financing tools while keeping the base token untouched.
 
 ## Core Building Blocks
-1. **CreatorVault PDA (admin = Squads Safe, 2-of-2 creator+attn)** – Custodies the Pump fee PDA post-CTO, collects SOL, tracks `locked` / `lock_expires_at`, and mints SY SPL tokens plus `withdraw_fees` access while unlocked.
+1. **CreatorVault PDA (admin = Squads Safe, 2-of-2 creator+attn)** – Custodies the Pump fee PDA post-CTO, collects SOL, tracks `locked` / `lock_expires_at`, exposes optional auto-sweeper delegation, and mints SY SPL tokens plus `withdraw_fees` access while unlocked.
 2. **SY → PT & YT Splitter** – Burns SY and mints equal PT and YT amounts for a chosen maturity. PT redeems principal at maturity; YT accrues fees continuously. Markets close only when PT/YT supply is zero and both the creator authority and admin sign the transaction. CPI hooks enforce the classic SPL Token program (Tokenkeg) to avoid Token-2022 mismatches.
 3. **Stable Yield Vault (`attnUSD`)** – Default destination for YT cash flows. LPs deposit approved stablecoins (USDC/USDT/USDe, etc.) to mint `attnUSD` shares; the vault converts creator fees into the same basket so NAV captures protocol-wide yield.
 4. **RewardsVault (sAttnUSD)** – Optional staking wrapper for `attnUSD`. Stakers mint sAttnUSD and accrue SOL rewards via an index while `attnUSD` NAV remains USD-denominated.
