@@ -1,14 +1,12 @@
 // apps/dapp/app/layout.tsx
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import type { ReactNode } from 'react';
 import './globals.css';
 import { AppProvider } from './context/AppContext';
 import { DataModeProvider } from './context/DataModeContext';
 import GovernanceBanner from './components/GovernanceBanner';
 import WalletProviders from './components/WalletProviders';
 import AppFooter from './components/AppFooter';
-
-const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'attn.markets App - Creator Earnings to Liquidity',
@@ -18,11 +16,11 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className="font-sans">
         <DataModeProvider>
           <WalletProviders>
             <AppProvider>
