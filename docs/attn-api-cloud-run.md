@@ -78,10 +78,14 @@ gcloud run deploy attn-api \
   --set-secrets "ATTN_API_KEYS=attn-api-keys:latest" \
   --set-secrets "ATTN_API_CSRF_TOKEN=attn-api-csrf:latest" \
   --set-secrets "ATTN_API_SQUADS_API_KEYS=attn-api-squads-api-keys:latest" \
-  --set-secrets "ATTN_API_SQUADS_RPC_URL=attn-api-rpc-url:latest"
+  --set-secrets "ATTN_API_SQUADS_RPC_URL=attn-api-rpc-url:latest" \
+  --set-env-vars "ATTN_KMS_SIGNER_KEY=projects/PROJECT/locations/us-central1/keyRings/attn-keys/cryptoKeys/attn-signer/cryptoKeyVersions/1" \
+  --set-env-vars "ATTN_KMS_PAYER_KEY=projects/PROJECT/locations/us-central1/keyRings/attn-keys/cryptoKeys/attn-payer/cryptoKeyVersions/1"
+
+# Replace `PROJECT` with your Google Cloud project id in the KMS resource names above.
 ```
 
-Attach any remaining environment variables using `--set-env-vars` or `--set-secrets` as needed (e.g. `ATTN_API_SQUADS_DEFAULT_MEMBER`, `ATTN_API_RFQ_LP_WALLET`, `ATTN_API_DEVNET_ALLOWLIST`).
+Attach any remaining environment variables using `--set-env-vars` or `--set-secrets` as needed (e.g. `ATTN_API_SQUADS_DEFAULT_MEMBER`, `ATTN_API_RFQ_LP_WALLET`, `ATTN_API_DEVNET_ALLOWLIST`, `ATTN_KMS_SIGNER_KEY`, `ATTN_KMS_PAYER_KEY`).
 
 ### Database connectivity
 
