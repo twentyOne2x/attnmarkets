@@ -13,19 +13,30 @@ interface DataModeContextValue {
   provider: DataProvider;
   cluster: string;
   apiBaseUrl: string | null;
+  apiKey: string | null;
+  csrfToken: string;
   programIds: Record<string, string>;
   healthStatus: HealthStatus;
   lastError?: string;
+  isAdmin: boolean;
 }
 
 const DataModeContext = createContext<DataModeContextValue | undefined>(undefined);
 
+const buildBridgeUrl = (apiBase: string, path: string): string => {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  if (typeof window === 'undefined') {
+    return `${apiBase.replace(/\/$/, '')}${normalizedPath}`;
+  }
+  return `/api/bridge${normalizedPath}`;
+};
+
 const checkHealth = async (apiBase: string): Promise<void> => {
-  const readyz = await fetch(`${apiBase.replace(/\/$/, '')}/readyz`, { cache: 'no-store' });
+  const readyz = await fetch(buildBridgeUrl(apiBase, '/readyz'), { cache: 'no-store' });
   if (!readyz.ok) {
     throw new Error(`/readyz returned ${readyz.status}`);
   }
-  const version = await fetch(`${apiBase.replace(/\/$/, '')}/version`, { cache: 'no-store' });
+  const version = await fetch(buildBridgeUrl(apiBase, '/version'), { cache: 'no-store' });
   if (!version.ok) {
     throw new Error(`/version returned ${version.status}`);
   }
@@ -117,9 +128,12 @@ export const DataModeProvider = ({ children }: { children: ReactNode }) => {
       provider,
       cluster: runtimeEnv.cluster,
       apiBaseUrl,
+      apiKey: runtimeEnv.apiKey,
+      csrfToken: runtimeEnv.csrfToken,
       programIds,
       healthStatus,
       lastError,
+      isAdmin: runtimeEnv.isAdmin,
     }),
     [mode, setMode, toggleMode, provider, apiBaseUrl, programIds, healthStatus, lastError]
   );

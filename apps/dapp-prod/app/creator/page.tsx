@@ -2,12 +2,27 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import Navigation from '../components/Navigation';
 import Tooltip from '../components/Tooltip';
 import BorrowSlider from '../components/BorrowSlider';
 import RepaySlider from '../components/RepaySlider';
 import { useAppContext } from '../context/AppContext';
 import { calculateBorrowingTerms } from '../utils/borrowingCalculations';
+import { runtimeEnv } from '../config/runtime';
+
+const squadsFeatureEnabled = runtimeEnv.squadsEnabled && runtimeEnv.defaultMode !== 'live';
+
+const SquadsSafeOnboarding = squadsFeatureEnabled
+  ? dynamic(() => import('./components/SquadsSafeOnboarding'), {
+      ssr: false,
+      loading: () => (
+        <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-6 text-sm text-neutral-400">
+          Loading creator onboarding…
+        </div>
+      ),
+    })
+  : null;
 
 interface LoanDetails {
   originalAmount: number;
@@ -38,11 +53,11 @@ interface Notification {
 }
 
 export default function CreatorPage(): React.JSX.Element {
-  const { 
-    creators, 
-    loading, 
-    addCreatorLoan, 
-    removeCreatorLoan, 
+  const {
+    creators,
+    loading,
+    addCreatorLoan,
+    removeCreatorLoan,
     addCreatorToList,
     updateCreatorEarnings,
     getAvailableLiquidity,
@@ -53,6 +68,8 @@ export default function CreatorPage(): React.JSX.Element {
     addLoanHistoryItem,
     getLoanHistoryForWallet
   } = useAppContext();
+
+  const showSquadsOnboarding = squadsFeatureEnabled && SquadsSafeOnboarding !== null;
   
   // Initialize weekly earnings from context
   const [weeklyEarnings, setWeeklyEarnings] = useState<number>(() => {
@@ -1370,6 +1387,12 @@ export default function CreatorPage(): React.JSX.Element {
           </div>
         </div>
         
+        {showSquadsOnboarding && SquadsSafeOnboarding && (
+          <div className="mt-16">
+            <SquadsSafeOnboarding />
+          </div>
+        )}
+
         <div className="text-center text-xs text-text-secondary mt-8 opacity-60">
           * All values shown are simulated for demonstration purposes
         </div>
