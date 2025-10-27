@@ -22,7 +22,7 @@ Ship the minimum set of contracts and tooling that turn a Pump.fun creator-fee P
   - Control PDAs: `fee_vault`, `sy_mint` (derived each instruction, no stored bump reliance).
 - Instructions:
   - `initialize_vault(admin, emergency_admin, pump_creator_pda, quote_mint)`
-  - `collect_fees()` – pulls funds from Pump PDA (after CTO).
+  - `collect_fees()` – backlog: Pump.fun CPI not yet implemented; current MVP assumes fees already reside in CreatorVault.
   - `wrap_fees(amount)` – mints SY SPL token when vault is unpaused.
   - `set_rewards_split(sol_rewards_bps)` – configures default basis points for SOL rewards sweep.
   - `toggle_pause(is_paused)` – admin/emergency admin guard for all mutating instructions.
@@ -136,7 +136,7 @@ Ship the minimum set of contracts and tooling that turn a Pump.fun creator-fee P
 | ✅ | Indexer ingestion for fees, rewards, NAV with paginated API. | Backend/Data |
 | ✅ | RewardsVault staking pool (stake/unstake/claim/fund, property tests). | Protocol Eng |
 | 🟡 | Frontend: wrap/split flow, portfolio + rewards dashboard wired to API. | Frontend |
-| 🟡 | Keeper daemon for collect_fees + rewards funding. | DevOps |
+| 🟡 | Keeper daemon for rewards funding (Pump.fun `collect_fees` CPI backlog). | DevOps |
 | ✅ | PT redemption logic (post-maturity), state cleanup. | Protocol Eng |
 | ❌ | AMM v0 design + implementation (fork Pendle math). | Protocol Eng |
 | ❌ | Redemption UI (claim YT, redeem PT). Notifications. | Frontend |
@@ -171,7 +171,7 @@ Ship the minimum set of contracts and tooling that turn a Pump.fun creator-fee P
 ## Next Steps
 1. Fix rust-lld toolchain on CI/dev machines and re-run `cargo test -p rewards_vault` / `attn_api` suites.
 2. Finalize frontend DataProvider (Demo vs Live), Rewards page wiring, and Live-mode UX guards (`/readyz` fallback, banners).
-3. Stand up keeper daemon for periodic `collect_fees` + `sweep_creator_fees(operation_id)` + `fund_rewards(operation_id)`, including monitoring + alerting.
+3. Stand up keeper daemon for periodic `sweep_creator_fees(operation_id)` + `fund_rewards(operation_id)` (Pump.fun `collect_fees` CPI backlog), including monitoring + alerting.
 4. Complete devnet rollout plan: Squads safe creation, program admin rotation, Anchor deploy, indexer `--from-slot`, Live frontend smoke tests.
 5. Decide on integrated vs standalone router architecture before AMM v0 implementation.
 6. Implement AMM v0 math/tests and expose CLI+API endpoints for pricing data.

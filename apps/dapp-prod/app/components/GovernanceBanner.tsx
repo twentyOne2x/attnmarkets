@@ -18,6 +18,8 @@ export const GovernanceBanner: React.FC = () => {
   const { data, error, loading } = useETag<GovernanceState>('/v1/governance', {
     enabled: mode === 'live',
     deps: [mode],
+    ttlMs: 10_000,
+    maxRetries: 2,
   });
 
   if (mode !== 'live' || loading || error) {

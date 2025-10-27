@@ -9,6 +9,7 @@
 ## TL;DR
 - Tokenize Pump.fun creator fees into SY → PT/YT, `attnUSD`, SOL rewards.
 - Dual-control via Squads 2-of-2; pause + idempotent keeper ops.
+- Splitter markets close only when PT/YT supply is zero and both the creator authority and admin signers co-authorize; CPIs require the classic SPL Token program (Tokenkeg...).
 - **15-day advance UX:** mint PT/YT, sell YT for upfront USDC, buy back any time (devnet RFQ).
 - Devnet live; AMM v0 pending. Details below.
 
@@ -43,7 +44,7 @@ attn.markets tokenises Solana fee streams (ICM, creator token) into Pendle-style
 
 ## Core Building Blocks
 1. **CreatorVault PDA (admin = Squads Safe, 2-of-2 creator+attn)** – Custodies the Pump fee PDA post-CTO, collects SOL, and mints SY SPL tokens.
-2. **SY → PT & YT Splitter** – Burns SY and mints equal PT and YT amounts for a chosen maturity. PT redeems principal at maturity; YT accrues fees continuously.
+2. **SY → PT & YT Splitter** – Burns SY and mints equal PT and YT amounts for a chosen maturity. PT redeems principal at maturity; YT accrues fees continuously. Markets close only when PT/YT supply is zero and both the creator authority and admin sign the transaction. CPI hooks enforce the classic SPL Token program (Tokenkeg) to avoid Token-2022 mismatches.
 3. **Stable Yield Vault (`attnUSD`)** – Default destination for YT cash flows. LPs deposit approved stablecoins (USDC/USDT/USDe, etc.) to mint `attnUSD` shares; the vault converts creator fees into the same basket so NAV captures protocol-wide yield.
 4. **RewardsVault (sAttnUSD)** – Optional staking wrapper for `attnUSD`. Stakers mint sAttnUSD and accrue SOL rewards via an index while `attnUSD` NAV remains USD-denominated.
 5. **Pendle-inspired AMM** – Supports PT/quote and `attnUSD`/quote swaps with concentrated liquidity and time-decay pricing.

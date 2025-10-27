@@ -97,6 +97,7 @@ pub mod splitter {
         require_keys_eq!(ctx.accounts.market.sy_mint, ctx.accounts.sy_mint.key());
         require_keys_eq!(ctx.accounts.market.pt_mint, ctx.accounts.pt_mint.key());
         require_keys_eq!(ctx.accounts.market.yt_mint, ctx.accounts.yt_mint.key());
+        require!(!ctx.accounts.market.is_closed, SplitterError::MarketClosed);
 
         require!(
             ctx.accounts.user_sy_ata.amount >= amount,
@@ -209,6 +210,7 @@ pub mod splitter {
             new_fee_index >= market.fee_index,
             SplitterError::FeeIndexRegression
         );
+        require!(!market.is_closed, SplitterError::MarketClosed);
 
         let position = &mut ctx.accounts.user_position;
         require_keys_eq!(position.market, market.key());
@@ -228,19 +230,19 @@ pub mod splitter {
             SplitterError::InvalidFeeVault
         );
 
+        let current_fee_index = market.fee_index;
         let (claimable, remainder, delta_for_market) = compute_yield_claim(
-            market.fee_index,
+            current_fee_index,
             position.last_fee_index,
             position.pending_yield_scaled,
             ctx.accounts.user_yt_ata.amount,
             new_fee_index,
         )?;
 
-        market.fee_index = new_fee_index;
-        position.pending_yield_scaled = remainder;
-        position.last_fee_index = new_fee_index;
-
         if claimable == 0 {
+            market.fee_index = new_fee_index;
+            position.pending_yield_scaled = remainder;
+            position.last_fee_index = new_fee_index;
             return Ok(());
         }
 
@@ -281,6 +283,10 @@ pub mod splitter {
         );
         creator_vault::cpi::transfer_fees_for_splitter(cpi_ctx, claimable)?;
 
+        market.fee_index = new_fee_index;
+        position.pending_yield_scaled = remainder;
+        position.last_fee_index = new_fee_index;
+
         emit!(YieldRedeemed {
             market: market.key(),
             user: ctx.accounts.user.key(),
@@ -310,6 +316,7 @@ pub mod splitter {
         );
         require_keys_eq!(ctx.accounts.market.pt_mint, ctx.accounts.pt_mint.key());
         require_keys_eq!(ctx.accounts.market.sy_mint, ctx.accounts.sy_mint.key());
+        require!(!ctx.accounts.market.is_closed, SplitterError::MarketClosed);
 
         let burn_accounts = Burn {
             mint: ctx.accounts.pt_mint.to_account_info(),
@@ -413,11 +420,14 @@ pub mod splitter {
             SplitterError::OutstandingYield
         );
 
+        require!(!ctx.accounts.market.is_closed, SplitterError::MarketClosed);
+
         ctx.accounts.market.is_closed = true;
 
         emit!(MarketClosed {
             market: ctx.accounts.market.key(),
-            authority: ctx.accounts.creator_authority.key(),
+            creator_authority: ctx.accounts.creator_authority.key(),
+            admin: ctx.accounts.admin.key(),
         });
 
         Ok(())
@@ -737,7 +747,8 @@ pub struct PrincipalRedeemed {
 #[event]
 pub struct MarketClosed {
     pub market: Pubkey,
-    pub authority: Pubkey,
+    pub creator_authority: Pubkey,
+    pub admin: Pubkey,
 }
 
 #[error_code]
@@ -780,6 +791,8 @@ pub enum SplitterError {
     MintDecimalsMismatch,
     #[msg("Yield token supply accounting mismatch")]
     YieldSupplyMismatch,
+    #[msg("Market is closed")]
+    MarketClosed,
 }
 
 #[cfg(test)]

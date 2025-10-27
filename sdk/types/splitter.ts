@@ -26,8 +26,12 @@ export type Splitter = {
       ],
       "accounts": [
         {
-          "name": "authority",
+          "name": "creatorAuthority",
           "writable": true,
+          "signer": true
+        },
+        {
+          "name": "admin",
           "signer": true
         },
         {
@@ -841,7 +845,11 @@ export type Splitter = {
             "type": "pubkey"
           },
           {
-            "name": "authority",
+            "name": "creatorAuthority",
+            "type": "pubkey"
+          },
+          {
+            "name": "admin",
             "type": "pubkey"
           }
         ]

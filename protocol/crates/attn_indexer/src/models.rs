@@ -24,6 +24,7 @@ pub struct MarketSummary {
     pub market: String,
     pub pump_mint: String,
     pub creator_vault: String,
+    pub creator_authority: String,
     pub sy_mint: String,
     pub pt_mint: String,
     pub yt_mint: String,
@@ -32,6 +33,7 @@ pub struct MarketSummary {
     pub yt_supply: f64,
     pub implied_apy: f64,
     pub status: MarketStatus,
+    pub admin: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

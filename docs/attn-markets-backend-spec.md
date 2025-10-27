@@ -44,12 +44,13 @@ attnmarkets/
   - `FeeEscrow`: token account for accumulated SOL (wrapped) or USDC, owned by vault.
 - **Instructions**
   - `initialize_vault { pump_creator_pda, quote_mint, admin, emergency_admin }`
-  - `collect_fees { creator_vault, pump_pda }` – CPI to Pump program to sweep fees.
   - `wrap_fees { creator_vault, user, amount }` – mints SY to user; blocked when `paused`.
   - `mint_for_splitter { creator_vault, splitter_authority, mint, destination, amount }` – CPI helper to mint PT/YT/SY on Splitter’s behalf.
   - `transfer_fees_for_splitter { creator_vault, splitter_authority, fee_vault, destination, amount }` – CPI helper moving accrued fees to Splitter users.
   - `set_rewards_split { sol_rewards_bps }`, `update_admin`, `update_emergency_admin`.
   - `toggle_pause { is_paused }` – guard rails for emergencies.
+- **Out of scope**
+  - Pump.fun fee sweeping via CPI (`collect_fees`) remains on the backlog; CreatorVault currently wraps fees that have already landed in the PDA.
 - **Events**
   - `FeeCollected`, `SYMinted`, `SplitterMinted`, `SplitterFeeTransfer`, `CreatorVaultPaused`, `RewardsSplitUpdated`.
 - **Key Considerations**
@@ -66,12 +67,13 @@ attnmarkets/
   - `mint_pt_yt { market, creator_vault, splitter_authority, user, sy_amount }` – burns SY and CPIs into CreatorVault `mint_for_splitter` with signer seeds from `ctx.bumps`.
   - `redeem_yield { market, creator_vault, splitter_authority, user }` – CPIs into `transfer_fees_for_splitter`.
   - `redeem_principal { market, creator_vault, splitter_authority, user }` – after maturity CPIs to re-mint SY before unwinding PT.
-  - `close_market {}` – cleans up once PT supply zero.
+  - `close_market {}` – closes the market once PT/YT supply hits zero and both the stored creator authority and admin sign the transaction.
 - **Events**
-  - `MarketCreated`, `PTYT_Minted`, `YieldRedeemed`, `PrincipalRedeemed`.
+  - `MarketCreated`, `PTYT_Minted`, `YieldRedeemed`, `PrincipalRedeemed`, `MarketClosed { market, creator_authority, admin }`.
 - **Considerations**
   - Use `Clock` sysvar to enforce maturity gating.
-  - Markets remain under CreatorVault admin control (one admin per Pump token).
+  - Markets remain under CreatorVault admin control (one admin per Pump token) and require both the stored admin and creator authority signers to close once PT/YT supply reaches zero.
+  - All mint/burn/transfer CPIs are restricted to the classic SPL Token program (`Tokenkeg...`); Token-2022 mints must be wrapped externally.
 
 ### 3. Stable Yield Vault Program (`attnUSD`)
 - **Accounts**
@@ -145,7 +147,7 @@ attnmarkets/
   - Periodically read account state for derived metrics (total fees, indexes, treasury balances, pause/admin state).
   - Ingest Pump.fun CTO approvals manually (if we store status) or via form webhook.
 - **Schema (Postgres)** – migrations `001`–`005` (including `004_governance.sql`, `005_stable_pause.sql`) lay down these tables/columns:
-- `creator_vaults` (pump_mint, authority_seed, admin, emergency_admin, sol_rewards_bps, paused, total_fees, total_sy, last_collected_slot).
+- `creator_vaults` (pump_mint, vault_pubkey, authority_seed, authority, admin, emergency_admin, sol_rewards_bps, paused, total_fees, total_sy, last_collected_slot).
 - `stable_vaults` (vault_pubkey, authority_seed, admin, emergency_admin, keeper_authority, share_mint, stable_mint, pending_sol_lamports, paused, last_sweep_id, last_conversion_id, updated_at).
 - `markets` (market_pubkey, pump_mint, maturity_ts, pt_supply, yt_supply, fee_index, apy metrics).
 - `user_positions` (wallet, market, pt_balance, yt_balance, last_index, accrued_yield).

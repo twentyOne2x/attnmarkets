@@ -119,6 +119,8 @@ impl ReadStore for SqlxStore {
             select m.market_pubkey,
                    m.pump_mint,
                    cv.vault_pubkey as creator_vault,
+                   cv.authority as creator_authority,
+                   cv.admin,
                    cv.sy_mint,
                    m.pt_mint,
                    m.yt_mint,
@@ -148,6 +150,7 @@ impl ReadStore for SqlxStore {
                     market: row.get("market_pubkey"),
                     pump_mint: row.get("pump_mint"),
                     creator_vault: row.get("creator_vault"),
+                    creator_authority: row.get("creator_authority"),
                     sy_mint: row.get("sy_mint"),
                     pt_mint: row.get("pt_mint"),
                     yt_mint: row.get("yt_mint"),
@@ -156,6 +159,7 @@ impl ReadStore for SqlxStore {
                     yt_supply: row.get("yt_supply"),
                     implied_apy: row.get("fee_index"),
                     status,
+                    admin: row.get("admin"),
                 }
             })
             .collect();
@@ -169,6 +173,8 @@ impl ReadStore for SqlxStore {
             select m.market_pubkey,
                    m.pump_mint,
                    v.vault_pubkey as creator_vault,
+                   v.authority as creator_authority,
+                   v.admin,
                    v.sy_mint,
                    m.pt_mint,
                    m.yt_mint,
@@ -204,6 +210,7 @@ impl ReadStore for SqlxStore {
                 market: row.get("market_pubkey"),
                 pump_mint: row.get("pump_mint"),
                 creator_vault: row.get("creator_vault"),
+                creator_authority: row.get("creator_authority"),
                 sy_mint: row.get("sy_mint"),
                 pt_mint: row.get("pt_mint"),
                 yt_mint: row.get("yt_mint"),
@@ -212,6 +219,7 @@ impl ReadStore for SqlxStore {
                 yt_supply: row.get("yt_supply"),
                 implied_apy: row.get("fee_index"),
                 status,
+                admin: row.get("admin"),
             },
             total_fees_distributed_sol: row.get::<f64, _>("total_fees_lamports")
                 / 1_000_000_000_f64,
@@ -743,6 +751,7 @@ impl MockData {
             market: "Market1111111111111111111111111111111111".into(),
             pump_mint: "PumpMint11111111111111111111111111111111".into(),
             creator_vault: "CreatorVault1111111111111111111111111111111".into(),
+            creator_authority: "Authority11111111111111111111111111111111".into(),
             sy_mint: "SyMint111111111111111111111111111111111".into(),
             pt_mint: "PtMint111111111111111111111111111111111".into(),
             yt_mint: "YtMint111111111111111111111111111111111".into(),
@@ -751,12 +760,14 @@ impl MockData {
             yt_supply: 125_000.0,
             implied_apy: 0.1825,
             status: MarketStatus::Active,
+            admin: "Admin1111111111111111111111111111111111".into(),
         };
 
         let market_two_summary = MarketSummary {
             market: "Market2222222222222222222222222222222222".into(),
             pump_mint: "PumpMint22222222222222222222222222222222".into(),
             creator_vault: "CreatorVault2222222222222222222222222222222".into(),
+            creator_authority: "Authority22222222222222222222222222222222".into(),
             sy_mint: "SyMint222222222222222222222222222222222".into(),
             pt_mint: "PtMint222222222222222222222222222222222".into(),
             yt_mint: "YtMint222222222222222222222222222222222".into(),
@@ -765,6 +776,7 @@ impl MockData {
             yt_supply: 64_000.0,
             implied_apy: 0.0,
             status: MarketStatus::Matured,
+            admin: "Admin2222222222222222222222222222222222".into(),
         };
 
         let market_one_detail = MarketDetail {

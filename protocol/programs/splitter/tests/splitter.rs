@@ -701,6 +701,80 @@ async fn close_market_missing_admin_signature_fails() {
 }
 
 #[tokio::test]
+async fn close_market_rejects_remaining_yt_supply() {
+    let mut fixture = setup_market_fixture().await;
+    let context = &mut fixture.context;
+    let user = &fixture.user;
+
+    let mint_ix = fixture.mint_pt_yt_ix(25_000);
+    send_tx(context, &[mint_ix], &[user]).await;
+
+    let close_accounts = accounts::CloseMarket {
+        creator_authority: fixture.pump_creator.pubkey(),
+        admin: context.payer.pubkey(),
+        creator_vault: fixture.creator_vault,
+        market: fixture.market.pubkey(),
+        pt_mint: fixture.pt_mint.pubkey(),
+        yt_mint: fixture.yt_mint.pubkey(),
+    };
+    let close_ix = Instruction {
+        program_id: splitter::id(),
+        accounts: close_accounts.to_account_metas(None),
+        data: instruction::CloseMarket {}.data(),
+    };
+    let payer_clone = clone_keypair(&context.payer);
+    let authority_clone = clone_keypair(&fixture.pump_creator);
+    let err =
+        send_tx_expect_err_owned(context, &[close_ix], vec![payer_clone, authority_clone]).await;
+    assert_custom_error(err, SplitterError::OutstandingYield as u32);
+}
+
+#[tokio::test]
+async fn mint_pt_yt_fails_when_market_is_closed() {
+    let mut fixture = setup_market_fixture().await;
+    let context = &mut fixture.context;
+    let user = &fixture.user;
+
+    mark_market_closed(context, fixture.market.pubkey()).await;
+
+    let mint_ix = fixture.mint_pt_yt_ix(1);
+    let err = send_tx_expect_err(context, &[mint_ix], &[user]).await;
+    assert_custom_error(err, SplitterError::MarketClosed as u32);
+}
+
+#[tokio::test]
+async fn redeem_yield_rejects_closed_market_flag() {
+    let mut fixture = setup_market_fixture().await;
+    let context = &mut fixture.context;
+    let user = &fixture.user;
+
+    let mint_ix = fixture.mint_pt_yt_ix(10_000);
+    send_tx(context, &[mint_ix], &[user]).await;
+
+    mark_market_closed(context, fixture.market.pubkey()).await;
+
+    let redeem_ix = fixture.redeem_yield_ix(FEE_INDEX_SCALE);
+    let err = send_tx_expect_err(context, &[redeem_ix], &[user]).await;
+    assert_custom_error(err, SplitterError::MarketClosed as u32);
+}
+
+#[tokio::test]
+async fn redeem_principal_rejects_closed_market_flag() {
+    let mut fixture = setup_market_fixture().await;
+    let context = &mut fixture.context;
+    let user = &fixture.user;
+
+    let mint_ix = fixture.mint_pt_yt_ix(5_000);
+    send_tx(context, &[mint_ix], &[user]).await;
+
+    mark_market_closed(context, fixture.market.pubkey()).await;
+
+    let redeem_ix = fixture.redeem_principal_ix(1_000);
+    let err = send_tx_expect_err(context, &[redeem_ix], &[user]).await;
+    assert_custom_error(err, SplitterError::MarketClosed as u32);
+}
+
+#[tokio::test]
 async fn create_market_rejects_decimal_mismatch() {
     let mut fixture = setup_market_fixture().await;
     let context = &mut fixture.context;
@@ -882,6 +956,27 @@ async fn seed_user_sy_balance(
         &creator_vault_pda,
         &AccountSharedData::from(creator_account),
     );
+}
+
+async fn mark_market_closed(context: &mut ProgramTestContext, market: Pubkey) {
+    let mut market_account = context
+        .banks_client
+        .get_account(market)
+        .await
+        .unwrap()
+        .unwrap();
+    let mut data_slice: &[u8] = &market_account.data;
+    let mut state = Market::try_deserialize(&mut data_slice).unwrap();
+    state.is_closed = true;
+    if state.maturity_ts > 0 {
+        state.maturity_ts = -1;
+    }
+    let mut serialized = Market::DISCRIMINATOR.to_vec();
+    let mut body = state.try_to_vec().unwrap();
+    serialized.append(&mut body);
+    serialized.resize(8 + Market::INIT_SPACE, 0);
+    market_account.data = serialized;
+    context.set_account(&market, &AccountSharedData::from(market_account));
 }
 
 async fn process_tx(
