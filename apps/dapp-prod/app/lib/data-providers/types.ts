@@ -40,6 +40,7 @@ export interface MarketSummary {
   market: string;
   pump_mint: string;
   creator_vault: string;
+  creator_authority: string;
   sy_mint: string;
   pt_mint: string;
   yt_mint: string;
@@ -48,6 +49,7 @@ export interface MarketSummary {
   yt_supply: number;
   implied_apy: number;
   status: 'active' | 'matured' | 'settled';
+  admin: string;
 }
 
 export interface MarketDetail {

@@ -167,10 +167,12 @@
 - Guard rails if CTO not approved yet (disable split actions).
 - Display health status (vault paused, AMM paused) if governance toggles stop conditions; disable buttons and highlight paused banner.
 - Validate user cluster before enabling Live actions; surface low SOL warning.
+- Require the same wallet to match both creator authority and admin before exposing market close controls; surface guidance when roles differ.
+- Cache `/v1/*` responses behind weak ETags with a configurable TTL and retry/backoff for transient 5xx/429 responses.
 
 ## Demo vs Live Modes
-- The frontend boots in **Demo** mode with local mock data so new contributors can explore safely.
-- A header toggle promotes **Live (devnet)**. Switching to Live performs `/readyz` and `/version` checks against `NEXT_PUBLIC_API_BASE`.
+- The frontend boots in **Demo** mode with local mock data so new contributors can explore safely and revalidates `/readyz` on mount if the stored mode is Live.
+- A header toggle promotes **Live (devnet)**. Switching to Live performs `/readyz` and `/version` checks against `NEXT_PUBLIC_API_BASE` and rechecks health if the session resumes later.
 - If either health check fails, the UI automatically reverts to Demo, keeps the toggle off, and surfaces a toast.
 - Live mode surfaces a banner reminding users that health failures fall back to Demo automatically.
 
@@ -197,7 +199,7 @@ All keys are validated on boot. Missing or malformed values force Demo mode and 
 - Wrap → split → stake → fund (mock) → claim SOL → unstake (devnet flow via RewardsVault).
 - attnUSD deposit/redeem flows (verify NAV increase when oracle/indexer updates).
 - Swap PT/quote, add/remove liquidity, view position updates.
-- Rewards page pagination + ETag caching (mock 304).
+- Rewards page pagination + ETag caching (mock 304) including TTL expiry fallbacks.
 - Live mode health fallback when `/readyz` fails.
 - Pause banner + disabled states when `/v1/governance` reports paused vaults.
 

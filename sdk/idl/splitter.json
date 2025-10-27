@@ -20,8 +20,12 @@
       ],
       "accounts": [
         {
-          "name": "authority",
+          "name": "creator_authority",
           "writable": true,
+          "signer": true
+        },
+        {
+          "name": "admin",
           "signer": true
         },
         {
@@ -835,7 +839,11 @@
             "type": "pubkey"
           },
           {
-            "name": "authority",
+            "name": "creator_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "admin",
             "type": "pubkey"
           }
         ]

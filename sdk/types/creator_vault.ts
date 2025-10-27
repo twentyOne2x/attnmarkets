@@ -710,6 +710,10 @@ export type CreatorVault = {
             "type": "pubkey"
           },
           {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
             "name": "admin",
             "type": "pubkey"
           }

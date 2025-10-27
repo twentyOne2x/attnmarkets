@@ -39,6 +39,9 @@ jobs:
       - name: Install sqlx-cli
         run: cargo install sqlx-cli --no-default-features --features native-tls,postgres
 
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -60,6 +63,26 @@ jobs:
       - name: Backend tests
         working-directory: protocol
         run: cargo test -p attn_api
+
+      - name: Rust format check
+        working-directory: protocol
+        run: cargo fmt --all -- --check
+
+      - name: Rust clippy
+        working-directory: protocol
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Splitter unit tests
+        working-directory: protocol
+        run: cargo test -p splitter --lib
+
+      - name: Splitter program tests
+        working-directory: protocol
+        run: cargo test -p splitter --features program-test
+
+      - name: Cargo audit
+        working-directory: protocol
+        run: cargo audit
 
       - name: Frontend build
         run: pnpm --filter dapp-prod build

@@ -393,6 +393,7 @@ struct VaultInitializedEvent {
     pub pump_mint: String,
     pub quote_mint: String,
     pub sy_mint: String,
+    pub authority: String,
     pub admin: String,
 }
 
@@ -902,6 +903,7 @@ async fn persist_creator_vault_initialized(
         "pump_mint": event.pump_mint,
         "quote_mint": event.quote_mint,
         "sy_mint": event.sy_mint,
+        "authority": event.authority,
         "admin": event.admin,
     }))
     .execute(pool.as_ref())
@@ -913,13 +915,14 @@ async fn persist_creator_vault_initialized(
 
     sqlx::query(
         r#"
-        insert into creator_vaults (pump_mint, vault_pubkey, total_fees_lamports, total_sy, last_slot, admin, sol_rewards_bps, paused, sy_mint, updated_at)
-        values ($1, $2, 0, 0, $3, $4, 0, false, $5, now())
+        insert into creator_vaults (pump_mint, vault_pubkey, total_fees_lamports, total_sy, last_slot, admin, sol_rewards_bps, paused, sy_mint, authority, updated_at)
+        values ($1, $2, 0, 0, $3, $4, 0, false, $5, $6, now())
         on conflict (pump_mint)
         do update set
             vault_pubkey = EXCLUDED.vault_pubkey,
             admin = EXCLUDED.admin,
             sy_mint = EXCLUDED.sy_mint,
+            authority = EXCLUDED.authority,
             updated_at = now()
         "#,
     )
@@ -928,6 +931,7 @@ async fn persist_creator_vault_initialized(
     .bind(slot as i64)
     .bind(&event.admin)
     .bind(&event.sy_mint)
+    .bind(&event.authority)
     .execute(pool.as_ref())
     .await?;
 
