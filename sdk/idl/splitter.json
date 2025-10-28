@@ -1,5 +1,5 @@
 {
-  "address": "DusRTfShkXozaatx71Qv413RNEXqPNZS8hg9BnBeAQQE",
+  "address": "AmGu31S9SPLXj12etgXKnuVMzTNb653mRjkSqU8bgaPN",
   "metadata": {
     "name": "splitter",
     "version": "0.1.0",
@@ -280,7 +280,7 @@
         },
         {
           "name": "creator_vault_program",
-          "address": "HPjEgPTb7rrBks1oFrscBdJ7TCZ7bARzCT93X9azCK4b"
+          "address": "HDztZyNcij21HhF5SR6rhk9wx9qx6yViebUrVU9W6C86"
         }
       ],
       "args": [
@@ -367,12 +367,20 @@
           "writable": true
         },
         {
+          "name": "user_yt_ata",
+          "writable": true
+        },
+        {
+          "name": "yt_mint",
+          "writable": true
+        },
+        {
           "name": "token_program",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
           "name": "creator_vault_program",
-          "address": "HPjEgPTb7rrBks1oFrscBdJ7TCZ7bARzCT93X9azCK4b"
+          "address": "HDztZyNcij21HhF5SR6rhk9wx9qx6yViebUrVU9W6C86"
         }
       ],
       "args": [
@@ -482,7 +490,30 @@
         },
         {
           "name": "fee_vault",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creator_vault.pump_mint",
+                "account": "CreatorVault"
+              }
+            ]
+          }
         },
         {
           "name": "user_quote_ata",
@@ -494,7 +525,7 @@
         },
         {
           "name": "creator_vault_program",
-          "address": "HPjEgPTb7rrBks1oFrscBdJ7TCZ7bARzCT93X9azCK4b"
+          "address": "HDztZyNcij21HhF5SR6rhk9wx9qx6yViebUrVU9W6C86"
         }
       ],
       "args": [
@@ -560,149 +591,71 @@
     }
   ],
   "events": [
-  {
-    "name": "MarketClosed",
-    "discriminator": [
-      86,
-      91,
-      119,
-      43,
-      94,
-      0,
-      217,
-      113
-    ],
-    "fields": [
-      {
-        "name": "market",
-        "type": "publicKey"
-      },
-      {
-        "name": "creatorAuthority",
-        "type": "publicKey"
-      },
-      {
-        "name": "admin",
-        "type": "publicKey"
-      }
-    ]
-  },
-  {
-    "name": "MarketCreated",
-    "discriminator": [
-      88,
-      184,
-      130,
-      231,
-      226,
-      84,
-      6,
-      58
-    ],
-    "fields": [
-      {
-        "name": "market",
-        "type": "publicKey"
-      },
-      {
-        "name": "pumpMint",
-        "type": "publicKey"
-      },
-      {
-        "name": "maturityTs",
-        "type": "i64"
-      }
-    ]
-  },
-  {
-    "name": "PrincipalRedeemed",
-    "discriminator": [
-      114,
-      199,
-      124,
-      179,
-      158,
-      84,
-      242,
-      15
-    ],
-    "fields": [
-      {
-        "name": "market",
-        "type": "publicKey"
-      },
-      {
-        "name": "user",
-        "type": "publicKey"
-      },
-      {
-        "name": "amount",
-        "type": "u64"
-      }
-    ]
-  },
-  {
-    "name": "PtYtMinted",
-    "discriminator": [
-      147,
-      17,
-      51,
-      128,
-      18,
-      106,
-      82,
-      222
-    ],
-    "fields": [
-      {
-        "name": "market",
-        "type": "publicKey"
-      },
-      {
-        "name": "user",
-        "type": "publicKey"
-      },
-      {
-        "name": "amount",
-        "type": "u64"
-      }
-    ]
-  },
-  {
-    "name": "YieldRedeemed",
-    "discriminator": [
-      146,
-      205,
-      76,
-      218,
-      82,
-      193,
-      102,
-      135
-    ],
-    "fields": [
-      {
-        "name": "market",
-        "type": "publicKey"
-      },
-      {
-        "name": "user",
-        "type": "publicKey"
-      },
-      {
-        "name": "claimedAmount",
-        "type": "u64"
-      },
-      {
-        "name": "feeIndex",
-        "type": "u128"
-      },
-      {
-        "name": "marketDelta",
-        "type": "u128"
-      }
-    ]
-  }
+    {
+      "name": "MarketClosed",
+      "discriminator": [
+        86,
+        91,
+        119,
+        43,
+        94,
+        0,
+        217,
+        113
+      ]
+    },
+    {
+      "name": "MarketCreated",
+      "discriminator": [
+        88,
+        184,
+        130,
+        231,
+        226,
+        84,
+        6,
+        58
+      ]
+    },
+    {
+      "name": "PrincipalRedeemed",
+      "discriminator": [
+        114,
+        199,
+        124,
+        179,
+        158,
+        84,
+        242,
+        15
+      ]
+    },
+    {
+      "name": "PtYtMinted",
+      "discriminator": [
+        147,
+        17,
+        51,
+        128,
+        18,
+        106,
+        82,
+        222
+      ]
+    },
+    {
+      "name": "YieldRedeemed",
+      "discriminator": [
+        146,
+        205,
+        76,
+        218,
+        82,
+        193,
+        102,
+        135
+      ]
+    }
   ],
   "errors": [
     {
@@ -767,13 +720,43 @@
     },
     {
       "code": 6012,
+      "name": "InsufficientYieldTokens",
+      "msg": "User has insufficient YT balance"
+    },
+    {
+      "code": 6013,
       "name": "OutstandingPrincipal",
       "msg": "Outstanding principal prevents closing"
     },
     {
-      "code": 6013,
+      "code": 6014,
+      "name": "OutstandingYield",
+      "msg": "Outstanding yield prevents closing"
+    },
+    {
+      "code": 6015,
       "name": "InvalidUserPosition",
       "msg": "User position PDA mismatch"
+    },
+    {
+      "code": 6016,
+      "name": "InvalidTokenProgram",
+      "msg": "Token program must match the SPL Token program"
+    },
+    {
+      "code": 6017,
+      "name": "MintDecimalsMismatch",
+      "msg": "Mint decimals must be aligned"
+    },
+    {
+      "code": 6018,
+      "name": "YieldSupplyMismatch",
+      "msg": "Yield token supply accounting mismatch"
+    },
+    {
+      "code": 6019,
+      "name": "MarketClosed",
+      "msg": "Market is closed"
     }
   ],
   "types": [
@@ -839,11 +822,19 @@
             "type": "bool"
           },
           {
+            "name": "locked",
+            "type": "bool"
+          },
+          {
+            "name": "lock_expires_at",
+            "type": "i64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                5
+                1
               ]
             }
           }

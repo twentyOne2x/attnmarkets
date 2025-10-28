@@ -3,8 +3,9 @@
 ## Fast links
 - Site/Demo: https://attn.markets
 - X: https://x.com/attndotmarkets
-- Founder: https://x.com/twentyOne2x
+- Founder (full-time on attn): https://x.com/twentyOne2x
 - Forum post: https://arena.colosseum.org/posts/3308
+- Devnet setup checklist: [docs/devnet-setup.md](docs/devnet-setup.md)
 
 ## TL;DR
 - Tokenize Solana fee streams (starting with Pump.fun) into Standardized Yield `SY` → Principal `PT` + / Yield `YT`, `attnUSD`, SOL rewards.
@@ -153,18 +154,20 @@ Vault-level events emit `last_*_id` counters so the indexer can dedupe and `/v1/
 ## Deployed IDs (devnet)
 | Program | ID |
 |---------|----|
-| CreatorVault | `HPjEgPTb7rrBks1oFrscBdJ7TCZ7bARzCT93X9azCK4b` |
-| Splitter | `DusRTfShkXozaatx71Qv413RNEXqPNZS8hg9BnBeAQQE` |
+| CreatorVault | `HDztZyNcij21HhF5SR6rhk9wx9qx6yViebUrVU9W6C86` |
+| Splitter | `AmGu31S9SPLXj12etgXKnuVMzTNb653mRjkSqU8bgaPN` |
 | StableVault | `98jhX2iz4cec2evPKhLwA1HriVEbUAsMBo61bQpSef5Z` |
-| RewardsVault | `RwdsVaULTxQg7vKQmsG9tPo8mWxryQac1hZ2RKSBv2C` |
+| RewardsVault | `6M8TEGPJhspXoYtDvY5vd9DHg7ojCPgbrqjaWoZa2dfw` |
 | AMM (placeholder) | `4DSYe8VteU1vLgwGrTeoyGLZdsCG87srCVLkVqza3keg` |
 
 Example PDAs (illustrative seeds using demo inputs):
-- `creator_vault` = `AVnmXeUBSTgytdnPtzAZJb9LAL1VVMgBYp4LnwVgp9Vf`
-- `fee_vault` = `HT6T9eg1JqKHf9Xe2zY2HR5pLrrpTsAEzeBZ75djQ87z`
-- `sy_mint` = `ERU9voJjXRQ5ukoxPBh3KjJRu5eJnhEa3Em18Y4Qq8v2`
-- `rewards_pool` = `8Q2r6gTuFgt4zAzmwp9dZuJQoM66Rz5yvgNWJDnPKafU`
-- `rewards_authority` = `GDTn3rDgeQAMe4A4BCp9vjCE2khbUNHaWjTuK5Vm5KCh`
+- `creator_vault` = `F59VzNTJzwLHhEAMXdgcFSG7BAomEE9v2HthgERryV3G`
+- `fee_vault` = `HN41nBgLMX1muHNXczTwLmCkRfK6YdqpZ2aCFYBAdkgp`
+- `sy_mint` = `5rSnbBhCLZ7kcEEsYhuwLy9tL2G9EErbkEy7KwV8ahYZ`
+- `rewards_pool` = `3Qx9aXCC7aXxgvHg3fwpitPXxPgKJvCHxXaHS7rjJFxx`
+- `rewards_authority` = `38WNm4rgzFpCxNBS2r5L1RnL4tmDK5v226k9c9uxMYKP`
+- `rewards_attn_vault` = `8TwJP8ZozGMy9QFuW1kgNWjt8cwBNaZxsfyn68U3RicF`
+- `rewards_sol_treasury` = `FhLaqT6vbupK8vLVW9GSexQPfopKe3YSEKXSGGGcdhFu`
 - `stable_vault` (authority seed example) = `HZiPGeprnRDwDdsv3RVmWXN56zcRMVg6BdvF5eoAGrYo`
 - `splitter_authority` = `ggmjcruVhoriJnU7a5eoBzDfUmqJnC2hPRo22LcDksV`
 

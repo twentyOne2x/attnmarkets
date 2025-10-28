@@ -1,5 +1,5 @@
 {
-  "address": "RwdsVaULTxQg7vKQmsG9tPo8mWxryQac1hZ2RKSBv2C",
+  "address": "6M8TEGPJhspXoYtDvY5vd9DHg7ojCPgbrqjaWoZa2dfw",
   "metadata": {
     "name": "rewards_vault",
     "version": "0.1.0",
@@ -323,32 +323,7 @@
         },
         {
           "name": "sol_treasury",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  115,
-                  111,
-                  108,
-                  45,
-                  116,
-                  114,
-                  101,
-                  97,
-                  115,
-                  117,
-                  114,
-                  121
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "rewards_pool"
-              }
-            ]
-          }
+          "writable": true
         },
         {
           "name": "token_program",
@@ -1165,11 +1140,19 @@
             "type": "bool"
           },
           {
+            "name": "locked",
+            "type": "bool"
+          },
+          {
+            "name": "lock_expires_at",
+            "type": "i64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                5
+                1
               ]
             }
           }

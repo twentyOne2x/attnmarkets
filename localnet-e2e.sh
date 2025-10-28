@@ -9,6 +9,7 @@ API_URL="${API_URL:-http://127.0.0.1:8080}"
 E2E_KEYPAIR="${E2E_KEYPAIR:-$HOME/.config/solana/id.json}"
 BANK_KEYPAIR="${BANK_KEYPAIR:-${DEVNET_BANK_KEYPAIR:-$E2E_KEYPAIR}}"
 ATTN_CLI="cargo run -p attn_cli -- --url ${NETWORK_URL} --keypair ${E2E_KEYPAIR}"
+BANK_PUBKEY="$(solana-keygen pubkey "$BANK_KEYPAIR")"
 
 REQUIRED_ENV=(CREATOR_VAULT ATTN_MINT REWARDS_ALLOWED_FUNDER SOL_REWARDS_BPS WRAP_AMOUNT SPLIT_MARKET_ID)
 for var in "${REQUIRED_ENV[@]}"; do
@@ -32,16 +33,32 @@ mkdir -p "$LEDGER_DIR"
 rm -rf "$LEDGER_DIR"/*
 
 echo "🚀 Starting local validator..."
-solana-test-validator --reset --ledger "$LEDGER_DIR" --mint "$BANK_KEYPAIR" \
+solana-test-validator --reset --ledger "$LEDGER_DIR" --mint "$BANK_PUBKEY" \
   --rpc-port "${NETWORK_URL##*:}" \
   >"$VALIDATOR_LOG" 2>&1 &
 VALIDATOR_PID=$!
 
 sleep 5
+
+echo "⏳ Waiting for local validator RPC..."
+for _ in {1..20}; do
+  if solana --url "$NETWORK_URL" cluster-version >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+
 solana config set --url "$NETWORK_URL" --keypair "$E2E_KEYPAIR" >/dev/null
 
-anchor build
-ANCHOR_PROVIDER_URL="$NETWORK_URL" ANCHOR_WALLET="$E2E_KEYPAIR" anchor deploy --provider cluster localnet
+PROGRAMS=(creator_vault stable_vault rewards_vault splitter)
+
+for program in "${PROGRAMS[@]}"; do
+  echo "🛠️  Building $program"
+  anchor build --program-name "$program"
+  echo "📤 Deploying $program"
+  ANCHOR_PROVIDER_URL="$NETWORK_URL" ANCHOR_WALLET="$E2E_KEYPAIR" \
+    anchor deploy --program-name "$program" --no-idl
+done
 
 echo "⚙️  Initializing RewardsVault"
 $ATTN_CLI rewards initialize \

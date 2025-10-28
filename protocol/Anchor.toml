@@ -7,7 +7,10 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
+creator_vault = "HDztZyNcij21HhF5SR6rhk9wx9qx6yViebUrVU9W6C86"
 stable_vault = "98jhX2iz4cec2evPKhLwA1HriVEbUAsMBo61bQpSef5Z"
+rewards_vault = "6M8TEGPJhspXoYtDvY5vd9DHg7ojCPgbrqjaWoZa2dfw"
+splitter = "AmGu31S9SPLXj12etgXKnuVMzTNb653mRjkSqU8bgaPN"
 
 [registry]
 url = "https://api.apr.dev"

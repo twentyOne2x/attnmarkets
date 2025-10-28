@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/rewards_vault.json`.
  */
 export type RewardsVault = {
-  "address": "RwdsVaULTxQg7vKQmsG9tPo8mWxryQac1hZ2RKSBv2C",
+  "address": "6M8TEGPJhspXoYtDvY5vd9DHg7ojCPgbrqjaWoZa2dfw",
   "metadata": {
     "name": "rewardsVault",
     "version": "0.1.0",
@@ -329,32 +329,7 @@ export type RewardsVault = {
         },
         {
           "name": "solTreasury",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  115,
-                  111,
-                  108,
-                  45,
-                  116,
-                  114,
-                  101,
-                  97,
-                  115,
-                  117,
-                  114,
-                  121
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "rewardsPool"
-              }
-            ]
-          }
+          "writable": true
         },
         {
           "name": "tokenProgram",
@@ -1171,11 +1146,19 @@ export type RewardsVault = {
             "type": "bool"
           },
           {
+            "name": "locked",
+            "type": "bool"
+          },
+          {
+            "name": "lockExpiresAt",
+            "type": "i64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                5
+                1
               ]
             }
           }

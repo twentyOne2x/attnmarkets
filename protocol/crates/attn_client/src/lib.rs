@@ -1170,7 +1170,9 @@ pub mod creator {
     {
         let (sweeper, _) = sweeper_pda(&creator_vault);
         match program.rpc().get_account(&sweeper) {
-            Ok(account) => Ok(Some(decode_account::<CreatorVaultSweeperAccount>(&account.data)?)),
+            Ok(account) => Ok(Some(decode_account::<CreatorVaultSweeperAccount>(
+                &account.data,
+            )?)),
             Err(err) => {
                 if err.to_string().contains("AccountNotFound") {
                     Ok(None)

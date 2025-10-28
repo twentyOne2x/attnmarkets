@@ -7,7 +7,7 @@ use anchor_lang::InstructionData;
 use anchor_spl::token::{self, Burn, Mint, Token, TokenAccount};
 use creator_vault::CreatorVault;
 
-declare_id!("DusRTfShkXozaatx71Qv413RNEXqPNZS8hg9BnBeAQQE");
+declare_id!("AmGu31S9SPLXj12etgXKnuVMzTNb653mRjkSqU8bgaPN");
 
 pub const FEE_INDEX_SCALE: u128 = 1_000_000_000;
 

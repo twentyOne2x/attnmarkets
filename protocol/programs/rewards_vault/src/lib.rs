@@ -6,7 +6,7 @@ use creator_vault::CreatorVault as CreatorVaultAccount;
 pub const INDEX_SCALE: u128 = 1_000_000_000;
 const TOTAL_BPS: u64 = 10_000;
 
-declare_id!("RwdsVaULTxQg7vKQmsG9tPo8mWxryQac1hZ2RKSBv2C");
+declare_id!("6M8TEGPJhspXoYtDvY5vd9DHg7ojCPgbrqjaWoZa2dfw");
 
 #[program]
 pub mod rewards_vault {
@@ -548,11 +548,7 @@ pub struct InitializePool<'info> {
         bump
     )]
     pub attn_vault: Account<'info, TokenAccount>,
-    #[account(
-        mut,
-        seeds = [b"sol-treasury", rewards_pool.key().as_ref()],
-        bump = rewards_pool.treasury_bump
-    )]
+    #[account(mut)]
     pub sol_treasury: SystemAccount<'info>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
