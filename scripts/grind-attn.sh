@@ -12,15 +12,42 @@ else
 fi
 
 OUT_DIR="${OUT_DIR:-./vanity-attn}"
-TARGET="attn"
-COUNT="${COUNT:-1}"
-THREADS="${THREADS:-$(( $(nproc) - 2 ))}"
+TARGET="${TARGET:-attn}"
+THREADS_DEFAULT=$(( $(nproc) > 2 ? $(nproc) - 2 : 1 ))
+THREADS="${THREADS:-$THREADS_DEFAULT}"
+
+MODE="${MODE:-both}"            # valid values: both, start, end
+COUNT="${COUNT:-1}"             # used in MODE=both
+COUNT_START="${COUNT_START:-${COUNT:-1}}"
+COUNT_END="${COUNT_END:-${COUNT:-1}}"
 
 mkdir -p "$OUT_DIR"
 cd "$OUT_DIR"
 
-echo "Grinding for ${COUNT} pubkey(s) that start and end with '${TARGET}' using ${THREADS} threads..."
-solana-keygen grind \
-  --starts-and-ends-with "${TARGET}:${TARGET}:${COUNT}" \
-  --num-threads "${THREADS}" \
-  --ignore-case
+case "$MODE" in
+  both)
+    echo "Grinding for ${COUNT} pubkey(s) that start AND end with '${TARGET}' using ${THREADS} threads..."
+    solana-keygen grind \
+      --starts-and-ends-with "${TARGET}:${TARGET}:${COUNT}" \
+      --num-threads "${THREADS}" \
+      --ignore-case
+    ;;
+  start)
+    echo "Grinding for ${COUNT_START} pubkey(s) that start with '${TARGET}' using ${THREADS} threads..."
+    solana-keygen grind \
+      --starts-with "${TARGET}:${COUNT_START}" \
+      --num-threads "${THREADS}" \
+      --ignore-case
+    ;;
+  end)
+    echo "Grinding for ${COUNT_END} pubkey(s) that end with '${TARGET}' using ${THREADS} threads..."
+    solana-keygen grind \
+      --ends-with "${TARGET}:${COUNT_END}" \
+      --num-threads "${THREADS}" \
+      --ignore-case
+    ;;
+  *)
+    echo "error: MODE must be one of 'both', 'start', or 'end' (got '${MODE}')" >&2
+    exit 1
+    ;;
+esac
