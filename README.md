@@ -8,35 +8,39 @@
 - Devnet setup checklist: [docs/devnet-setup.md](docs/devnet-setup.md)
 
 ## TL;DR
-- Tokenize Solana fee streams (starting with Pump.fun) into Standardized Yield `SY` → Principal `PT` + / Yield `YT`, `attnUSD`, SOL rewards.
-- Dual-control via Squads 2-of-2; pause + idempotent keeper ops, with creator withdrawals remaining single-signer while the vault is unlocked.
-- Splitter markets close only when PT/YT supply is zero and both the creator authority and admin signers co-authorize; CPIs require the classic SPL Token program (Tokenkeg...).
-- **15-day advance UX:** mint PT/YT, sell YT for upfront USDC, buy back any time (devnet RFQ).
-- Devnet live; AMM v0 pending. Details below.
+- Tokenize ICM + CCM Solana fee streams starting with Pump.fun into Principal `PT` + Yield `YT`. 
+- Builders/Creators get cash advance, loans, fees autosweep, fees autostake products.
+- LPs get yield uncorrelated to market returns sourced from creator products.
+- Dual-control via Squads 2-of-2; with creator withdrawals remaining single-signer while no position is opened.
+- Builder/Creator onboarding with Squads Safe creation live on Devnet.
 
 ## Why now - creator + builder payouts (as of 2025-10-25)
-- Receivables advances (factoring): **~$4T annual turnover**. [[1]]
-- Pump.fun creator fees: **~$300M annualized** from last 30 days. [[2]]
-- YouTube: **~$70B** to creators over last 3 years (**~$23B/yr avg**). [[3]]
-- TikTok LIVE gifts: **~$1.5B** in **2023**. [[4]]
-- OnlyFans: **$5.32B** paid in **FY2023**. [[5]]
-- Twitch: **>$1B** to streamers in **2023**. [[6]]
+- Receivables advances (factoring): **~$4T annual turnover**. [[fci.nl]]
+- Pump.fun creator fees: **~$300M annualized** from last 30 days. [[earnings.wtf]]
+- YouTube: **~$70B** to creators over last 3 years (**~$23B/yr avg**). [[youtube]]
+- TikTok LIVE gifts: **~$1.5B** in **2023**. [[fxcintel.com]]
+- OnlyFans: **$5.32B** paid in **FY2023**. [[upmarket.co]]
+- Twitch: **>$1B** to streamers in **2023**. [[twitch.tv]]
 
 *Notes:* Pump.fun is a 30-day run-rate; others are fiscal-year totals or program subsets. All USD.
 
-[1]: https://fci.nl/en/news/fci-release-2024-world-industry-statistics-showing-factoring-market-remains-stable
-[2]: https://earnings.wtf
-[3]: https://blog.youtube/inside-youtube/2024-letter-from-neal/
-[4]: https://www.fxcintel.com/research/press-releases/new-data-analysis-shows-tiktok-takes-77-cut-of-gift-payments-sent-to-creators
-[5]: https://www.upmarket.co/blog/onlyfans-official-revenue-net-profit-creator-and-subscriber-data-updated-september-2024/
-[6]: https://blog.twitch.tv/en/2024/01/10/a-difficult-update-about-our-workforce/
+[fci.nl]: https://fci.nl/en/news/fci-release-2024-world-industry-statistics-showing-factoring-market-remains-stable
+[earnings.wtf]: https://earnings.wtf
+[youtube]: https://blog.youtube/inside-youtube/2024-letter-from-neal/
+[fxcintel.com]: https://www.fxcintel.com/research/press-releases/new-data-analysis-shows-tiktok-takes-77-cut-of-gift-payments-sent-to-creators
+[upmarket.co]: https://www.upmarket.co/blog/onlyfans-official-revenue-net-profit-creator-and-subscriber-data-updated-september-2024/
+[twitch.tv]: https://blog.twitch.tv/en/2024/01/10/a-difficult-update-about-our-workforce/
 
 
 ## What We’re Building
-attn.markets tokenises Solana fee streams (ICM, creator token) into Pendle-style Principal and Yield tokens. Pump.fun’s CTO flow is the first on-ramp: once fees point to the CreatorVault PDA (admin = Squads 2-of-2: creator+attn), we wrap them into Standardized Yield (SY) and split into Principal (PT) and Yield (YT) tokens, rails we can reuse wherever fee authority can be reassigned.
+attn.markets tokenises Solana fee streams (ICM + CCM) into Pendle-style Principal and Yield tokens. 
+
+Pump.fun’s CTO flow is the first on-ramp: once fees point to the CreatorVault PDA (Squads 2-of-2: creator+attn), we wrap them into Standardized Yield (SY) and split into Principal (PT) and Yield (YT) tokens, rails we can reuse wherever fee authority can be reassigned. 
+
+LPs deposit stables (USDC, USDT, USDe, USDC+) to mint `attnUSD` and accrue fees services given to builders/creators.
 
 ### What this unlocks
-- **Creators & builders** – Package fee rights into PT/YT to pre-sell cash flows, hedge volatility, or sell perpetual claims.
+- **Creators & builders** – Autosweep fees, autostake fees (~ +4.5% APR), cash advance by selling YT, or selling slice of PT i.e. all future cash flows.
 - **DeFi users, protocols, risk desks** – `attnUSD` and YT tranches turn fee exposure into diversified, yield-bearing assets for farmers, risk custodians, treasuries, and structured products.
 - **Composable rails** – SY/PT/YT feed the AMM, stable vault, and forthcoming credit/hedging modules, the backbone for internet capital markets on Solana.
 
