@@ -1,3 +1,5 @@
+import type { CreatorMetrics } from '../../utils/borrowingCalculations';
+
 export interface CursorParams {
   cursor?: string;
   limit?: number;
@@ -26,6 +28,11 @@ export interface CreatorSummary {
   beta_pct: number;
   alpha_pct: number;
   gamma_pct: number;
+  creator_vault?: string | null;
+  market?: string;
+  admin?: string | null;
+  pump_mint?: string | null;
+  metrics?: CreatorMetrics;
   activeLoan?: {
     amount: number;
     maxBorrowable: number;

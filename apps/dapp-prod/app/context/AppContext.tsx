@@ -12,6 +12,7 @@ import {
   validateBorrowingRequest,
   calculateAvailableLiquidity,
   Creator,
+  CreatorMetrics,
   PoolData
 } from '../utils/borrowingCalculations';
 import { useDataMode, type HealthStatus } from './DataModeContext';
@@ -44,6 +45,23 @@ const calculatePoolTVL = (
   // Pool TVL = Base Seed + User Deposits
   // Outstanding loans don't add to TVL, they just reduce available liquidity
   return POOL_CONFIG.baseSeedAmount + userDeposits;
+};
+
+const computeCreatorMetrics = (fees7dUsd: number, estBetaNext30dUsd: number): CreatorMetrics => {
+  const sanitizedWeekly = Math.max(0, fees7dUsd);
+  const sanitizedProjection = Math.max(0, estBetaNext30dUsd);
+  const recent14dTotal = sanitizedWeekly * 2;
+  const recent14dAverage = recent14dTotal / 14;
+  const totalFeesEstimate = Math.max(sanitizedWeekly * 4, sanitizedProjection);
+  const leaderboardBase = totalFeesEstimate + recent14dTotal;
+  const leaderboardPoints = Math.round(leaderboardBase * 1.25);
+
+  return {
+    totalFeesUsd: Number(totalFeesEstimate.toFixed(2)),
+    recent14dTotalUsd: Number(recent14dTotal.toFixed(2)),
+    recent14dAverageUsd: Number(recent14dAverage.toFixed(2)),
+    leaderboardPoints,
+  };
 };
 
 interface UserData {
@@ -275,8 +293,11 @@ const createDeterministicDemoCreators = (baseCreators: any[]): Creator[] => {
       const utilizationPct = loanAssignment.utilizationPct;
       const borrowingTerms = calculateBorrowingTerms(weeklyEarnings, utilizationPct);
       
+      const metrics = computeCreatorMetrics(weeklyEarnings, creator.est_beta_next30d_usd);
+
       return {
         ...creator,
+        metrics,
         activeLoan: {
           amount: borrowingTerms.borrowAmount,
           maxBorrowable: borrowingTerms.maxBorrowable,
@@ -288,7 +309,7 @@ const createDeterministicDemoCreators = (baseCreators: any[]): Creator[] => {
       } as Creator;
     }
     
-    return { ...creator } as Creator;
+    return { ...creator, metrics: computeCreatorMetrics(creator.fees7d_usd, creator.est_beta_next30d_usd) } as Creator;
   });
 
   const totalBorrowed = creatorsWithLoans.reduce((sum, c) => sum + (c.activeLoan?.amount || 0), 0);
@@ -661,16 +682,29 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
             provider.getGovernance(),
           ]);
 
-          const normalizedCreators = creatorsPage.items.map(creator => ({
-            wallet: creator.wallet,
-            fees7d_usd: creator.fees7d_usd,
-            beta_pct: creator.beta_pct,
-            alpha_pct: creator.alpha_pct,
-            gamma_pct: creator.gamma_pct,
-            status: creator.status,
-            est_beta_next30d_usd: creator.est_beta_next30d_usd,
-            activeLoan: creator.activeLoan,
-          })) as Creator[];
+          const normalizedCreators = creatorsPage.items.map((creator): Creator => {
+            const metrics = computeCreatorMetrics(creator.fees7d_usd, creator.est_beta_next30d_usd);
+            const creatorVault = creator.creator_vault ?? null;
+            const governanceEntry = creatorVault && governanceSnapshot
+              ? governanceSnapshot.creator_vaults.find((vault) => vault.creator_vault === creatorVault)
+              : undefined;
+            return {
+              wallet: creator.wallet,
+              fees7d_usd: creator.fees7d_usd,
+              beta_pct: creator.beta_pct,
+              alpha_pct: creator.alpha_pct,
+              gamma_pct: creator.gamma_pct,
+              status: creator.status,
+              est_beta_next30d_usd: creator.est_beta_next30d_usd,
+              creator_vault: creatorVault,
+              market: creator.market,
+              admin: creator.admin ?? governanceEntry?.admin ?? null,
+              pump_mint: creator.pump_mint ?? null,
+              metrics,
+              hasCreatorVault: Boolean(governanceEntry),
+              activeLoan: creator.activeLoan ?? undefined,
+            };
+          });
 
           const updatedPool: PoolData = {
             tvl_usdc: poolOverview.tvl_usdc,
@@ -977,19 +1011,29 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     return userHistory;
   };
 
+  const materializeCreator = (creatorData: Omit<Creator, 'activeLoan'>): Creator => {
+    const metrics = creatorData.metrics ?? computeCreatorMetrics(creatorData.fees7d_usd, creatorData.est_beta_next30d_usd);
+    return {
+      ...creatorData,
+      metrics,
+      hasCreatorVault: creatorData.hasCreatorVault ?? false,
+    };
+  };
+
   const addCreatorToList = (creatorData: Omit<Creator, 'activeLoan'>) => {
     const existingCreatorIndex = creators.findIndex(c => c.wallet === creatorData.wallet);
+    const enrichedCreator = materializeCreator(creatorData);
     
     let newCreators: Creator[];
     if (existingCreatorIndex >= 0) {
       newCreators = creators.map((creator, index) => 
         index === existingCreatorIndex 
-          ? { ...creator, ...creatorData, status: 'listed' }
+          ? { ...creator, ...enrichedCreator, status: 'listed' }
           : creator
       );
     } else {
       const newCreator: Creator = {
-        ...creatorData,
+        ...enrichedCreator,
         status: 'listed'
       };
       newCreators = [...creators, newCreator];
@@ -1019,7 +1063,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         ? { 
             ...creator, 
             fees7d_usd: newEarnings,
-            est_beta_next30d_usd: newEarnings * 4.3
+            est_beta_next30d_usd: newEarnings * 4.3,
+            metrics: computeCreatorMetrics(newEarnings, newEarnings * 4.3)
           }
         : creator
     );

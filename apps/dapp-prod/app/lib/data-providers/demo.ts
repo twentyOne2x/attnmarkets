@@ -25,18 +25,38 @@ import {
 
 const BASE_POOL_TVL = 250_000;
 
+const buildCreatorMetrics = (fees7dUsd: number, estBetaNext30dUsd: number) => {
+  const recent14dTotal = Math.max(0, fees7dUsd * 2);
+  const recent14dAverage = recent14dTotal / 14;
+  const totalEstimate = Math.max(fees7dUsd, estBetaNext30dUsd);
+  const leaderboardBase = totalEstimate + recent14dTotal;
+  const leaderboardPoints = Math.round(leaderboardBase * 1.25);
+  return {
+    totalFeesUsd: Number(totalEstimate.toFixed(2)),
+    recent14dTotalUsd: Number(recent14dTotal.toFixed(2)),
+    recent14dAverageUsd: Number(recent14dAverage.toFixed(2)),
+    leaderboardPoints,
+  };
+};
+
 const normalizeCreators = (creators: any[]): (CreatorSummary & CalcCreator)[] => {
   return creators.map((creator) => {
     const weeklyEarnings = creator.fees7d_usd;
     const borrowingTerms = calculateBorrowingTerms(weeklyEarnings, 60);
+    const estBetaNext30dUsd = creator.est_beta_next30d_usd ?? weeklyEarnings * 4.3;
     return {
       wallet: creator.wallet,
       fees7d_usd: creator.fees7d_usd,
       status: creator.status ?? 'active',
-      est_beta_next30d_usd: creator.est_beta_next30d_usd ?? weeklyEarnings * 4.3,
+      est_beta_next30d_usd: estBetaNext30dUsd,
       beta_pct: creator.beta_pct ?? 0.15,
       alpha_pct: creator.alpha_pct ?? 0.7,
       gamma_pct: creator.gamma_pct ?? 0.15,
+      creator_vault: creator.creator_vault ?? DEMO_MARKET_SUMMARY.creator_vault,
+      market: creator.market ?? DEMO_MARKET_SUMMARY.market,
+      admin: creator.admin ?? DEMO_MARKET_SUMMARY.admin,
+      pump_mint: creator.pump_mint ?? DEMO_MARKET_SUMMARY.pump_mint,
+      metrics: buildCreatorMetrics(weeklyEarnings, estBetaNext30dUsd),
       activeLoan: {
         amount: borrowingTerms.borrowAmount,
         maxBorrowable: borrowingTerms.maxBorrowable,

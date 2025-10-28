@@ -1,5 +1,12 @@
 // apps/dapp/app/utils/borrowingCalculations.ts
 
+export interface CreatorMetrics {
+  totalFeesUsd: number;
+  recent14dTotalUsd: number;
+  recent14dAverageUsd: number;
+  leaderboardPoints: number;
+}
+
 export interface Creator {
   wallet: string;
   fees7d_usd: number;
@@ -8,6 +15,12 @@ export interface Creator {
   gamma_pct: number;
   status: string;
   est_beta_next30d_usd: number;
+  creator_vault?: string | null;
+  market?: string;
+  admin?: string | null;
+  pump_mint?: string | null;
+  metrics?: CreatorMetrics;
+  hasCreatorVault?: boolean;
   activeLoan?: {
     amount: number;
     maxBorrowable: number;

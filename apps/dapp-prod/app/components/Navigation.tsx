@@ -34,6 +34,9 @@ export default function Navigation(): React.JSX.Element {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [modeChanging, setModeChanging] = useState(false);
   const previousMode = useRef<DataMode>(mode);
+  const upperCluster = cluster ? cluster.toUpperCase() : '';
+  const liveBadgeLabel = upperCluster ? `LIVE — ${upperCluster}` : 'LIVE';
+  const liveBannerLabel = cluster ? `Live — ${cluster}` : 'Live mode';
 
   // Ensure component is mounted before using context values to prevent hydration mismatches
   useEffect(() => {
@@ -56,7 +59,7 @@ export default function Navigation(): React.JSX.Element {
       addNotification({
         type: 'success',
         title: 'Live mode enabled',
-        message: `Live mode—${cluster}`,
+        message: liveBannerLabel,
         duration: 4000,
       });
     }
@@ -100,10 +103,10 @@ export default function Navigation(): React.JSX.Element {
   const liveDisabled = healthStatus === 'checking' || modeChanging;
   const bannerMessage = mode === 'live'
     ? healthStatus === 'checking'
-      ? 'Checking live mode readiness…'
+      ? `Checking ${cluster || 'live'} readiness…`
       : healthStatus === 'unhealthy'
-      ? lastModeError || 'Live mode unavailable; falling back to Demo.'
-      : `Live mode—${cluster}. Live mode health fallback when /readyz fails.`
+      ? lastModeError || 'Live mode unavailable; reverted to Demo.'
+      : liveBannerLabel
     : '';
 
   const renderModeToggle = (className = '') => (
@@ -133,7 +136,9 @@ export default function Navigation(): React.JSX.Element {
           <div className="w-3 h-3 border-2 border-secondary/40 border-t-secondary rounded-full animate-spin"></div>
         ) : null}
         <span>Live</span>
-        <span className="hidden lg:inline text-[10px] uppercase tracking-wide">({cluster})</span>
+        <span className="hidden lg:inline text-[10px] uppercase tracking-wide">
+          ({upperCluster || cluster})
+        </span>
       </button>
     </div>
   );
@@ -291,7 +296,7 @@ export default function Navigation(): React.JSX.Element {
                   : 'bg-warning/20 text-warning border-warning/30'
               }`}
             >
-              {mode === 'live' ? 'LIVE' : 'DEMO'}
+              {mode === 'live' ? liveBadgeLabel : 'DEMO'}
             </span>
           </a>
 

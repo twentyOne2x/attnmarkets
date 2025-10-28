@@ -647,25 +647,41 @@ const SquadsSafeOnboarding: React.FC = () => {
       <form className="space-y-6" onSubmit={handleSubmit}>
         <div className="grid gap-4 md:grid-cols-2">
           <label className="flex flex-col text-sm text-gray-200">
-            Creator wallet
+            Your Solana creator wallet
             <input
-              className="mt-1 rounded-md border border-primary/40 bg-gray-950/60 p-2 text-white focus:border-primary focus:outline-none"
+              className="mt-1 rounded-md border border-primary/40 bg-gray-950/60 p-2 text-white placeholder:text-gray-500 focus:border-primary focus:outline-none"
               value={form.creatorWallet}
               onChange={(event) => updateForm({ creatorWallet: event.target.value })}
-              placeholder="Base58 address"
+              placeholder="Enter the wallet that will own the safe"
               required
             />
+            <span className="mt-1 text-xs text-gray-400">
+              Paste the base58 address you control (e.g. Phantom or Backpack wallet).
+            </span>
           </label>
-          <label className="flex flex-col text-sm text-gray-200">
-            attn wallet
-            <input
-              className="mt-1 rounded-md border border-primary/40 bg-gray-950/60 p-2 text-white focus:border-primary focus:outline-none"
-              value={form.attnWallet}
-              onChange={(event) => updateForm({ attnWallet: event.target.value })}
-              placeholder="Base58 address"
-              required
-            />
-          </label>
+
+          <div className="flex flex-col text-sm text-gray-200">
+            attn co-signer wallet
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <input
+                className="w-full flex-1 rounded-md border border-primary/20 bg-gray-900/80 p-2 text-gray-400 focus:outline-none"
+                value={form.attnWallet}
+                readOnly
+                disabled
+              />
+              <button
+                type="button"
+                className="whitespace-nowrap rounded-md border border-primary/40 px-2 py-1 text-xs text-primary hover:bg-primary/10"
+                onClick={() => copyToClipboard(form.attnWallet, 'attnWallet')}
+              >
+                {copiedField === 'attnWallet' ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+            <span className="mt-1 text-xs text-gray-400">
+              attn signs alongside you for locked actions. You don&apos;t need to change this value.
+            </span>
+          </div>
+
           <label className="flex flex-col text-sm text-gray-200">
             Safe name
             <input
@@ -675,26 +691,7 @@ const SquadsSafeOnboarding: React.FC = () => {
               placeholder="Optional label"
             />
           </label>
-          <label className="flex flex-col text-sm text-gray-200">
-            Cluster
-            <input
-              className="mt-1 rounded-md border border-primary/40 bg-gray-950/60 p-2 text-white focus:border-primary focus:outline-none"
-              value={form.cluster}
-              onChange={(event) => updateForm({ cluster: event.target.value })}
-              placeholder={configuredCluster}
-            />
-          </label>
-          <label className="flex flex-col text-sm text-gray-200">
-            Threshold
-            <input
-              type="number"
-              min={1}
-              max={10}
-              className="mt-1 rounded-md border border-primary/40 bg-gray-950/60 p-2 text-white focus:border-primary focus:outline-none"
-              value={form.threshold}
-              onChange={(event) => updateForm({ threshold: Number(event.target.value) })}
-            />
-          </label>
+
           <label className="flex flex-col text-sm text-gray-200">
             Contact email
             <input
@@ -704,6 +701,9 @@ const SquadsSafeOnboarding: React.FC = () => {
               onChange={(event) => updateForm({ contactEmail: event.target.value })}
               placeholder="Optional"
             />
+            <span className="mt-1 text-xs text-gray-400">
+              Optional — lets the attn team reach you if the safe creation needs follow-up.
+            </span>
           </label>
           <label className="md:col-span-2 flex flex-col text-sm text-gray-200">
             Notes
@@ -716,13 +716,16 @@ const SquadsSafeOnboarding: React.FC = () => {
             />
           </label>
         </div>
+        <p className="text-xs text-gray-400">
+          Network is set automatically based on the mode you chose ({configuredCluster}).
+        </p>
 
         <div className="rounded-lg border border-primary/30 bg-gray-900/60 p-4 text-sm text-gray-200">
           <div className="mb-3 flex items-center justify-between">
             <div>
               <h3 className="text-base font-medium text-white">Step 1. Request a nonce</h3>
               <p className="text-xs text-gray-300">
-                The nonce must be signed by the creator wallet. Expired nonces are rejected to prevent replay attacks.
+                A nonce is a one-time code issued by the attn API. You&apos;ll sign it in the next step so we know the request came from your wallet.
               </p>
             </div>
             <button
@@ -730,10 +733,20 @@ const SquadsSafeOnboarding: React.FC = () => {
               className="rounded-md border border-primary/40 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
               onClick={handleRequestNonce}
               disabled={requestingNonce || !canCallApi}
+              title={
+                !canCallApi
+                  ? 'Switch to Live mode with API access to request a nonce.'
+                  : 'Send a one-time code from the attn API.'
+              }
             >
               {requestingNonce ? 'Requesting…' : 'Request nonce'}
             </button>
           </div>
+          {!canCallApi && (
+            <p className="mb-2 rounded-md bg-yellow-500/10 p-2 text-xs text-yellow-200">
+              Enable Live mode and fill in the API credentials to request a nonce.
+            </p>
+          )}
           {nonce && (
             <div className="grid gap-2 md:grid-cols-2">
               <div className="flex items-center justify-between rounded-md bg-gray-950/60 p-2">
@@ -757,9 +770,19 @@ const SquadsSafeOnboarding: React.FC = () => {
         <div className="rounded-lg border border-primary/30 bg-gray-900/60 p-4 text-sm text-gray-200">
           <h3 className="mb-2 text-base font-medium text-white">Step 2. Sign the nonce</h3>
           <p className="text-xs text-gray-300">
-            Sign the message below with the creator wallet and paste the base58 signature. Message:
+            Open your wallet&apos;s “Sign Message” flow, paste the text below, and sign it with the same creator wallet.
+            The wallet will give you a base58 signature — paste it here.
           </p>
-          <pre className="mt-2 overflow-x-auto rounded-md bg-gray-950/60 p-3 text-xs text-gray-100">{signMessage}</pre>
+          <div className="mt-2 flex flex-col gap-2">
+            <pre className="overflow-x-auto rounded-md bg-gray-950/60 p-3 text-xs text-gray-100">{signMessage}</pre>
+            <button
+              type="button"
+              className="self-start rounded-md border border-primary/40 px-2 py-1 text-xs text-primary hover:bg-primary/10"
+              onClick={() => copyToClipboard(signMessage, 'signMessage')}
+            >
+              {copiedField === 'signMessage' ? 'Copied message' : 'Copy message'}
+            </button>
+          </div>
           <label className="mt-3 flex flex-col text-sm text-gray-200">
             Creator signature
             <input
@@ -768,6 +791,9 @@ const SquadsSafeOnboarding: React.FC = () => {
               onChange={(event) => updateForm({ creatorSignature: event.target.value })}
               placeholder="Base58 signature"
             />
+            <span className="mt-1 text-xs text-gray-400">
+              You can find this in your wallet after signing (e.g. Phantom → Copy signature).
+            </span>
           </label>
         </div>
 
@@ -776,7 +802,7 @@ const SquadsSafeOnboarding: React.FC = () => {
             <div>
               <h3 className="text-base font-medium text-white">Step 3. Submit the safe creation request</h3>
               <p className="text-xs text-gray-300">
-                Requests are idempotent. Use the controls below to regenerate or reuse the idempotency key.
+                Keep the idempotency key if you need to retry. Reusing the same key prevents duplicate safes; generating a new one makes a fresh request.
               </p>
             </div>
             <div className="flex items-center gap-2">
