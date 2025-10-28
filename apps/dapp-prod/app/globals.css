@@ -25,3 +25,19 @@
 .glow-effect {
   box-shadow: 0 0 20px rgba(20, 241, 149, 0.3);
 }
+
+@keyframes livePulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(168, 85, 247, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(168, 85, 247, 0);
+  }
+}
+
+.animate-live-pulse {
+  animation: livePulse 0.8s ease-in-out 4;
+}

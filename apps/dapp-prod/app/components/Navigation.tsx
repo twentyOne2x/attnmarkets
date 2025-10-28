@@ -37,6 +37,7 @@ export default function Navigation(): React.JSX.Element {
   const upperCluster = cluster ? cluster.toUpperCase() : '';
   const liveBadgeLabel = upperCluster ? `LIVE — ${upperCluster}` : 'LIVE';
   const liveBannerLabel = cluster ? `Live — ${cluster}` : 'Live mode';
+  const [livePulseActive, setLivePulseActive] = useState(false);
 
   // Ensure component is mounted before using context values to prevent hydration mismatches
   useEffect(() => {
@@ -65,6 +66,16 @@ export default function Navigation(): React.JSX.Element {
     }
     previousMode.current = mode;
   }, [mode, healthStatus, mounted, addNotification, cluster]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    if (mode === 'live') {
+      setLivePulseActive(true);
+      const timeout = window.setTimeout(() => setLivePulseActive(false), 3200);
+      return () => window.clearTimeout(timeout);
+    }
+    setLivePulseActive(false);
+  }, [mode, mounted]);
 
   const isActive = (path: string) => {
     if (path === '/' && pathname === '/') return true;
@@ -117,7 +128,7 @@ export default function Navigation(): React.JSX.Element {
         className={`px-3 py-1 transition-colors ${
           mode === 'demo'
             ? 'bg-primary text-dark font-semibold'
-            : 'text-text-secondary hover:text-primary'
+            : 'bg-transparent text-text-secondary hover:text-primary'
         }`}
       >
         Demo
@@ -128,7 +139,7 @@ export default function Navigation(): React.JSX.Element {
         disabled={liveDisabled}
         className={`px-3 py-1 transition-colors flex items-center space-x-1 ${
           mode === 'live'
-            ? 'bg-secondary text-dark font-semibold'
+            ? `bg-secondary text-dark font-semibold ${livePulseActive ? 'animate-live-pulse' : ''}`
             : 'text-text-secondary hover:text-secondary'
         } ${liveDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
       >
