@@ -1001,7 +1001,7 @@ export default function CreatorPage(): React.JSX.Element {
             ← Back to Dashboard
           </a>
         </div>
-        {isLive && (
+        {isLive && !hasCreatorVault && (
           <div ref={liveChecklistRef} className="mb-8 space-y-4">
             <div className="bg-dark-card border border-secondary/30 rounded-xl p-6">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
