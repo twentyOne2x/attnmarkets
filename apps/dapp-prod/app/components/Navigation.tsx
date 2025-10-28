@@ -128,7 +128,7 @@ export default function Navigation(): React.JSX.Element {
         disabled={liveDisabled}
         className={`px-3 py-1 transition-colors flex items-center space-x-1 ${
           mode === 'live'
-            ? 'bg-secondary/30 text-secondary font-semibold'
+            ? 'bg-secondary text-dark font-semibold'
             : 'text-text-secondary hover:text-secondary'
         } ${liveDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
       >
