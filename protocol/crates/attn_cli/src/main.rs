@@ -104,6 +104,11 @@ enum StableVaultCommands {
 
 #[derive(Subcommand)]
 enum RewardsCommands {
+    /// Derive PDA addresses for a CreatorVault rewards pool
+    Derive {
+        #[arg(long = "creator-vault", value_parser = parse_pubkey)]
+        creator_vault: Pubkey,
+    },
     /// Initialize the RewardsVault pool for a CreatorVault
     Initialize {
         #[arg(long = "creator-vault", value_parser = parse_pubkey)]
@@ -151,6 +156,19 @@ enum RewardsCommands {
 
 #[derive(Subcommand)]
 enum CreatorCommands {
+    /// Initialize a new CreatorVault
+    Initialize {
+        #[arg(long = "pump-creator", value_parser = parse_pubkey)]
+        pump_creator: Pubkey,
+        #[arg(long = "pump-mint", value_parser = parse_pubkey)]
+        pump_mint: Pubkey,
+        #[arg(long = "quote-mint", value_parser = parse_pubkey)]
+        quote_mint: Pubkey,
+        #[arg(long = "splitter-program", value_parser = parse_pubkey)]
+        splitter_program: Pubkey,
+        #[arg(long = "admin", value_parser = parse_pubkey)]
+        admin: Option<Pubkey>,
+    },
     /// Lock collateral until market maturity; requires CreatorVault admin signer
     Lock {
         #[arg(long = "market", value_parser = parse_pubkey)]
@@ -225,6 +243,7 @@ async fn main() -> Result<()> {
             }
         },
         Commands::Rewards { command } => match command {
+            RewardsCommands::Derive { creator_vault } => rewards_derive(&client, creator_vault)?,
             RewardsCommands::Initialize {
                 creator_vault,
                 attn_mint,
@@ -272,6 +291,24 @@ async fn main() -> Result<()> {
             redeem_principal(&client, payer.clone(), market, amount).await?
         }
         Commands::Creator { command } => match command {
+            CreatorCommands::Initialize {
+                pump_creator,
+                pump_mint,
+                quote_mint,
+                splitter_program,
+                admin,
+            } => {
+                creator_initialize(
+                    &client,
+                    payer.clone(),
+                    pump_creator,
+                    pump_mint,
+                    quote_mint,
+                    splitter_program,
+                    admin,
+                )
+                .await?
+            }
             CreatorCommands::Lock { market } => {
                 creator_lock(&client, payer.clone(), market).await?
             }
@@ -332,18 +369,23 @@ async fn rewards_initialize(
     allowed_funder: Option<Pubkey>,
 ) -> Result<()> {
     let program = client.program(rewards_vault::ID)?;
-    let rewards_client = rewards::RewardsVaultClient::new(&program);
     let allowed = allowed_funder.unwrap_or(creator_vault);
-    let pdas = rewards_client
-        .initialize_pool(
-            payer.as_ref(),
-            payer.as_ref(),
+    let payer_clone = payer.clone();
+
+    let pdas = tokio::task::spawn_blocking(move || {
+        let rewards_client = rewards::RewardsVaultClient::new(&program);
+        rewards_client.initialize_pool(
+            payer_clone.as_ref(),
+            payer_clone.as_ref(),
             creator_vault,
             attn_mint,
             reward_bps,
             allowed,
         )
-        .context("failed to initialize rewards pool")?;
+    })
+    .await
+    .map_err(|err| anyhow!("blocking initialize failed: {err}"))?
+    .context("failed to initialize rewards pool")?;
     println!("Rewards pool: {}", pdas.rewards_pool);
     println!("sAttnUSD mint: {}", pdas.s_attn_mint);
     println!("attnUSD vault: {}", pdas.attn_vault);
@@ -385,7 +427,7 @@ async fn rewards_stake(
     );
     instructions.push(stake_ix);
 
-    let sig = send_instructions(program, instructions)?;
+    let sig = send_instructions(program, instructions).await?;
     println!("Rewards stake transaction signature: {}", sig);
     Ok(())
 }
@@ -424,7 +466,7 @@ async fn rewards_unstake(
     );
     instructions.push(unstake_ix);
 
-    let sig = send_instructions(program, instructions)?;
+    let sig = send_instructions(program, instructions).await?;
     println!("Rewards unstake transaction signature: {}", sig);
     Ok(())
 }
@@ -441,7 +483,7 @@ async fn rewards_claim(
 
     let claim_ix =
         rewards::build_claim_rewards_ix(pdas.rewards_pool, user, stake_position, pdas.sol_treasury);
-    let sig = send_instructions(program, vec![claim_ix])?;
+    let sig = send_instructions(program, vec![claim_ix]).await?;
     println!("Rewards claim transaction signature: {}", sig);
     Ok(())
 }
@@ -455,9 +497,37 @@ async fn rewards_fund(
 ) -> Result<()> {
     let program = client.program(rewards_vault::ID)?;
     let pdas = rewards::derive_pdas(&creator_vault);
-    let rewards_client = rewards::RewardsVaultClient::new(&program);
-    rewards_client.fund_rewards(creator_vault, &pdas, &payer, amount, operation_id)?;
+    let pdas_clone = pdas.clone();
+    let payer_clone = payer.clone();
+
+    tokio::task::spawn_blocking(move || {
+        let rewards_client = rewards::RewardsVaultClient::new(&program);
+        rewards_client.fund_rewards(
+            creator_vault,
+            &pdas_clone,
+            payer_clone.as_ref(),
+            amount,
+            operation_id,
+        )
+    })
+    .await
+    .map_err(|err| anyhow!("blocking fund failed: {err}"))?
+    .context("failed to fund rewards")?;
     println!("Rewards fund submitted");
+    Ok(())
+}
+
+fn rewards_derive(_client: &Client<Arc<Keypair>>, creator_vault: Pubkey) -> Result<()> {
+    let pdas = rewards::derive_pdas(&creator_vault);
+    println!(
+        "Rewards pool PDAs for {}:\n  Pool: {}\n  Authority: {}\n  sAttn mint: {}\n  attn vault: {}\n  SOL treasury: {}",
+        creator_vault,
+        pdas.rewards_pool,
+        pdas.rewards_authority,
+        pdas.s_attn_mint,
+        pdas.attn_vault,
+        pdas.sol_treasury
+    );
     Ok(())
 }
 
@@ -495,7 +565,7 @@ async fn wrap(
         ),
     ];
 
-    let sig = send_instructions(program, instructions)?;
+    let sig = send_instructions(program, instructions).await?;
     println!("Wrap transaction signature: {}", sig);
     Ok(())
 }
@@ -543,7 +613,7 @@ async fn split(
     );
     instructions.push(mint_ix);
 
-    let sig = send_instructions(splitter_program, instructions)?;
+    let sig = send_instructions(splitter_program, instructions).await?;
     println!(
         "Split transaction signature: {}\nSplitter authority: {}\nUser position: {}",
         sig, pdas.splitter_authority, pdas.user_position
@@ -593,7 +663,7 @@ async fn redeem_yield(
     );
     instructions.push(ix);
 
-    let sig = send_instructions(splitter_program, instructions)?;
+    let sig = send_instructions(splitter_program, instructions).await?;
     println!("Redeem yield transaction signature: {}", sig);
     Ok(())
 }
@@ -641,7 +711,7 @@ async fn redeem_principal(
     );
     instructions.push(ix);
 
-    let sig = send_instructions(splitter_program, instructions)?;
+    let sig = send_instructions(splitter_program, instructions).await?;
     println!("Redeem principal transaction signature: {}", sig);
     Ok(())
 }
@@ -672,7 +742,7 @@ async fn creator_lock(
 
     let ix =
         creator::build_lock_collateral_ix(market.creator_vault, admin, Some(market.maturity_ts));
-    let sig = send_instructions(creator_program, vec![ix])?;
+    let sig = send_instructions(creator_program, vec![ix]).await?;
     println!(
         "CreatorVault {} locked until maturity {} (tx: {})",
         market.creator_vault, market.maturity_ts, sig
@@ -713,7 +783,7 @@ async fn creator_unlock(
     }
 
     let ix = creator::build_unlock_collateral_ix(market.creator_vault, admin);
-    let sig = send_instructions(creator_program, vec![ix])?;
+    let sig = send_instructions(creator_program, vec![ix]).await?;
     println!(
         "CreatorVault {} unlocked (tx: {})",
         market.creator_vault, sig
@@ -775,7 +845,7 @@ async fn creator_withdraw(
     );
     instructions.push(withdraw_ix);
 
-    let sig = send_instructions(creator_program, instructions)?;
+    let sig = send_instructions(creator_program, instructions).await?;
     println!(
         "Withdrawn {} units from CreatorVault {} into {} (tx: {})",
         amount, creator_vault_pubkey, destination, sig
@@ -805,7 +875,7 @@ async fn creator_set_sweeper(
     }
 
     let ix = creator::build_set_sweeper_delegate_ix(creator_vault, authority, delegate, fee_bps);
-    let sig = send_instructions(creator_program, vec![ix])?;
+    let sig = send_instructions(creator_program, vec![ix]).await?;
     println!(
         "Sweeper delegate {} set on CreatorVault {} with fee {} bps (tx: {})",
         delegate, creator_vault, fee_bps, sig
@@ -833,7 +903,7 @@ async fn creator_clear_sweeper(
     }
 
     let ix = creator::build_clear_sweeper_delegate_ix(creator_vault, authority);
-    let sig = send_instructions(creator_program, vec![ix])?;
+    let sig = send_instructions(creator_program, vec![ix]).await?;
     println!(
         "Cleared sweeper delegate for CreatorVault {} (tx: {})",
         creator_vault, sig
@@ -854,10 +924,11 @@ async fn creator_delegate_sweep(
         .await
         .context("failed to fetch creator vault account")?;
 
-    let Some(sweeper) = creator::fetch_sweeper_account(&creator_program, creator_vault)
-        .await?
+    let Some(sweeper) = creator::fetch_sweeper_account(&creator_program, creator_vault).await?
     else {
-        return Err(anyhow!("sweeper delegate not configured for this CreatorVault"));
+        return Err(anyhow!(
+            "sweeper delegate not configured for this CreatorVault"
+        ));
     };
 
     let delegate = payer.pubkey();
@@ -869,15 +940,13 @@ async fn creator_delegate_sweep(
         ));
     }
 
-    let creator_destination = destination.unwrap_or_else(|| {
-        associated_token_address(&vault.authority, &vault.quote_mint)
-    });
+    let creator_destination = destination
+        .unwrap_or_else(|| associated_token_address(&vault.authority, &vault.quote_mint));
 
     let fee_destination = if sweeper.fee_bps > 0 {
         Some(
-            delegate_fee_destination.unwrap_or_else(|| {
-                associated_token_address(&delegate, &vault.quote_mint)
-            }),
+            delegate_fee_destination
+                .unwrap_or_else(|| associated_token_address(&delegate, &vault.quote_mint)),
         )
     } else {
         delegate_fee_destination
@@ -891,7 +960,7 @@ async fn creator_delegate_sweep(
         amount,
         fee_destination,
     );
-    let sig = send_instructions(creator_program, vec![ix])?;
+    let sig = send_instructions(creator_program, vec![ix]).await?;
     println!(
         "Delegate {} swept {} units from CreatorVault {} (tx: {})",
         delegate, amount, creator_vault, sig
@@ -899,16 +968,53 @@ async fn creator_delegate_sweep(
     Ok(())
 }
 
-fn send_instructions<C>(program: Program<C>, instructions: Vec<Instruction>) -> Result<Signature>
+async fn creator_initialize(
+    client: &Client<Arc<Keypair>>,
+    payer: Arc<Keypair>,
+    pump_creator: Pubkey,
+    pump_mint: Pubkey,
+    quote_mint: Pubkey,
+    splitter_program: Pubkey,
+    admin: Option<Pubkey>,
+) -> Result<()> {
+    let program = client.program(creator_vault::ID)?;
+    let admin_key = admin.unwrap_or_else(|| payer.pubkey());
+    let (ix, pdas) = creator::build_initialize_vault_ix(
+        payer.pubkey(),
+        pump_creator,
+        pump_mint,
+        quote_mint,
+        splitter_program,
+        admin_key,
+    );
+
+    let sig = send_instructions(program, vec![ix]).await?;
+    println!(
+        "Creator vault initialized.\n  Vault: {}\n  Fee vault: {}\n  SY mint: {}\n  Signature: {}",
+        pdas.creator_vault, pdas.fee_vault, pdas.sy_mint, sig
+    );
+    Ok(())
+}
+
+async fn send_instructions<C>(
+    program: Program<C>,
+    instructions: Vec<Instruction>,
+) -> Result<Signature>
 where
-    C: std::ops::Deref + Clone,
+    C: std::ops::Deref + Clone + Send + 'static,
     C::Target: Signer + Sized,
 {
-    let mut builder = program.request();
-    for ix in instructions {
-        builder = builder.instruction(ix);
-    }
-    let sig = builder.send()?;
+    let handle = tokio::task::spawn_blocking(move || {
+        let mut builder = program.request();
+        for ix in instructions {
+            builder = builder.instruction(ix);
+        }
+        builder.send()
+    })
+    .await
+    .map_err(|err| anyhow!("blocking send failed: {err}"))?;
+
+    let sig = handle?;
     Ok(sig)
 }
 

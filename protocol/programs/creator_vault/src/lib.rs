@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Mint, MintTo, Token, TokenAccount, Transfer};
 
-declare_id!("HPjEgPTb7rrBks1oFrscBdJ7TCZ7bARzCT93X9azCK4b");
+declare_id!("HDztZyNcij21HhF5SR6rhk9wx9qx6yViebUrVU9W6C86");
 
 const TOTAL_BPS: u64 = 10_000;
 
@@ -164,11 +164,11 @@ pub mod creator_vault {
         delegate: Pubkey,
         fee_bps: u16,
     ) -> Result<()> {
-        require!(delegate != Pubkey::default(), AttnError::InvalidSweeperDelegate);
         require!(
-            fee_bps as u64 <= TOTAL_BPS,
-            AttnError::InvalidSweeperFee
+            delegate != Pubkey::default(),
+            AttnError::InvalidSweeperDelegate
         );
+        require!(fee_bps as u64 <= TOTAL_BPS, AttnError::InvalidSweeperFee);
 
         let sweeper = &mut ctx.accounts.sweeper;
         sweeper.bump = ctx.bumps.sweeper;

@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/splitter.json`.
  */
 export type Splitter = {
-  "address": "DusRTfShkXozaatx71Qv413RNEXqPNZS8hg9BnBeAQQE",
+  "address": "AmGu31S9SPLXj12etgXKnuVMzTNb653mRjkSqU8bgaPN",
   "metadata": {
     "name": "splitter",
     "version": "0.1.0",
@@ -286,7 +286,7 @@ export type Splitter = {
         },
         {
           "name": "creatorVaultProgram",
-          "address": "HPjEgPTb7rrBks1oFrscBdJ7TCZ7bARzCT93X9azCK4b"
+          "address": "HDztZyNcij21HhF5SR6rhk9wx9qx6yViebUrVU9W6C86"
         }
       ],
       "args": [
@@ -373,12 +373,20 @@ export type Splitter = {
           "writable": true
         },
         {
+          "name": "userYtAta",
+          "writable": true
+        },
+        {
+          "name": "ytMint",
+          "writable": true
+        },
+        {
           "name": "tokenProgram",
           "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
           "name": "creatorVaultProgram",
-          "address": "HPjEgPTb7rrBks1oFrscBdJ7TCZ7bARzCT93X9azCK4b"
+          "address": "HDztZyNcij21HhF5SR6rhk9wx9qx6yViebUrVU9W6C86"
         }
       ],
       "args": [
@@ -488,7 +496,30 @@ export type Splitter = {
         },
         {
           "name": "feeVault",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  101,
+                  101,
+                  45,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "creator_vault.pump_mint",
+                "account": "creatorVault"
+              }
+            ]
+          }
         },
         {
           "name": "userQuoteAta",
@@ -500,7 +531,7 @@ export type Splitter = {
         },
         {
           "name": "creatorVaultProgram",
-          "address": "HPjEgPTb7rrBks1oFrscBdJ7TCZ7bARzCT93X9azCK4b"
+          "address": "HDztZyNcij21HhF5SR6rhk9wx9qx6yViebUrVU9W6C86"
         }
       ],
       "args": [
@@ -577,20 +608,6 @@ export type Splitter = {
         0,
         217,
         113
-      ],
-      "fields": [
-        {
-          "name": "market",
-          "type": "publicKey"
-        },
-        {
-          "name": "creatorAuthority",
-          "type": "publicKey"
-        },
-        {
-          "name": "admin",
-          "type": "publicKey"
-        }
       ]
     },
     {
@@ -604,20 +621,6 @@ export type Splitter = {
         84,
         6,
         58
-      ],
-      "fields": [
-        {
-          "name": "market",
-          "type": "publicKey"
-        },
-        {
-          "name": "pumpMint",
-          "type": "publicKey"
-        },
-        {
-          "name": "maturityTs",
-          "type": "i64"
-        }
       ]
     },
     {
@@ -631,20 +634,6 @@ export type Splitter = {
         84,
         242,
         15
-      ],
-      "fields": [
-        {
-          "name": "market",
-          "type": "publicKey"
-        },
-        {
-          "name": "user",
-          "type": "publicKey"
-        },
-        {
-          "name": "amount",
-          "type": "u64"
-        }
       ]
     },
     {
@@ -658,20 +647,6 @@ export type Splitter = {
         106,
         82,
         222
-      ],
-      "fields": [
-        {
-          "name": "market",
-          "type": "publicKey"
-        },
-        {
-          "name": "user",
-          "type": "publicKey"
-        },
-        {
-          "name": "amount",
-          "type": "u64"
-        }
       ]
     },
     {
@@ -685,28 +660,6 @@ export type Splitter = {
         193,
         102,
         135
-      ],
-      "fields": [
-        {
-          "name": "market",
-          "type": "publicKey"
-        },
-        {
-          "name": "user",
-          "type": "publicKey"
-        },
-        {
-          "name": "claimedAmount",
-          "type": "u64"
-        },
-        {
-          "name": "feeIndex",
-          "type": "u128"
-        },
-        {
-          "name": "marketDelta",
-          "type": "u128"
-        }
       ]
     }
   ],
@@ -773,13 +726,43 @@ export type Splitter = {
     },
     {
       "code": 6012,
+      "name": "insufficientYieldTokens",
+      "msg": "User has insufficient YT balance"
+    },
+    {
+      "code": 6013,
       "name": "outstandingPrincipal",
       "msg": "Outstanding principal prevents closing"
     },
     {
-      "code": 6013,
+      "code": 6014,
+      "name": "outstandingYield",
+      "msg": "Outstanding yield prevents closing"
+    },
+    {
+      "code": 6015,
       "name": "invalidUserPosition",
       "msg": "User position PDA mismatch"
+    },
+    {
+      "code": 6016,
+      "name": "invalidTokenProgram",
+      "msg": "Token program must match the SPL Token program"
+    },
+    {
+      "code": 6017,
+      "name": "mintDecimalsMismatch",
+      "msg": "Mint decimals must be aligned"
+    },
+    {
+      "code": 6018,
+      "name": "yieldSupplyMismatch",
+      "msg": "Yield token supply accounting mismatch"
+    },
+    {
+      "code": 6019,
+      "name": "marketClosed",
+      "msg": "Market is closed"
     }
   ],
   "types": [
@@ -845,11 +828,19 @@ export type Splitter = {
             "type": "bool"
           },
           {
+            "name": "locked",
+            "type": "bool"
+          },
+          {
+            "name": "lockExpiresAt",
+            "type": "i64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                5
+                1
               ]
             }
           }

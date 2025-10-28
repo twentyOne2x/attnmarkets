@@ -914,7 +914,7 @@ export type StableVault = {
         },
         {
           "name": "rewardsProgram",
-          "address": "RwdsVaULTxQg7vKQmsG9tPo8mWxryQac1hZ2RKSBv2C"
+          "address": "6M8TEGPJhspXoYtDvY5vd9DHg7ojCPgbrqjaWoZa2dfw"
         },
         {
           "name": "systemProgram",
@@ -1739,11 +1739,19 @@ export type StableVault = {
             "type": "bool"
           },
           {
+            "name": "locked",
+            "type": "bool"
+          },
+          {
+            "name": "lockExpiresAt",
+            "type": "i64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                5
+                1
               ]
             }
           }

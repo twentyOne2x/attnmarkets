@@ -908,7 +908,7 @@
         },
         {
           "name": "rewards_program",
-          "address": "RwdsVaULTxQg7vKQmsG9tPo8mWxryQac1hZ2RKSBv2C"
+          "address": "6M8TEGPJhspXoYtDvY5vd9DHg7ojCPgbrqjaWoZa2dfw"
         },
         {
           "name": "system_program",
@@ -1733,11 +1733,19 @@
             "type": "bool"
           },
           {
+            "name": "locked",
+            "type": "bool"
+          },
+          {
+            "name": "lock_expires_at",
+            "type": "i64"
+          },
+          {
             "name": "padding",
             "type": {
               "array": [
                 "u8",
-                5
+                1
               ]
             }
           }

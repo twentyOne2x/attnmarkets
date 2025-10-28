@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/creator_vault.json`.
  */
 export type CreatorVault = {
-  "address": "HPjEgPTb7rrBks1oFrscBdJ7TCZ7bARzCT93X9azCK4b",
+  "address": "HDztZyNcij21HhF5SR6rhk9wx9qx6yViebUrVU9W6C86",
   "metadata": {
     "name": "creatorVault",
     "version": "0.1.0",
@@ -138,8 +138,8 @@ export type CreatorVault = {
               },
               {
                 "kind": "account",
-                "path": "creatorVault.pumpMint",
-                "account": "CreatorVault"
+                "path": "creator_vault.pump_mint",
+                "account": "creatorVault"
               }
             ]
           }
@@ -645,8 +645,8 @@ export type CreatorVault = {
               },
               {
                 "kind": "account",
-                "path": "creatorVault.pumpMint",
-                "account": "CreatorVault"
+                "path": "creator_vault.pump_mint",
+                "account": "creatorVault"
               }
             ]
           }
@@ -780,7 +780,7 @@ export type CreatorVault = {
   ],
   "accounts": [
     {
-      "name": "CreatorVault",
+      "name": "creatorVault",
       "discriminator": [
         200,
         135,
@@ -793,7 +793,7 @@ export type CreatorVault = {
       ]
     },
     {
-      "name": "CreatorVaultSweeper",
+      "name": "creatorVaultSweeper",
       "discriminator": [
         176,
         5,
@@ -808,7 +808,7 @@ export type CreatorVault = {
   ],
   "events": [
     {
-      "name": "AdminUpdated",
+      "name": "adminUpdated",
       "discriminator": [
         69,
         82,
@@ -821,7 +821,7 @@ export type CreatorVault = {
       ]
     },
     {
-      "name": "DelegatedFeesSwept",
+      "name": "delegatedFeesSwept",
       "discriminator": [
         207,
         27,
@@ -834,7 +834,7 @@ export type CreatorVault = {
       ]
     },
     {
-      "name": "FeesWithdrawn",
+      "name": "feesWithdrawn",
       "discriminator": [
         234,
         15,
@@ -847,7 +847,7 @@ export type CreatorVault = {
       ]
     },
     {
-      "name": "RewardsSplitUpdated",
+      "name": "rewardsSplitUpdated",
       "discriminator": [
         23,
         15,
@@ -860,7 +860,7 @@ export type CreatorVault = {
       ]
     },
     {
-      "name": "SweeperDelegateCleared",
+      "name": "sweeperDelegateCleared",
       "discriminator": [
         189,
         57,
@@ -873,7 +873,7 @@ export type CreatorVault = {
       ]
     },
     {
-      "name": "SweeperDelegateUpdated",
+      "name": "sweeperDelegateUpdated",
       "discriminator": [
         88,
         217,
@@ -886,7 +886,7 @@ export type CreatorVault = {
       ]
     },
     {
-      "name": "SyMinted",
+      "name": "syMinted",
       "discriminator": [
         117,
         38,
@@ -899,7 +899,7 @@ export type CreatorVault = {
       ]
     },
     {
-      "name": "VaultInitialized",
+      "name": "vaultInitialized",
       "discriminator": [
         180,
         43,
@@ -912,7 +912,7 @@ export type CreatorVault = {
       ]
     },
     {
-      "name": "VaultLockStatusChanged",
+      "name": "vaultLockStatusChanged",
       "discriminator": [
         251,
         23,
@@ -925,7 +925,7 @@ export type CreatorVault = {
       ]
     },
     {
-      "name": "VaultPauseToggled",
+      "name": "vaultPauseToggled",
       "discriminator": [
         109,
         49,
@@ -941,108 +941,108 @@ export type CreatorVault = {
   "errors": [
     {
       "code": 6000,
-      "name": "InvalidAmount",
+      "name": "invalidAmount",
       "msg": "Amount must be greater than zero"
     },
     {
       "code": 6001,
-      "name": "MathOverflow",
+      "name": "mathOverflow",
       "msg": "Math overflow"
     },
     {
       "code": 6002,
-      "name": "SplitterProgramUnset",
+      "name": "splitterProgramUnset",
       "msg": "Splitter program not registered"
     },
     {
       "code": 6003,
-      "name": "UnauthorizedSplitter",
+      "name": "unauthorizedSplitter",
       "msg": "Unauthorized splitter authority"
     },
     {
       "code": 6004,
-      "name": "InvalidFeeVault",
+      "name": "invalidFeeVault",
       "msg": "Fee vault address mismatch"
     },
     {
       "code": 6005,
-      "name": "UnauthorizedAdmin",
+      "name": "unauthorizedAdmin",
       "msg": "Unauthorized admin"
     },
     {
       "code": 6006,
-      "name": "InvalidAdmin",
+      "name": "invalidAdmin",
       "msg": "Invalid admin public key"
     },
     {
       "code": 6007,
-      "name": "InvalidBps",
+      "name": "invalidBps",
       "msg": "Invalid basis points"
     },
     {
       "code": 6008,
-      "name": "VaultPaused",
+      "name": "vaultPaused",
       "msg": "Vault is paused"
     },
     {
       "code": 6009,
-      "name": "AdminSignatureRequired",
+      "name": "adminSignatureRequired",
       "msg": "Admin signature required while vault is locked"
     },
     {
       "code": 6010,
-      "name": "InsufficientVaultBalance",
+      "name": "insufficientVaultBalance",
       "msg": "Insufficient balance in fee vault"
     },
     {
       "code": 6011,
-      "name": "InvalidWithdrawalDestination",
+      "name": "invalidWithdrawalDestination",
       "msg": "Withdrawal destination must be owned by the creator authority"
     },
     {
       "code": 6012,
-      "name": "InvalidWithdrawalMint",
+      "name": "invalidWithdrawalMint",
       "msg": "Withdrawal destination mint must match quote mint"
     },
     {
       "code": 6013,
-      "name": "InvalidLockExpiry",
+      "name": "invalidLockExpiry",
       "msg": "Lock expiry must be greater than or equal to the current timestamp"
     },
     {
       "code": 6014,
-      "name": "InvalidSweeperDelegate",
+      "name": "invalidSweeperDelegate",
       "msg": "Sweeper delegate must be a non-default public key"
     },
     {
       "code": 6015,
-      "name": "InvalidSweeperFee",
+      "name": "invalidSweeperFee",
       "msg": "Sweeper fee exceeds 100%"
     },
     {
       "code": 6016,
-      "name": "VaultLockedForDelegate",
+      "name": "vaultLockedForDelegate",
       "msg": "Vault is locked; delegate sweep is unavailable"
     },
     {
       "code": 6017,
-      "name": "UnauthorizedSweeper",
+      "name": "unauthorizedSweeper",
       "msg": "Unauthorized sweeper delegate"
     },
     {
       "code": 6018,
-      "name": "DelegateFeeDestinationRequired",
+      "name": "delegateFeeDestinationRequired",
       "msg": "Delegate fee destination required"
     },
     {
       "code": 6019,
-      "name": "InvalidDelegateFeeDestination",
+      "name": "invalidDelegateFeeDestination",
       "msg": "Invalid delegate fee destination"
     }
   ],
   "types": [
     {
-      "name": "AdminUpdated",
+      "name": "adminUpdated",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1062,7 +1062,7 @@ export type CreatorVault = {
       }
     },
     {
-      "name": "CreatorVault",
+      "name": "creatorVault",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1143,7 +1143,7 @@ export type CreatorVault = {
       }
     },
     {
-      "name": "CreatorVaultSweeper",
+      "name": "creatorVaultSweeper",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1180,7 +1180,7 @@ export type CreatorVault = {
       }
     },
     {
-      "name": "DelegatedFeesSwept",
+      "name": "delegatedFeesSwept",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1208,7 +1208,7 @@ export type CreatorVault = {
       }
     },
     {
-      "name": "FeesWithdrawn",
+      "name": "feesWithdrawn",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1236,7 +1236,7 @@ export type CreatorVault = {
       }
     },
     {
-      "name": "RewardsSplitUpdated",
+      "name": "rewardsSplitUpdated",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1252,7 +1252,7 @@ export type CreatorVault = {
       }
     },
     {
-      "name": "SweeperDelegateCleared",
+      "name": "sweeperDelegateCleared",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1264,7 +1264,7 @@ export type CreatorVault = {
       }
     },
     {
-      "name": "SweeperDelegateUpdated",
+      "name": "sweeperDelegateUpdated",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1284,7 +1284,7 @@ export type CreatorVault = {
       }
     },
     {
-      "name": "SyMinted",
+      "name": "syMinted",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1304,7 +1304,7 @@ export type CreatorVault = {
       }
     },
     {
-      "name": "VaultInitialized",
+      "name": "vaultInitialized",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1336,7 +1336,7 @@ export type CreatorVault = {
       }
     },
     {
-      "name": "VaultLockStatusChanged",
+      "name": "vaultLockStatusChanged",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1360,7 +1360,7 @@ export type CreatorVault = {
       }
     },
     {
-      "name": "VaultPauseToggled",
+      "name": "vaultPauseToggled",
       "type": {
         "kind": "struct",
         "fields": [
@@ -1376,5 +1376,4 @@ export type CreatorVault = {
       }
     }
   ]
-}
 };
