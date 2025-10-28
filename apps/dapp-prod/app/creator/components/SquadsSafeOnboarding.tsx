@@ -2,6 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import clsx from 'clsx';
+import bs58 from 'bs58';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { runtimeEnv } from '../../config/runtime';
 import { useDataMode } from '../../context/DataModeContext';
 
@@ -72,6 +74,7 @@ const generateIdempotencyKey = (): string => {
 
 const SquadsSafeOnboarding: React.FC = () => {
   const { mode, apiBaseUrl, cluster: configuredCluster, apiKey, csrfToken, isAdmin } = useDataMode();
+  const wallet = useWallet();
   const defaultFormState = useMemo<FormState>(
     () => ({
       creatorWallet: '',
@@ -110,6 +113,8 @@ const SquadsSafeOnboarding: React.FC = () => {
   const [adminError, setAdminError] = useState<string | null>(null);
   const [apiHealth, setApiHealth] = useState<'unknown' | 'healthy' | 'error'>('unknown');
   const [healthTick, setHealthTick] = useState(0);
+  const [signing, setSigning] = useState(false);
+  const [signError, setSignError] = useState<string | null>(null);
 
   const canCallApi =
     mode === 'live' && Boolean(apiBaseUrl && apiKey && csrfToken && runtimeEnv.attnSquadsMember);
@@ -538,17 +543,58 @@ const SquadsSafeOnboarding: React.FC = () => {
     setIdempotencyKey(generateIdempotencyKey());
   }, [defaultFormState]);
 
+  const sanitizedCreatorWallet = sanitize(form.creatorWallet);
   const signMessage = useMemo(() => {
-    const creatorWallet = sanitize(form.creatorWallet) || '<creator-wallet>';
+    const creatorWallet = sanitizedCreatorWallet || '<creator-wallet>';
     const currentNonce = nonce?.nonce || '<nonce>';
     return `${SIGNATURE_MESSAGE_PREFIX}:${currentNonce}:${creatorWallet}`;
-  }, [form.creatorWallet, nonce]);
+  }, [sanitizedCreatorWallet, nonce]);
 
   const governanceMessage = useMemo(() => {
     if (!result) return '';
     const vault = sanitize(governanceForm.creatorVault) || '<creator-vault>';
     return `${GOVERNANCE_MESSAGE_PREFIX}:${result.request_id}:${vault}`;
   }, [governanceForm.creatorVault, result]);
+
+  const encodedSignMessage = useMemo(() => new TextEncoder().encode(signMessage), [signMessage]);
+  const connectedWalletAddress = wallet.publicKey?.toBase58() ?? null;
+  const canUseWalletSigner =
+    Boolean(wallet.signMessage) &&
+    Boolean(connectedWalletAddress) &&
+    Boolean(nonce?.nonce) &&
+    sanitizedCreatorWallet.length > 0 &&
+    connectedWalletAddress === sanitizedCreatorWallet;
+
+  const handleSignWithWallet = useCallback(async () => {
+    if (!wallet?.signMessage) {
+      setSignError('Connected wallet cannot sign messages in this context.');
+      return;
+    }
+    if (!nonce?.nonce) {
+      setSignError('Request a nonce first.');
+      return;
+    }
+    if (!connectedWalletAddress || connectedWalletAddress !== sanitizedCreatorWallet) {
+      setSignError('Use the same wallet you entered above to sign this message.');
+      return;
+    }
+    try {
+      setSigning(true);
+      setSignError(null);
+      const signatureBytes = await wallet.signMessage(encodedSignMessage);
+      const signature = bs58.encode(signatureBytes);
+      updateForm({ creatorSignature: signature });
+    } catch (err) {
+      console.error('Wallet message signing failed', err);
+      setSignError(err instanceof Error ? err.message : 'Failed to sign message.');
+    } finally {
+      setSigning(false);
+    }
+  }, [wallet, nonce?.nonce, connectedWalletAddress, sanitizedCreatorWallet, encodedSignMessage, updateForm]);
+
+  useEffect(() => {
+    setSignError(null);
+  }, [sanitizedCreatorWallet, nonce?.nonce]);
 
   useEffect(() => {
     let cancelled = false;
@@ -725,7 +771,7 @@ const SquadsSafeOnboarding: React.FC = () => {
             <div>
               <h3 className="text-base font-medium text-white">Step 1. Request a nonce</h3>
               <p className="text-xs text-gray-300">
-                A nonce is a one-time code issued by the attn API. You&apos;ll sign it in the next step so we know the request came from your wallet.
+                A nonce is a one-time code from the attn devnet API. You&apos;ll sign it next so we can confirm the request really came from your wallet.
               </p>
             </div>
             <button
@@ -735,8 +781,8 @@ const SquadsSafeOnboarding: React.FC = () => {
               disabled={requestingNonce || !canCallApi}
               title={
                 !canCallApi
-                  ? 'Switch to Live mode with API access to request a nonce.'
-                  : 'Send a one-time code from the attn API.'
+                  ? 'Switch the app to Live (devnet) mode and configure the attn API credentials to enable this.'
+                  : 'Send a one-time code from the attn devnet API.'
               }
             >
               {requestingNonce ? 'Requesting…' : 'Request nonce'}
@@ -744,7 +790,7 @@ const SquadsSafeOnboarding: React.FC = () => {
           </div>
           {!canCallApi && (
             <p className="mb-2 rounded-md bg-yellow-500/10 p-2 text-xs text-yellow-200">
-              Enable Live mode and fill in the API credentials to request a nonce.
+              Toggle Live mode (devnet) and provide NEXT_PUBLIC_API_BASE + attn API keys so this step can run.
             </p>
           )}
           {nonce && (
@@ -770,18 +816,50 @@ const SquadsSafeOnboarding: React.FC = () => {
         <div className="rounded-lg border border-primary/30 bg-gray-900/60 p-4 text-sm text-gray-200">
           <h3 className="mb-2 text-base font-medium text-white">Step 2. Sign the nonce</h3>
           <p className="text-xs text-gray-300">
-            Open your wallet&apos;s “Sign Message” flow, paste the text below, and sign it with the same creator wallet.
-            The wallet will give you a base58 signature — paste it here.
+            Click &ldquo;Sign with wallet&rdquo; to autofill the signature, or use your wallet&apos;s &ldquo;Sign Message&rdquo; flow.
+            Make sure you use the same creator wallet as above.
           </p>
           <div className="mt-2 flex flex-col gap-2">
-            <pre className="overflow-x-auto rounded-md bg-gray-950/60 p-3 text-xs text-gray-100">{signMessage}</pre>
-            <button
-              type="button"
-              className="self-start rounded-md border border-primary/40 px-2 py-1 text-xs text-primary hover:bg-primary/10"
-              onClick={() => copyToClipboard(signMessage, 'signMessage')}
+            <pre
+              className={clsx(
+                'overflow-x-auto rounded-md bg-gray-950/60 p-3 text-xs',
+                nonce?.nonce && sanitizedCreatorWallet ? 'text-gray-100' : 'text-gray-500'
+              )}
             >
-              {copiedField === 'signMessage' ? 'Copied message' : 'Copy message'}
-            </button>
+              {signMessage}
+            </pre>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="rounded-md border border-primary/40 px-2 py-1 text-xs text-primary hover:bg-primary/10"
+                onClick={() => copyToClipboard(signMessage, 'signMessage')}
+              >
+                {copiedField === 'signMessage' ? 'Copied message' : 'Copy message'}
+              </button>
+              {wallet?.signMessage ? (
+                <button
+                  type="button"
+                  onClick={handleSignWithWallet}
+                  disabled={!canUseWalletSigner || signing}
+                  className={clsx(
+                    'rounded-md border px-3 py-1 text-xs font-medium transition-colors',
+                    canUseWalletSigner
+                      ? 'border-secondary text-secondary hover:bg-secondary/10'
+                      : 'border-gray-700 text-gray-500 cursor-not-allowed'
+                  )}
+                >
+                  {signing ? 'Signing…' : 'Sign with connected wallet'}
+                </button>
+              ) : (
+                <span className="text-xs text-gray-500">
+                  Connect a wallet that supports message signing to autofill the signature.
+                </span>
+              )}
+            </div>
+            {signError && <span className="text-xs text-red-400">{signError}</span>}
+            {!signError && canUseWalletSigner && form.creatorSignature && (
+              <span className="text-xs text-green-400">Signature filled from the connected wallet.</span>
+            )}
           </div>
           <label className="mt-3 flex flex-col text-sm text-gray-200">
             Creator signature
@@ -792,7 +870,7 @@ const SquadsSafeOnboarding: React.FC = () => {
               placeholder="Base58 signature"
             />
             <span className="mt-1 text-xs text-gray-400">
-              You can find this in your wallet after signing (e.g. Phantom → Copy signature).
+              Wallets such as Phantom show this under “Copy signature” after you sign.
             </span>
           </label>
         </div>
@@ -802,11 +880,11 @@ const SquadsSafeOnboarding: React.FC = () => {
             <div>
               <h3 className="text-base font-medium text-white">Step 3. Submit the safe creation request</h3>
               <p className="text-xs text-gray-300">
-                Keep the idempotency key if you need to retry. Reusing the same key prevents duplicate safes; generating a new one makes a fresh request.
+                Keep this request key if you need to retry — using the same key tells us it&apos;s the same submission. Click &ldquo;New key&rdquo; to start fresh.
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-400">Idempotency key</span>
+              <span className="text-xs text-gray-400">Request key</span>
               <code className="rounded bg-gray-950/60 px-2 py-1 text-xs text-primary">{idempotencyKey}</code>
               <button
                 type="button"
@@ -829,6 +907,7 @@ const SquadsSafeOnboarding: React.FC = () => {
               type="submit"
               disabled={submitting || !canCallApi}
               className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
+              title="Send this safe request to the attn devnet API."
             >
               {submitting ? 'Submitting…' : 'Submit safe request'}
             </button>

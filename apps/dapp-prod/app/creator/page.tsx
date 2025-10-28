@@ -1,7 +1,7 @@
 // apps/dapp/app/creator/page.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import Navigation from '../components/Navigation';
 import Tooltip from '../components/Tooltip';
@@ -10,6 +10,9 @@ import RepaySlider from '../components/RepaySlider';
 import { useAppContext } from '../context/AppContext';
 import { calculateBorrowingTerms } from '../utils/borrowingCalculations';
 import { runtimeEnv } from '../config/runtime';
+import CreatorTourOverlay from './components/CreatorTourOverlay';
+
+const LIVE_TOUR_STORAGE_KEY = 'attn.liveCreatorTour';
 
 const squadsFeatureEnabled = runtimeEnv.squadsEnabled;
 
@@ -78,6 +81,9 @@ export default function CreatorPage(): React.JSX.Element {
   } = useAppContext();
 
   const showSquadsOnboarding = squadsFeatureEnabled && SquadsSafeOnboarding !== null;
+  const liveChecklistRef = useRef<HTMLDivElement | null>(null);
+  const [showLiveTour, setShowLiveTour] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
   
   // Initialize weekly earnings from context
   const [weeklyEarnings, setWeeklyEarnings] = useState<number>(() => {
@@ -137,6 +143,10 @@ export default function CreatorPage(): React.JSX.Element {
   // Use consistent sorting
   const sortedCreators = getSortedCreators();
 
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
   // Don't auto-generate wallet - let user connect manually
   useEffect(() => {
     if (!currentUserWallet) {
@@ -152,6 +162,32 @@ export default function CreatorPage(): React.JSX.Element {
   const userNeedsListing = isWalletConnected && !isUserListed;
   const showLoanInterface = !isLive || (isLive && hasCreatorVault);
   const squadsAdminAddress = currentUserCreator?.admin;
+
+  useEffect(() => {
+    if (!hasMounted) return;
+    if (!isLive || hasCreatorVault) {
+      setShowLiveTour(false);
+      return;
+    }
+    if (typeof window === 'undefined') return;
+    const seen = window.localStorage.getItem(LIVE_TOUR_STORAGE_KEY);
+    if (!seen) {
+      setShowLiveTour(true);
+    }
+  }, [hasMounted, isLive, hasCreatorVault]);
+
+  const handleDismissLiveTour = useCallback(() => {
+    setShowLiveTour(false);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(LIVE_TOUR_STORAGE_KEY, 'seen');
+    }
+  }, []);
+
+  const handleFocusLiveTour = useCallback(() => {
+    if (liveChecklistRef.current) {
+      liveChecklistRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, []);
 
   // Notification management functions - UPDATED with fixed positioning
   const addNotification = (notification: Omit<Notification, 'id' | 'position'>) => {
@@ -878,6 +914,14 @@ export default function CreatorPage(): React.JSX.Element {
 
   return (
     <div className="min-h-screen bg-dark text-text-primary">
+      {showLiveTour && isLive && !hasCreatorVault && (
+        <CreatorTourOverlay
+          targetRef={liveChecklistRef}
+          visible={showLiveTour}
+          onClose={handleDismissLiveTour}
+          onFocusTarget={handleFocusLiveTour}
+        />
+      )}
       {/* Fixed Notification Stack Container - UPDATED with proper spacing */}
       <div className="fixed top-20 right-8 z-[9999] w-80">
         {notifications
@@ -957,9 +1001,8 @@ export default function CreatorPage(): React.JSX.Element {
             ← Back to Dashboard
           </a>
         </div>
-
         {isLive && (
-          <div className="mb-8 space-y-4">
+          <div ref={liveChecklistRef} className="mb-8 space-y-4">
             <div className="bg-dark-card border border-secondary/30 rounded-xl p-6">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
