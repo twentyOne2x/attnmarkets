@@ -11,7 +11,7 @@ import { useAppContext } from '../context/AppContext';
 import { calculateBorrowingTerms } from '../utils/borrowingCalculations';
 import { runtimeEnv } from '../config/runtime';
 
-const squadsFeatureEnabled = runtimeEnv.squadsEnabled && runtimeEnv.defaultMode !== 'live';
+const squadsFeatureEnabled = runtimeEnv.squadsEnabled;
 
 const SquadsSafeOnboarding = squadsFeatureEnabled
   ? dynamic(() => import('./components/SquadsSafeOnboarding'), {
@@ -66,7 +66,15 @@ export default function CreatorPage(): React.JSX.Element {
     getSortedCreators,
     poolData,
     addLoanHistoryItem,
-    getLoanHistoryForWallet
+    getLoanHistoryForWallet,
+    connectWallet,
+    signAndListCreator,
+    isWalletConnected,
+    isUserListed,
+    isFullyConnected,
+    isLive,
+    governanceState,
+    cluster,
   } = useAppContext();
 
   const showSquadsOnboarding = squadsFeatureEnabled && SquadsSafeOnboarding !== null;
@@ -138,6 +146,12 @@ export default function CreatorPage(): React.JSX.Element {
 
   // Get user's loan history from context
   const userLoanHistory = getLoanHistoryForWallet(currentUserWallet || '');
+  const currentUserCreator = creators.find(c => c.wallet === currentUserWallet);
+  const creatorMetrics = currentUserCreator?.metrics;
+  const hasCreatorVault = currentUserCreator?.hasCreatorVault ?? false;
+  const userNeedsListing = isWalletConnected && !isUserListed;
+  const showLoanInterface = !isLive || (isLive && hasCreatorVault);
+  const squadsAdminAddress = currentUserCreator?.admin;
 
   // Notification management functions - UPDATED with fixed positioning
   const addNotification = (notification: Omit<Notification, 'id' | 'position'>) => {
@@ -202,7 +216,7 @@ export default function CreatorPage(): React.JSX.Element {
   }, []);
 
   // Derived state - A user is "listed" if they exist in creators array OR have an active loan
-  const currentCreator = creators.find(c => c.wallet === currentUserWallet);
+  const currentCreator = currentUserCreator;
   const isListed = !!currentCreator; // If they exist in the array, they're listed
   const hasActiveLoan = !!(currentCreator?.activeLoan);
   const borrowingTerms = calculateBorrowingTerms(weeklyEarnings, borrowPercentage);
@@ -944,10 +958,126 @@ export default function CreatorPage(): React.JSX.Element {
           </a>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Main Actions */}
-          <div className="space-y-6">
-            <div className="bg-dark-card border border-primary/20 rounded-xl p-6">
+        {isLive && (
+          <div className="mb-8 space-y-4">
+            <div className="bg-dark-card border border-secondary/30 rounded-xl p-6">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-secondary">Live mode checklist</h2>
+                  <p className="text-sm text-text-secondary">
+                    You&apos;re connected to devnet. Complete the steps below to enable auto-sweeps and financing.
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-2 rounded-full border border-secondary/40 bg-secondary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-secondary">
+                  Live — {cluster}
+                </span>
+              </div>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-3">
+                <div className={`rounded-lg border ${isWalletConnected ? 'border-green-400/40 bg-green-500/10' : 'border-gray-700 bg-gray-900/60'} p-4`}>
+                  <div className="flex items-center justify-between text-sm font-semibold">
+                    <span>1. Connect wallet</span>
+                    <span className={`text-xs ${isWalletConnected ? 'text-green-300' : 'text-text-secondary'}`}>
+                      {isWalletConnected ? 'Connected' : 'Pending'}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs text-text-secondary">
+                    Use the wallet adapter to authorize creator actions in Live mode.
+                  </p>
+                  {!isWalletConnected && (
+                    <button
+                      onClick={connectWallet}
+                      className="mt-3 inline-flex items-center justify-center rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-dark hover:bg-primary/90"
+                    >
+                      Connect wallet
+                    </button>
+                  )}
+                </div>
+
+                <div className={`rounded-lg border ${hasCreatorVault ? 'border-green-400/40 bg-green-500/10' : 'border-gray-700 bg-gray-900/60'} p-4`}>
+                  <div className="flex items-center justify-between text-sm font-semibold">
+                    <span>2. Create Squads safe</span>
+                    <span className={`text-xs ${hasCreatorVault ? 'text-green-300' : 'text-text-secondary'}`}>
+                      {hasCreatorVault ? 'Linked' : 'Pending'}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs text-text-secondary">
+                    Set up a 2-of-2 creator safe so auto-sweeps and locks are co-signed.
+                  </p>
+                  {hasCreatorVault && squadsAdminAddress && (
+                    <div className="mt-3 rounded-md bg-black/40 px-3 py-2 text-[11px] font-mono text-text-secondary">
+                      {squadsAdminAddress.slice(0, 8)}…{squadsAdminAddress.slice(-6)}
+                    </div>
+                  )}
+                  {!hasCreatorVault && (
+                    <a
+                      href="#squads-setup"
+                      className="mt-3 inline-flex items-center justify-center rounded-lg border border-secondary/50 px-3 py-1.5 text-sm font-medium text-secondary hover:border-secondary"
+                    >
+                      Open Squads setup
+                    </a>
+                  )}
+                </div>
+
+                <div className={`rounded-lg border ${(isFullyConnected && hasCreatorVault) ? 'border-green-400/40 bg-green-500/10' : 'border-gray-700 bg-gray-900/60'} p-4`}>
+                  <div className="flex items-center justify-between text-sm font-semibold">
+                    <span>3. List + unlock financing</span>
+                    <span className={`text-xs ${(isFullyConnected && hasCreatorVault) ? 'text-green-300' : 'text-text-secondary'}`}>
+                      {(isFullyConnected && hasCreatorVault) ? 'Ready' : 'Pending'}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs text-text-secondary">
+                    Sign the attn creator agreement to appear on the leaderboard and enable loan quotes.
+                  </p>
+                  {creatorMetrics ? (
+                    <div className="mt-3 space-y-1 rounded-md border border-secondary/20 bg-black/30 px-3 py-2 text-[11px] text-text-secondary">
+                      <div className="flex justify-between">
+                        <span>Total fees (est.)</span>
+                        <span className="font-mono">${creatorMetrics.totalFeesUsd.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Avg. daily (14d)</span>
+                        <span className="font-mono">
+                          ${creatorMetrics.recent14dAverageUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-secondary">
+                        <span>Reward points</span>
+                        <span className="font-mono font-semibold">{creatorMetrics.leaderboardPoints.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-3 rounded-md bg-black/40 px-3 py-2 text-[11px] text-text-secondary">
+                      Connect your wallet to compute devnet fee stats.
+                    </div>
+                  )}
+                  {(!isFullyConnected || !hasCreatorVault) && (
+                    <button
+                      onClick={signAndListCreator}
+                      className="mt-3 inline-flex items-center justify-center rounded-lg bg-secondary/30 px-3 py-1.5 text-sm font-medium text-secondary hover:bg-secondary/20 disabled:opacity-50"
+                      disabled={!isWalletConnected || (isFullyConnected && hasCreatorVault)}
+                    >
+                      Sign &amp; list creator
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {!hasCreatorVault && squadsFeatureEnabled && SquadsSafeOnboarding && (
+              <div id="squads-setup" className="scroll-mt-24">
+                <SquadsSafeOnboarding />
+              </div>
+            )}
+          </div>
+        )}
+
+        {showLoanInterface ? (
+          <>
+            <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+              {/* Main Actions */}
+              <div className="space-y-6">
+                <div className="bg-dark-card border border-primary/20 rounded-xl p-6">
               {/* COMPACT HEADER with Pool Liquidity */}
               <div className="flex justify-between items-start mb-6">
                 <div>
@@ -1360,34 +1490,46 @@ export default function CreatorPage(): React.JSX.Element {
               )}
             </div>
           </div>
-        </div>
+            </div>
 
-        {/* FAQ Section - Full Width at Bottom */}
-        <div className="mt-12 bg-gray-800/30 border border-gray-700 rounded-xl p-8">
-          <h2 className="text-2xl font-bold mb-6 text-center">Frequently Asked Questions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {faqItems.map((faq, index) => (
-              <div key={index} className="border border-gray-600 rounded-lg">
-                <button
-                  onClick={() => toggleFaqItem(index)}
-                  className="w-full text-left p-4 flex items-center justify-between hover:bg-gray-700/30 transition-colors rounded-lg"
-                >
-                  <span className="font-medium text-primary">{faq.q}</span>
-                  <span className={`text-primary transition-transform ${openFaqItems[index] ? 'rotate-180' : ''}`}>
-                    ▼
-                  </span>
-                </button>
-                {openFaqItems[index] && (
-                  <div className="px-4 pb-4 text-text-secondary text-sm leading-relaxed">
-                    {faq.a}
+            {/* FAQ Section - Full Width at Bottom */}
+            <div className="mt-12 bg-gray-800/30 border border-gray-700 rounded-xl p-8">
+              <h2 className="text-2xl font-bold mb-6 text-center">Frequently Asked Questions</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {faqItems.map((faq, index) => (
+                  <div key={index} className="border border-gray-600 rounded-lg">
+                    <button
+                      onClick={() => toggleFaqItem(index)}
+                      className="w-full text-left p-4 flex items-center justify-between hover:bg-gray-700/30 transition-colors rounded-lg"
+                    >
+                      <span className="font-medium text-primary">{faq.q}</span>
+                      <span className={`text-primary transition-transform ${openFaqItems[index] ? 'rotate-180' : ''}`}>
+                        ▼
+                      </span>
+                    </button>
+                    {openFaqItems[index] && (
+                      <div className="px-4 pb-4 text-text-secondary text-sm leading-relaxed">
+                        {faq.a}
+                      </div>
+                    )}
                   </div>
-                )}
+                ))}
               </div>
-            ))}
+            </div>
+          </>
+        ) : (
+          <div className="rounded-xl border border-gray-700 bg-gray-900/60 p-8 text-center text-text-secondary">
+            <h2 className="text-2xl font-semibold text-primary">Complete Squads setup to unlock financing</h2>
+            <p className="mt-3 text-sm">
+              Once your creator vault is linked to a Squads 2-of-2 safe and you&apos;re listed, the borrowing and repayment tools will appear here.
+            </p>
+            <p className="mt-3 text-xs uppercase tracking-wide text-text-secondary/70">
+              Step 1: connect wallet • Step 2: create safe • Step 3: sign &amp; list
+            </p>
           </div>
-        </div>
-        
-        {showSquadsOnboarding && SquadsSafeOnboarding && (
+        )}
+
+        {!isLive && showSquadsOnboarding && SquadsSafeOnboarding && (
           <div className="mt-16">
             <SquadsSafeOnboarding />
           </div>

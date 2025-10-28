@@ -15,6 +15,7 @@ import {
   CreatorSummary,
   GovernanceState,
 } from './types';
+import type { CreatorMetrics } from '../../utils/borrowingCalculations';
 
 type ISODateTimeString = string;
 
@@ -177,18 +178,38 @@ export class BridgeDataProvider implements DataProvider {
     return retry.data;
   }
 
+  private buildCreatorMetrics(fees7dUsd: number, estBetaNext30dUsd: number): CreatorMetrics {
+    const recent14dTotal = Math.max(0, fees7dUsd * 2);
+    const recent14dAverage = recent14dTotal / 14;
+    const totalEstimate = Math.max(fees7dUsd, estBetaNext30dUsd);
+    const leaderboardBase = totalEstimate + recent14dTotal;
+    const leaderboardPoints = Math.round(leaderboardBase * 1.25);
+    return {
+      totalFeesUsd: Number(totalEstimate.toFixed(2)),
+      recent14dTotalUsd: Number(recent14dTotal.toFixed(2)),
+      recent14dAverageUsd: Number(recent14dAverage.toFixed(2)),
+      leaderboardPoints,
+    };
+  }
+
   private mapMarketsToCreators(markets: MarketSummary[]): CreatorSummary[] {
     return markets.map((market) => {
       const annualFeesUsd = toDisplayAmount(market.pt_supply * market.implied_apy);
       const weeklyFeesUsd = annualFeesUsd / 52;
+      const estBetaNext30dUsd = Number((weeklyFeesUsd * (30 / 7)).toFixed(2));
       return {
-        wallet: market.market,
+        wallet: market.creator_authority || market.market,
         fees7d_usd: Number(weeklyFeesUsd.toFixed(2)),
         status: market.status === 'active' ? 'active' : market.status,
-        est_beta_next30d_usd: Number((weeklyFeesUsd * (30 / 7)).toFixed(2)),
+        est_beta_next30d_usd: estBetaNext30dUsd,
         beta_pct: 0.15,
         alpha_pct: 0.7,
         gamma_pct: 0.15,
+        creator_vault: market.creator_vault,
+        market: market.market,
+        admin: market.admin,
+        pump_mint: market.pump_mint,
+        metrics: this.buildCreatorMetrics(weeklyFeesUsd, estBetaNext30dUsd),
         activeLoan: null,
       };
     });

@@ -6,16 +6,6 @@ import Navigation from '../components/Navigation';
 import Tooltip from '../components/Tooltip';
 import { useAppContext } from '../context/AppContext';
 
-interface Notification {
-  id: string;
-  type: 'processing' | 'success' | 'error';
-  title: string;
-  message: string;
-  persistent?: boolean;
-  duration?: number;
-  position: number;
-}
-
 export default function LeaderboardPage(): React.JSX.Element {
   const { 
     creators, 
@@ -24,148 +14,21 @@ export default function LeaderboardPage(): React.JSX.Element {
     calculateLPAPR,
     getSortedCreators,
     currentUserWallet,
-    setCurrentUserWallet,
     getAvailableLiquidity,
-    addCreatorToList
+    connectWallet,
+    signAndListCreator,
+    isWalletConnected,
+    isFullyConnected,
+    isLive,
+    cluster,
   } = useAppContext();
   
   const [filter, setFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('fees7d');
   
-  // Connection states
-  const [isConnecting, setIsConnecting] = useState<boolean>(false);
-  const [isListing, setIsListing] = useState<boolean>(false);
-  
-  // Notification system
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [notificationCounter, setNotificationCounter] = useState<number>(0);
-
-  // Check if user is listed
   const currentCreator = creators.find(c => c.wallet === currentUserWallet);
-  const isListed = !!currentCreator;
-
-  // Notification management functions
-  const addNotification = (notification: Omit<Notification, 'id' | 'position'>) => {
-    const id = Math.random().toString(36).substr(2, 9);
-    const newNotification = { 
-      ...notification, 
-      id,
-      position: notificationCounter
-    };
-    
-    setNotifications(prev => [...prev, newNotification]);
-    setNotificationCounter(prev => prev + 1);
-    
-    if (!notification.persistent || notification.duration) {
-      const duration = notification.duration || (notification.type === 'processing' ? 1000 : 4000);
-      setTimeout(() => {
-        removeNotification(id);
-      }, duration);
-    }
-    
-    return id;
-  };
-
-  const removeNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  };
-
-  // Step 1: Connect wallet only
-  const handleConnectWallet = async () => {
-    setIsConnecting(true);
-    
-    try {
-      console.log('🔑 Step 1: Connecting wallet...');
-      addNotification({
-        type: 'processing',
-        title: 'Connecting Wallet',
-        message: 'Generating wallet address...',
-        duration: 1000
-      });
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      if (!currentUserWallet) {
-        const deterministicWallet = '0x1234567890abcdef1234567890abcdef12345678';
-        setCurrentUserWallet(deterministicWallet);
-        console.log('🔑 Wallet connected:', deterministicWallet);
-        
-        addNotification({
-          type: 'success',
-          title: 'Wallet Connected!',
-          message: 'Ready to sign message and list yourself.',
-          duration: 2000
-        });
-        
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-    } catch (error) {
-      console.error('Error connecting wallet:', error);
-      addNotification({
-        type: 'error',
-        title: 'Connection Failed',
-        message: 'Failed to connect wallet'
-      });
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  // Step 2: Sign message and list creator
-  const handleSignAndList = async () => {
-    setIsListing(true);
-    
-    try {
-      addNotification({
-        type: 'processing',
-        title: 'Sign Message',
-        message: 'Please sign the message in your wallet...',
-        persistent: true,
-        duration: 1500
-      });
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      addNotification({
-        type: 'processing',
-        title: 'Processing Signature',
-        message: 'Verifying signature and listing creator...',
-        persistent: true,
-        duration: 1000
-      });
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      console.log('📝 Step 2: Signing message and listing creator...');
-      
-      const existingCreator = creators.find(c => c.wallet === currentUserWallet);
-      if (!existingCreator) {
-        const newCreator = {
-          wallet: currentUserWallet,
-          fees7d_usd: 10000, // Default earnings
-          beta_pct: 0.15,
-          alpha_pct: 0.70,
-          gamma_pct: 0.15,
-          status: 'listed',
-          est_beta_next30d_usd: 10000 * 4.3
-        };
-        console.log('Adding new creator to leaderboard:', newCreator);
-        addCreatorToList(newCreator);
-      }
-      
-      addNotification({
-        type: 'success',
-        title: 'Successfully Listed!',
-        message: 'Message signed and added to leaderboard. You can now borrow up to 2 weeks of earnings.'
-      });
-    } catch (error) {
-      console.error('Error signing and listing:', error);
-      addNotification({
-        type: 'error',
-        title: 'Error',
-        message: 'Failed to sign message or list creator'
-      });
-    } finally {
-      setIsListing(false);
-    }
-  };
+  const creatorMetrics = currentCreator?.metrics;
+  const hasCreatorVault = currentCreator?.hasCreatorVault ?? false;
 
   const filteredCreators = creators
     .filter(creator => {
@@ -244,67 +107,6 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
 
   return (
     <div className="min-h-screen bg-dark text-text-primary">
-      {/* Fixed Notification Stack Container */}
-      <div className="fixed top-20 right-8 z-[9999] w-80">
-        {notifications
-          .sort((a, b) => a.position - b.position)
-          .map((notification, visualIndex) => {
-          const topPosition = visualIndex * 110;
-          
-          return (
-            <div
-              key={notification.id}
-              className={`notification-item absolute w-full transition-all duration-300 ease-out border ${
-                notification.type === 'success' 
-                  ? 'bg-green-500/20 border-green-500/40 text-green-400'
-                  : notification.type === 'error'
-                  ? 'bg-red-500/20 border-red-500/40 text-red-400'
-                  : 'bg-blue-500/20 border-blue-500/40 text-blue-400'
-              } px-6 py-4 rounded-lg shadow-xl backdrop-blur-sm`}
-              style={{
-                top: `${topPosition}px`,
-                zIndex: 9999 - notification.position,
-                opacity: Math.max(0.85, 1 - (visualIndex * 0.08)),
-              }}
-            >
-              <div className="flex items-center space-x-3">
-                {notification.type === 'processing' ? (
-                  <div className="loading-spinner loading-spinner-blue"></div>
-                ) : notification.type === 'success' ? (
-                  <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-                ) : (
-                  <div className="w-2 h-2 rounded-full bg-red-400"></div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className={`font-semibold ${
-                    notification.type === 'success' ? 'text-green-400' :
-                    notification.type === 'error' ? 'text-red-400' :
-                    'text-blue-400'
-                  }`}>
-                    {notification.title}
-                  </div>
-                  <div className={`text-sm opacity-90 ${
-                    notification.type === 'success' ? 'text-green-300' :
-                    notification.type === 'error' ? 'text-red-300' :
-                    'text-blue-300'
-                  }`}>
-                    {notification.message}
-                  </div>
-                </div>
-                {notification.type === 'error' && (
-                  <button 
-                    onClick={() => removeNotification(notification.id)}
-                    className="text-red-400 hover:text-red-300 ml-2 text-lg leading-none hover:bg-red-500/20 rounded px-1"
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
       <Navigation />
 
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -317,6 +119,109 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
             ← Back to Dashboard
           </a>
         </div>
+
+        {isLive && (
+          <div className="mb-8 space-y-4">
+            <div className="bg-dark-card border border-secondary/30 rounded-xl p-6">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-secondary">Live mode checklist</h2>
+                  <p className="text-sm text-text-secondary">
+                    Connect your wallet, finalize the Squads safe, and sign to appear in the devnet rankings.
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-2 rounded-full border border-secondary/40 bg-secondary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-secondary">
+                  Live — {cluster}
+                </span>
+              </div>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-3">
+                <div className={`rounded-lg border ${isWalletConnected ? 'border-green-400/40 bg-green-500/10' : 'border-gray-700 bg-gray-900/60'} p-4`}>
+                  <div className="flex items-center justify-between text-sm font-semibold">
+                    <span>1. Connect wallet</span>
+                    <span className={`text-xs ${isWalletConnected ? 'text-green-300' : 'text-text-secondary'}`}>
+                      {isWalletConnected ? 'Connected' : 'Pending'}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs text-text-secondary">
+                    Use the wallet adapter so leaderboard stats reflect your creator vault.
+                  </p>
+                  {!isWalletConnected && (
+                    <button
+                      onClick={connectWallet}
+                      className="mt-3 inline-flex items-center justify-center rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-dark hover:bg-primary/90"
+                    >
+                      Connect wallet
+                    </button>
+                  )}
+                </div>
+
+                <div className={`rounded-lg border ${hasCreatorVault ? 'border-green-400/40 bg-green-500/10' : 'border-gray-700 bg-gray-900/60'} p-4`}>
+                  <div className="flex items-center justify-between text-sm font-semibold">
+                    <span>2. Link Squads safe</span>
+                    <span className={`text-xs ${hasCreatorVault ? 'text-green-300' : 'text-text-secondary'}`}>
+                      {hasCreatorVault ? 'Linked' : 'Pending'}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs text-text-secondary">
+                    Create the 2-of-2 safe from the Creator page so vault locks co-sign with attn.
+                  </p>
+                  {!hasCreatorVault && (
+                    <a
+                      href="/creator#squads-setup"
+                      className="mt-3 inline-flex items-center justify-center rounded-lg border border-secondary/50 px-3 py-1.5 text-sm font-medium text-secondary hover:border-secondary"
+                    >
+                      Open Squads setup
+                    </a>
+                  )}
+                </div>
+
+                <div className={`rounded-lg border ${(isFullyConnected && hasCreatorVault) ? 'border-green-400/40 bg-green-500/10' : 'border-gray-700 bg-gray-900/60'} p-4`}>
+                  <div className="flex items-center justify-between text-sm font-semibold">
+                    <span>3. Sign &amp; list</span>
+                    <span className={`text-xs ${(isFullyConnected && hasCreatorVault) ? 'text-green-300' : 'text-text-secondary'}`}>
+                      {(isFullyConnected && hasCreatorVault) ? 'Ready' : 'Pending'}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-xs text-text-secondary">
+                    Authorize attn.markets to publish your vault metrics and show up on the leaderboard.
+                  </p>
+                  {creatorMetrics ? (
+                    <div className="mt-3 space-y-1 rounded-md border border-secondary/20 bg-black/30 px-3 py-2 text-[11px] text-text-secondary">
+                      <div className="flex justify-between">
+                        <span>14d fees (est.)</span>
+                        <span className="font-mono">${creatorMetrics.recent14dTotalUsd.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Avg. per day</span>
+                        <span className="font-mono">
+                          ${creatorMetrics.recent14dAverageUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-secondary">
+                        <span>Reward points</span>
+                        <span className="font-mono font-semibold">{creatorMetrics.leaderboardPoints.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-3 rounded-md bg-black/40 px-3 py-2 text-[11px] text-text-secondary">
+                      Connect first to compute fee-based points.
+                    </div>
+                  )}
+                  {(!isFullyConnected || !hasCreatorVault) && (
+                    <button
+                      onClick={signAndListCreator}
+                      className="mt-3 inline-flex items-center justify-center rounded-lg bg-secondary/30 px-3 py-1.5 text-sm font-medium text-secondary hover:bg-secondary/20 disabled:opacity-50"
+                      disabled={!isWalletConnected || (isFullyConnected && hasCreatorVault)}
+                    >
+                      Sign &amp; list creator
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Filters and Sort */}
         <div className="flex flex-wrap gap-4 mb-8">
@@ -428,6 +333,22 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
                     </Tooltip>
                   </th>
                   <th className="text-left py-4 px-6 text-text-secondary font-medium">
+                    <Tooltip content="Average daily fees over the last ~14 days, derived from vault receipts.">
+                      <span className="cursor-help flex items-center">
+                        14d Daily Avg
+                        <span className="ml-1 text-xs text-primary">ⓘ</span>
+                      </span>
+                    </Tooltip>
+                  </th>
+                  <th className="text-left py-4 px-6 text-text-secondary font-medium">
+                    <Tooltip content="Leaderboard reward points derived from recent fees. Higher points unlock keeper priority.">
+                      <span className="cursor-help flex items-center">
+                        Reward Points
+                        <span className="ml-1 text-xs text-primary">ⓘ</span>
+                      </span>
+                    </Tooltip>
+                  </th>
+                  <th className="text-left py-4 px-6 text-text-secondary font-medium">
                     <Tooltip content="Current borrowing status and loan details. Active loans generate interest for LP providers.">
                       <span className="cursor-help flex items-center">
                         Loan Status
@@ -491,6 +412,24 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
                       <span className="text-primary font-semibold text-lg">
                         ${creator.fees7d_usd.toLocaleString()}
                       </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      {creator.metrics ? (
+                        <span className="text-text-secondary font-mono text-sm">
+                          ${creator.metrics.recent14dAverageUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-sm">—</span>
+                      )}
+                    </td>
+                    <td className="py-4 px-6">
+                      {creator.metrics ? (
+                        <span className="font-semibold text-secondary">
+                          {creator.metrics.leaderboardPoints.toLocaleString()}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-sm">—</span>
+                      )}
                     </td>
                     <td className="py-4 px-6">
                       {creator.activeLoan ? (
