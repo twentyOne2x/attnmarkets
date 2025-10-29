@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
+import { useSearchParams } from 'next/navigation';
 import Navigation from '../components/Navigation';
 import Tooltip from '../components/Tooltip';
 import { useAppContext } from '../context/AppContext';
@@ -80,6 +81,15 @@ export default function DepositPage(): React.JSX.Element {
   const [stakeSubmitting, setStakeSubmitting] = useState(false);
   const [rewardsRefresh, setRewardsRefresh] = useState(0);
   const [portfolioRefresh, setPortfolioRefresh] = useState(0);
+  const [lpGuideDismissed, setLpGuideDismissed] = useState(false);
+
+  const searchParams = useSearchParams();
+  const shouldShowLpGuide = searchParams?.get('guide') === 'lp';
+  const showLpGuide = shouldShowLpGuide && !lpGuideDismissed;
+
+  useEffect(() => {
+    setLpGuideDismissed(false);
+  }, [shouldShowLpGuide]);
 
   const { data: rewardsData } = useETag<RewardsListResponse>('/v1/rewards?limit=5', {
     enabled: mode === 'live',
@@ -571,6 +581,26 @@ Higher utilization = higher LP returns`;
       <Navigation />
 
       <div className="max-w-4xl mx-auto px-4 py-8">
+        {showLpGuide && (
+          <div className="mb-6 rounded-2xl border border-primary/30 bg-primary/10 p-4 text-sm text-primary">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-primary/90">Welcome LP — let&apos;s get you set up.</h2>
+                <p className="mt-1 text-xs text-primary/80">
+                  Connect your wallet, switch to Live devnet mode, and deposit USDC to start earning attn vault yield.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLpGuideDismissed(true)}
+                className="self-start rounded-lg border border-primary/40 bg-primary/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-primary transition hover:bg-primary/15"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold">Yield Pool</h1>

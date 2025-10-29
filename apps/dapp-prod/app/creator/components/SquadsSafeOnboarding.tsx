@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ChangeEvent } from 'react';
 import clsx from 'clsx';
 import bs58 from 'bs58';
 import { useWallet } from '@solana/wallet-adapter-react';
@@ -75,6 +76,7 @@ const generateIdempotencyKey = (): string => {
 const SquadsSafeOnboarding: React.FC = () => {
   const { mode, apiBaseUrl, cluster: configuredCluster, apiKey, csrfToken, isAdmin } = useDataMode();
   const wallet = useWallet();
+  const connectedWalletAddress = useMemo(() => wallet.publicKey?.toBase58() ?? null, [wallet.publicKey]);
   const defaultFormState = useMemo<FormState>(
     () => ({
       creatorWallet: '',
@@ -99,6 +101,7 @@ const SquadsSafeOnboarding: React.FC = () => {
   const [result, setResult] = useState<CreatedSafe | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [showRaw, setShowRaw] = useState(false);
+  const [creatorWalletManuallyEdited, setCreatorWalletManuallyEdited] = useState(false);
   const [governanceForm, setGovernanceForm] = useState({
     creatorVault: '',
     creatorSignature: '',
@@ -122,6 +125,19 @@ const SquadsSafeOnboarding: React.FC = () => {
   const updateForm = useCallback((next: Partial<FormState>) => {
     setForm((prev) => ({ ...prev, ...next }));
   }, []);
+
+  const handleCreatorWalletChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.value;
+      if (value === (connectedWalletAddress ?? '')) {
+        setCreatorWalletManuallyEdited(false);
+      } else {
+        setCreatorWalletManuallyEdited(true);
+      }
+      updateForm({ creatorWallet: value });
+    },
+    [connectedWalletAddress, updateForm]
+  );
 
   const copyToClipboard = useCallback(async (value: string, label: string) => {
     try {
@@ -557,7 +573,6 @@ const SquadsSafeOnboarding: React.FC = () => {
   }, [governanceForm.creatorVault, result]);
 
   const encodedSignMessage = useMemo(() => new TextEncoder().encode(signMessage), [signMessage]);
-  const connectedWalletAddress = wallet.publicKey?.toBase58() ?? null;
   const canUseWalletSigner =
     Boolean(wallet.signMessage) &&
     Boolean(connectedWalletAddress) &&
@@ -595,6 +610,29 @@ const SquadsSafeOnboarding: React.FC = () => {
   useEffect(() => {
     setSignError(null);
   }, [sanitizedCreatorWallet, nonce?.nonce]);
+
+  useEffect(() => {
+    if (!connectedWalletAddress) {
+      if (!creatorWalletManuallyEdited && form.creatorWallet !== '') {
+        updateForm({ creatorWallet: '' });
+      }
+      if (creatorWalletManuallyEdited) {
+        setCreatorWalletManuallyEdited(false);
+      }
+      return;
+    }
+
+    if (!creatorWalletManuallyEdited && form.creatorWallet !== connectedWalletAddress) {
+      setCreatorWalletManuallyEdited(false);
+      updateForm({ creatorWallet: connectedWalletAddress });
+    }
+  }, [connectedWalletAddress, creatorWalletManuallyEdited, form.creatorWallet, updateForm]);
+
+  useEffect(() => {
+    if (creatorWalletManuallyEdited && connectedWalletAddress && form.creatorWallet === connectedWalletAddress) {
+      setCreatorWalletManuallyEdited(false);
+    }
+  }, [creatorWalletManuallyEdited, connectedWalletAddress, form.creatorWallet]);
 
   useEffect(() => {
     let cancelled = false;
@@ -697,13 +735,18 @@ const SquadsSafeOnboarding: React.FC = () => {
             <input
               className="mt-1 rounded-md border border-primary/40 bg-gray-950/60 p-2 text-white placeholder:text-gray-500 focus:border-primary focus:outline-none"
               value={form.creatorWallet}
-              onChange={(event) => updateForm({ creatorWallet: event.target.value })}
+              onChange={handleCreatorWalletChange}
               placeholder="Enter the wallet that will own the safe"
               required
             />
             <span className="mt-1 text-xs text-gray-400">
               Paste the base58 address you control (e.g. Phantom or Backpack wallet).
             </span>
+            {connectedWalletAddress && !creatorWalletManuallyEdited ? (
+              <span className="mt-1 text-xs text-green-400">
+                Auto-filled from your connected wallet. Update it if a different signer should own the safe.
+              </span>
+            ) : null}
           </label>
 
           <div className="flex flex-col text-sm text-gray-200">
