@@ -19,6 +19,7 @@ interface DataModeContextValue {
   healthStatus: HealthStatus;
   lastError?: string;
   isAdmin: boolean;
+  forceLiveDefault: boolean;
 }
 
 const DataModeContext = createContext<DataModeContextValue | undefined>(undefined);
@@ -122,6 +123,10 @@ export const DataModeProvider = ({ children }: { children: ReactNode }) => {
 
   const setMode = useCallback(
     async (next: DataMode) => {
+      if (forceLiveDefault && next === 'demo') {
+        console.info('[attn] Demo mode blocked – live default enforced');
+        return;
+      }
       if (next === mode) return;
 
       if (next === 'live') {
@@ -160,7 +165,13 @@ export const DataModeProvider = ({ children }: { children: ReactNode }) => {
     [mode, apiBaseUrl, forceLiveDefault]
   );
 
-  const toggleMode = useCallback(() => setMode(mode === 'demo' ? 'live' : 'demo'), [mode, setMode]);
+  const toggleMode = useCallback(() => {
+    if (forceLiveDefault) {
+      console.info('[attn] Toggle ignored – live default enforced');
+      return Promise.resolve();
+    }
+    return setMode(mode === 'demo' ? 'live' : 'demo');
+  }, [mode, setMode, forceLiveDefault]);
 
   useEffect(() => {
     if (typeof document === 'undefined') {
@@ -186,8 +197,9 @@ export const DataModeProvider = ({ children }: { children: ReactNode }) => {
       healthStatus,
       lastError,
       isAdmin: runtimeEnv.isAdmin,
+      forceLiveDefault,
     }),
-    [mode, setMode, toggleMode, provider, apiBaseUrl, programIds, healthStatus, lastError]
+    [mode, setMode, toggleMode, provider, apiBaseUrl, programIds, healthStatus, lastError, forceLiveDefault]
   );
 
   return <DataModeContext.Provider value={value}>{children}</DataModeContext.Provider>;
