@@ -97,7 +97,8 @@ export const runtimeEnv: RuntimeEnv = (() => {
     console.warn('[attn] NEXT_PUBLIC_API_BASE is not configured. Live mode will remain disabled.');
   }
 
-  const isValid = Boolean(apiBaseUrl && Object.keys(programIds).length > 0);
+  const activePrograms = programIds[cluster];
+  const isValid = Boolean(apiBaseUrl && activePrograms && Object.keys(activePrograms).length > 0);
 
   if (defaultMode !== 'demo' && !isValid) {
     console.warn('[attn] Live mode configuration incomplete. Defaulting to demo mode.');
