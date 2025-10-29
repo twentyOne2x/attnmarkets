@@ -11,6 +11,14 @@ import AppFooter from './components/AppFooter';
 export const metadata: Metadata = {
   title: 'attn.markets App - Creator Earnings to Liquidity',
   description: 'Lock creator earnings, mint liquidity, earn uncorrelated yields on Solana',
+  icons: {
+    icon: [
+      { url: '/favicon.ico', rel: 'icon', type: 'image/x-icon' },
+      { url: '/favicon.svg', rel: 'icon', type: 'image/svg+xml' },
+    ],
+    shortcut: ['/favicon.ico'],
+    apple: [{ url: '/favicon.svg' }],
+  },
 };
 
 export default function RootLayout({

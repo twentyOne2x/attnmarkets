@@ -95,9 +95,9 @@ export const DataModeProvider = ({ children }: { children: ReactNode }) => {
         }
 
         setHealthStatus('checking');
+        setModeState('live');
         try {
           await checkHealth(apiBaseUrl);
-          setModeState('live');
           setHealthStatus('healthy');
           setLastError(undefined);
           persistMode('live');
