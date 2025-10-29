@@ -10,6 +10,7 @@ const env = {
         creator_vault: 'HDztZyNcij21HhF5SR6rhk9wx9qx6yViebUrVU9W6C86',
       },
     }),
+  NEXT_PUBLIC_DATA_MODE: process.env.NEXT_PUBLIC_DATA_MODE ?? 'live',
 };
 
 if (process.env.NEXT_PUBLIC_API_BASE) {

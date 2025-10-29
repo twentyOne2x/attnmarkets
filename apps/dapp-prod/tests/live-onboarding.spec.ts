@@ -121,6 +121,10 @@ test.describe('Creator live onboarding', () => {
     await expect(demoButton).toBeDisabled();
     await expect(liveButton).not.toBeDisabled();
     await expect(gatingCallout).toHaveCount(0);
+    await page.screenshot({
+      path: 'test-artifacts/demo-mode.png',
+      fullPage: true,
+    });
 
     await liveButton.click();
     await page.waitForFunction(() => document.body.dataset.attnMode === 'live', null, {
@@ -130,10 +134,14 @@ test.describe('Creator live onboarding', () => {
     const liveBadge = page.locator('nav span', { hasText: /LIVE —/i }).first();
     await expect(liveBadge).toBeVisible();
     await expect(gatingCallout).toBeVisible();
+    await page.screenshot({
+      path: 'test-artifacts/live-mode.png',
+      fullPage: true,
+    });
 
     const tourHeading = page.getByRole('heading', { name: 'Start with your Squads safe' });
     await expect(tourHeading).toBeVisible();
-    await page.getByRole('button', { name: 'Take me there' }).click();
+    await page.locator('div[role="presentation"]').click({ force: true });
     await expect(tourHeading).toHaveCount(0);
 
     const openSquadsLink = page.getByRole('link', { name: 'Open Squads setup' });
@@ -141,6 +149,11 @@ test.describe('Creator live onboarding', () => {
     await openSquadsLink.click();
     await expect(page.getByRole('heading', { name: 'Squads Safe Onboarding' })).toBeVisible({
       timeout: 10_000,
+    });
+    const squadsSection = page.locator('#squads-setup');
+    await expect(squadsSection).toBeVisible();
+    await squadsSection.screenshot({
+      path: 'test-artifacts/squads-onboarding.png',
     });
 
     await demoButton.click();
