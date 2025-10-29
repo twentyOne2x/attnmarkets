@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Navigation from '../components/Navigation';
 import Tooltip from '../components/Tooltip';
 import BorrowSlider from '../components/BorrowSlider';
@@ -79,6 +80,8 @@ export default function CreatorPage(): React.JSX.Element {
     governanceState,
     cluster,
   } = useAppContext();
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const showSquadsOnboarding = squadsFeatureEnabled && SquadsSafeOnboarding !== null;
   const liveChecklistRef = useRef<HTMLDivElement | null>(null);
@@ -146,6 +149,21 @@ export default function CreatorPage(): React.JSX.Element {
   useEffect(() => {
     setHasMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!hasMounted) return;
+    const startTourParam = searchParams?.get('startTour');
+    if (!startTourParam) return;
+    const normalized = startTourParam.toLowerCase();
+    if (normalized === '0' || normalized === 'false' || normalized === 'no') {
+      return;
+    }
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(LIVE_TOUR_STORAGE_KEY);
+    }
+    setShowLiveTour(true);
+    router.replace('/creator', { scroll: false });
+  }, [hasMounted, router, searchParams]);
 
   // Don't auto-generate wallet - let user connect manually
   useEffect(() => {

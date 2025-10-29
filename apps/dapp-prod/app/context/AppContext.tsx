@@ -3,6 +3,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import {
   calculateLPAPR,
@@ -356,6 +357,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     forceLiveDefault,
   } = useDataMode();
   const wallet = useWallet();
+  const walletModal = useWalletModal();
 
   // Initialize wallet from localStorage first, before any other state
   const [currentUserWallet, setCurrentUserWalletState] = useState<string>(() => {
@@ -450,7 +452,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
   // Centralized wallet connection - Step 1: Connect wallet only
   const connectWallet = async () => {
-    if (isConnecting || wallet.connected) {
+    if (isConnecting || wallet.connected || wallet.connecting) {
+      return;
+    }
+
+    if (!wallet.wallet) {
+      walletModal.setVisible(true);
       return;
     }
 
@@ -474,8 +481,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       }
       throw new Error('Wallet adapter unavailable');
     } catch (error) {
-      console.warn('Wallet adapter connection failed, falling back to demo wallet', error);
-      if (!currentUserWallet) {
+      console.warn('Wallet adapter connection failed', error);
+      if (mode === 'demo' && !currentUserWallet) {
         addNotification({
           type: 'processing',
           title: 'Connecting Wallet',
