@@ -51,6 +51,19 @@ export const DataModeProvider = ({ children }: { children: ReactNode }) => {
       : stored
     : 'demo';
 
+  if (typeof window === 'undefined') {
+    console.info('[attn] DataModeProvider init (server)', {
+      runtimeDefaultMode: runtimeEnv.defaultMode,
+      storedMode: stored,
+      forceLiveDefault,
+      initialMode,
+      cluster: runtimeEnv.cluster,
+      apiBaseConfigured: Boolean(runtimeEnv.apiBaseUrl),
+      programIdsConfigured: Object.keys(runtimeEnv.programIds[runtimeEnv.cluster] ?? {}).length,
+      isValid: runtimeEnv.isValid,
+    });
+  }
+
   const [mode, setModeState] = useState<DataMode>(initialMode);
   const [healthStatus, setHealthStatus] = useState<HealthStatus>(initialMode === 'demo' ? 'healthy' : 'unknown');
   const [lastError, setLastError] = useState<string | undefined>();
@@ -63,6 +76,18 @@ export const DataModeProvider = ({ children }: { children: ReactNode }) => {
       persistMode('live');
     }
   }, [forceLiveDefault]);
+
+  useEffect(() => {
+    console.info('[attn] DataModeProvider hydrate', {
+      runtimeDefaultMode: runtimeEnv.defaultMode,
+      storedMode: stored,
+      forceLiveDefault,
+      initialMode,
+      currentMode: mode,
+      healthStatus,
+      apiBaseConfigured: Boolean(apiBaseUrl),
+    });
+  }, [forceLiveDefault, stored, initialMode, mode, healthStatus, apiBaseUrl]);
 
   useEffect(() => {
     if (initialMode === 'live' && apiBaseUrl) {
