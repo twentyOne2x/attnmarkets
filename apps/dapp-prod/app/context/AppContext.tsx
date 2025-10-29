@@ -1233,6 +1233,24 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
   };
 
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+    if (loading) {
+      document.body.setAttribute('data-attn-loading', 'true');
+      document.body.removeAttribute('data-attn-ready');
+    } else {
+      document.body.removeAttribute('data-attn-loading');
+      document.body.setAttribute('data-attn-ready', 'true');
+    }
+
+    return () => {
+      document.body.removeAttribute('data-attn-loading');
+      document.body.removeAttribute('data-attn-ready');
+    };
+  }, [loading]);
+
   const contextValue: AppContextType = {
     poolData,
     setPoolData,

@@ -120,6 +120,16 @@ export const DataModeProvider = ({ children }: { children: ReactNode }) => {
 
   const toggleMode = useCallback(() => setMode(mode === 'demo' ? 'live' : 'demo'), [mode, setMode]);
 
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+    document.body.setAttribute('data-attn-mode', mode);
+    return () => {
+      document.body.removeAttribute('data-attn-mode');
+    };
+  }, [mode]);
+
   const value = useMemo<DataModeContextValue>(
     () => ({
       mode,
