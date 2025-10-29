@@ -119,6 +119,10 @@ export default function Navigation(): React.JSX.Element {
       ? lastModeError || 'Live mode unavailable; reverted to Demo.'
       : liveBannerLabel
     : '';
+  const liveBadgeClasses =
+    mode === 'live'
+      ? `bg-secondary/20 text-secondary border-secondary/40 ${livePulseActive ? 'animate-live-pulse' : ''}`
+      : 'bg-warning/20 text-warning border-warning/30';
 
   const renderModeToggle = (className = '') => (
     <div className={`flex items-center bg-dark/40 border border-gray-700 rounded-full overflow-hidden text-xs sm:text-sm ${className}`}>
@@ -300,13 +304,7 @@ export default function Navigation(): React.JSX.Element {
             <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-primary to-secondary rounded-lg"></div>
             <span className="text-base sm:text-xl font-semibold">attn.markets</span>
             <span className="text-xs bg-secondary px-1 sm:px-2 py-0.5 sm:py-1 rounded hidden sm:inline">App</span>
-            <span
-              className={`text-xs px-1 sm:px-2 py-0.5 sm:py-1 rounded ml-1 sm:ml-2 border ${
-                mode === 'live'
-                  ? 'bg-green-500/20 text-green-300 border-green-500/40'
-                  : 'bg-warning/20 text-warning border-warning/30'
-              }`}
-            >
+            <span className={`text-xs px-1 sm:px-2 py-0.5 sm:py-1 rounded ml-1 sm:ml-2 border ${liveBadgeClasses}`}>
               {mode === 'live' ? liveBadgeLabel : 'DEMO'}
             </span>
           </a>

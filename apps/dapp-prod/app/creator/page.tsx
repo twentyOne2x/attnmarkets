@@ -1572,12 +1572,6 @@ export default function CreatorPage(): React.JSX.Element {
           </div>
         )}
 
-        {!isLive && showSquadsOnboarding && SquadsSafeOnboarding && (
-          <div className="mt-16">
-            <SquadsSafeOnboarding />
-          </div>
-        )}
-
         <div className="text-center text-xs text-text-secondary mt-8 opacity-60">
           * All values shown are simulated for demonstration purposes
         </div>
