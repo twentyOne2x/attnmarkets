@@ -171,6 +171,7 @@ interface AppContextType {
   programIds: Record<string, string>;
   lastModeError?: string;
   cluster: string;
+  isLiveForced: boolean;
   governancePaused: boolean;
   writeEnabled: boolean;
   walletNetwork?: string | null;
@@ -352,6 +353,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     programIds,
     healthStatus,
     lastError,
+    forceLiveDefault,
   } = useDataMode();
   const wallet = useWallet();
 
@@ -1283,6 +1285,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     programIds,
     lastModeError: lastError,
     cluster,
+    isLiveForced: forceLiveDefault,
     governancePaused,
     writeEnabled,
     walletNetwork: adapterNetwork,

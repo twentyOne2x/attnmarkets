@@ -26,7 +26,8 @@ export default function Navigation(): React.JSX.Element {
     healthStatus,
     switchMode,
     lastModeError,
-    cluster
+    cluster,
+    isLiveForced
   } = useAppContext();
   
   const [isHovering, setIsHovering] = useState(false);
@@ -102,7 +103,7 @@ export default function Navigation(): React.JSX.Element {
   };
 
   const handleModeChange = async (target: DataMode) => {
-    if (target === mode || modeChanging) return;
+    if ((isLiveForced && target === 'demo') || target === mode || modeChanging) return;
     setModeChanging(true);
     try {
       await switchMode(target);
@@ -116,7 +117,7 @@ export default function Navigation(): React.JSX.Element {
     ? healthStatus === 'checking'
       ? `Checking ${cluster || 'live'} readiness…`
       : healthStatus === 'unhealthy'
-      ? lastModeError || 'Live mode unavailable; reverted to Demo.'
+      ? lastModeError || (isLiveForced ? 'Live mode degraded; staying in Live.' : 'Live mode unavailable; reverted to Demo.')
       : liveBannerLabel
     : '';
   const liveBadgeClasses =
@@ -124,39 +125,54 @@ export default function Navigation(): React.JSX.Element {
       ? `bg-secondary/20 text-secondary border-secondary/40 ${livePulseActive ? 'animate-live-pulse' : ''}`
       : 'bg-warning/20 text-warning border-warning/30';
 
-  const renderModeToggle = (className = '') => (
-    <div className={`flex items-center bg-dark/40 border border-gray-700 rounded-full overflow-hidden text-xs sm:text-sm ${className}`}>
-      <button
-        onClick={() => handleModeChange('demo')}
-        disabled={mode === 'demo' || modeChanging}
-        className={`px-3 py-1 transition-colors ${
-          mode === 'demo'
-            ? 'bg-primary text-dark font-semibold'
-            : 'bg-transparent text-text-secondary hover:text-primary'
-        }`}
-      >
-        Demo
-      </button>
-      <div className="w-px h-4 bg-gray-700" />
-      <button
-        onClick={() => handleModeChange('live')}
-        disabled={liveDisabled}
-        className={`px-3 py-1 transition-colors flex items-center space-x-1 ${
-          mode === 'live'
-            ? `bg-secondary text-dark font-semibold ${livePulseActive ? 'animate-live-pulse' : ''}`
-            : 'text-text-secondary hover:text-secondary'
-        } ${liveDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
-      >
-        {mode === 'live' && (healthStatus === 'checking' || modeChanging) ? (
-          <div className="w-3 h-3 border-2 border-secondary/40 border-t-secondary rounded-full animate-spin"></div>
-        ) : null}
-        <span>Live</span>
-        <span className="hidden lg:inline text-[10px] uppercase tracking-wide">
-          ({upperCluster || cluster})
-        </span>
-      </button>
-    </div>
-  );
+  const renderModeToggle = (className = '') => {
+    if (isLiveForced) {
+      return (
+        <div className={`flex items-center bg-dark/40 border border-gray-700 rounded-full text-xs sm:text-sm px-3 py-1 ${className}`}>
+          <span className={`flex items-center gap-2 font-semibold ${livePulseActive ? 'animate-live-pulse' : ''}`}>
+            <span className="text-secondary">Live</span>
+            <span className="hidden lg:inline text-[10px] uppercase tracking-wide text-text-secondary">
+              {upperCluster || cluster}
+            </span>
+          </span>
+        </div>
+      );
+    }
+
+    return (
+      <div className={`flex items-center bg-dark/40 border border-gray-700 rounded-full overflow-hidden text-xs sm:text-sm ${className}`}>
+        <button
+          onClick={() => handleModeChange('demo')}
+          disabled={mode === 'demo' || modeChanging}
+          className={`px-3 py-1 transition-colors ${
+            mode === 'demo'
+              ? 'bg-primary text-dark font-semibold'
+              : 'bg-transparent text-text-secondary hover:text-primary'
+          }`}
+        >
+          Demo
+        </button>
+        <div className="w-px h-4 bg-gray-700" />
+        <button
+          onClick={() => handleModeChange('live')}
+          disabled={liveDisabled}
+          className={`px-3 py-1 transition-colors flex items-center space-x-1 ${
+            mode === 'live'
+              ? `bg-secondary text-dark font-semibold ${livePulseActive ? 'animate-live-pulse' : ''}`
+              : 'text-text-secondary hover:text-secondary'
+          } ${liveDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+        >
+          {mode === 'live' && (healthStatus === 'checking' || modeChanging) ? (
+            <div className="w-3 h-3 border-2 border-secondary/40 border-t-secondary rounded-full animate-spin"></div>
+          ) : null}
+          <span>Live</span>
+          <span className="hidden lg:inline text-[10px] uppercase tracking-wide">
+            ({upperCluster || cluster})
+          </span>
+        </button>
+      </div>
+    );
+  };
 
   // Determine button state and appearance
   const getWalletButton = () => {
