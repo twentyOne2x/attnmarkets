@@ -17,6 +17,7 @@ interface TargetRect {
 }
 
 const HIGHLIGHT_PADDING = 12;
+const CALLOUT_HEIGHT_ESTIMATE = 220;
 
 const CreatorTourOverlay: React.FC<CreatorTourOverlayProps> = ({
   targetRef,
@@ -26,6 +27,7 @@ const CreatorTourOverlay: React.FC<CreatorTourOverlayProps> = ({
 }) => {
   const [mounted, setMounted] = useState(false);
   const [targetRect, setTargetRect] = useState<TargetRect | null>(null);
+  const [placement, setPlacement] = useState<'below' | 'above'>('below');
 
   useEffect(() => {
     setMounted(true);
@@ -40,12 +42,27 @@ const CreatorTourOverlay: React.FC<CreatorTourOverlayProps> = ({
         return;
       }
       const rect = targetRef.current.getBoundingClientRect();
-      setTargetRect({
+      const rectWithScroll = {
         top: rect.top + window.scrollY,
         left: rect.left + window.scrollX,
         width: rect.width,
         height: rect.height,
-      });
+      };
+
+      const viewportTop = window.scrollY;
+      const viewportBottom = window.scrollY + window.innerHeight;
+      const belowPosition =
+        rectWithScroll.top + rectWithScroll.height + HIGHLIGHT_PADDING + 16 + CALLOUT_HEIGHT_ESTIMATE;
+
+      if (belowPosition > viewportBottom - 24) {
+        setPlacement('above');
+      } else if (rectWithScroll.top - CALLOUT_HEIGHT_ESTIMATE - HIGHLIGHT_PADDING - 16 < viewportTop + 24) {
+        setPlacement('below');
+      } else {
+        setPlacement('below');
+      }
+
+      setTargetRect(rectWithScroll);
     };
 
     updateRect();
@@ -66,6 +83,16 @@ const CreatorTourOverlay: React.FC<CreatorTourOverlayProps> = ({
       } as React.CSSProperties;
     }
 
+    if (placement === 'above') {
+      const rawTop = targetRect.top - (CALLOUT_HEIGHT_ESTIMATE + HIGHLIGHT_PADDING + 16);
+      const clampedTop = Math.max(rawTop, window.scrollY + 16);
+      return {
+        top: clampedTop,
+        left: targetRect.left + targetRect.width / 2,
+        transform: 'translateX(-50%)',
+      } as React.CSSProperties;
+    }
+
     const top = targetRect.top + targetRect.height + HIGHLIGHT_PADDING + 16;
     const left = targetRect.left + targetRect.width / 2;
 
@@ -74,7 +101,7 @@ const CreatorTourOverlay: React.FC<CreatorTourOverlayProps> = ({
       left,
       transform: 'translateX(-50%)',
     } as React.CSSProperties;
-  }, [targetRect]);
+  }, [targetRect, placement]);
 
   if (!mounted || !visible) {
     return null;
@@ -105,11 +132,13 @@ const CreatorTourOverlay: React.FC<CreatorTourOverlayProps> = ({
         style={calloutPosition}
       >
         <div className="relative">
-          <div
-            className={clsx(
-              'absolute left-1/2 h-4 w-4 -translate-x-1/2 -translate-y-full rotate-45 border border-primary/30 bg-gray-900/90'
-            )}
-          />
+        <div
+          className={clsx(
+            'absolute left-1/2 h-4 w-4 -translate-x-1/2 rotate-45 border border-primary/30 bg-gray-900/90',
+            placement === 'below' ? '-translate-y-full' : 'translate-y-full'
+          )}
+          style={placement === 'above' ? { top: '100%' } : undefined}
+        />
           <div className="relative rounded-xl border border-primary/30 bg-gray-900/95 p-5 text-sm text-gray-100 shadow-2xl">
             <h3 className="text-base font-semibold text-white">Start with your Squads safe</h3>
             <p className="mt-2 text-xs text-gray-300">

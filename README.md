@@ -1,11 +1,12 @@
 # attn.markets
 
-## Fast links
+## Quick links
 - Site/Demo: https://attn.markets
+- Devnet (WIP): https://prod.attn.markets
 - X: https://x.com/attndotmarkets
-- Founder (full-time on attn, 3 yoe in defi, 2 yoe in hft): https://x.com/twentyOne2x
+- Founder, full-time on attn, 3 yoe in defi (research+bd+product), 2 yoe in hft (c++ dev in marketmaking): https://x.com/twentyOne2x
 - Forum post: https://arena.colosseum.org/posts/3308
-- Devnet setup checklist: [docs/devnet-setup.md](docs/devnet-setup.md)
+
 
 ## TL;DR
 - Tokenize ICM + CCM Solana fee streams starting with Pump.fun into Principal `PT` + Yield `YT`. 
@@ -15,12 +16,16 @@
 - Builder/Creator onboarding with Squads Safe creation live on Devnet.
 
 ## Why now - creator + builder payouts (as of 2025-10-25)
-- Receivables advances (factoring): **~$4T annual turnover**. [[fci.nl]]
-- Pump.fun creator fees: **~$300M annualized** from last 30 days. [[earnings.wtf]]
-- YouTube: **~$70B** to creators over last 3 years (**~$23B/yr avg**). [[youtube]]
-- TikTok LIVE gifts: **~$1.5B** in **2023**. [[fxcintel.com]]
-- OnlyFans: **$5.32B** paid in **FY2023**. [[upmarket.co]]
-- Twitch: **>$1B** to streamers in **2023**. [[twitch.tv]]
+Pump.fun creator revenue adds up to $300M annualised, in comparison the creator economy is cumulatively 100x bigger while cash advances on invoices (factoring) is 13000x bigger.
+
+| Segment / Platform | Latest Payout Volume | Growth / Context | Source |
+|--------------------|----------------------|------------------|--------|
+| Receivables advances (factoring) | **~$4T annual turnover** | +2.7% YoY in 2024 | [fci.nl] |
+| Pump.fun creator fees | **~$300M annualised** | Based on trailing 30-day run-rate | [earnings.wtf] |
+| YouTube | **~$70B** over last 3 years (**~$23B/yr avg**) | ~2.3× increase vs prior 3-year period ($30B) | [youtube] |
+| TikTok LIVE gifts | **~$1.5B** in **2023** | New program boosted creator revenue >250% in 6 months | [fxcintel.com] |
+| OnlyFans | **$5.32B** paid in **FY2023** | +19% YoY (vs $4.46B in 2022) | [upmarket.co] |
+| Twitch | **>$1B** to streamers in **2023** | Roughly flat around ~$1B in recent years | [twitch.tv] |
 
 *Notes:* Pump.fun is a 30-day run-rate; others are fiscal-year totals or program subsets. All USD.
 
@@ -47,12 +52,18 @@ LPs deposit stables (USDC, USDT, USDe, USDC+) to mint `attnUSD` and accrue fees 
 
 ## Revenue sources
 attn.markets will be the platform enabling DeFi services for all onchain revenues. 
+
 Revenues will be primary sourced from:
 
 (1) factoring and credit products: cash advances, loans, and open credit card lines.
+
 (2) % fee from yields from autostaked fees. 
 
+
 ## Cost centers
+Users will have a high UX cost of switching to the Squads vault since their wallet won't accommodate for it, so we'll need to offer a lot of value.
+On the other hand, supposedly they become very sticky once they overcame that initial hurdle. 
+
 In essence engineers + designer + legal + audits:
 * Incentives for user acquisition. We need builders/creators to redirect their fees for the long term.
 * Feature development. We enable all banking services sourced from DeFi and need to offer a lot of value to capture builders/creators.
@@ -63,6 +74,10 @@ In essence engineers + designer + legal + audits:
 
 The above elements are required to increase TVL sustainably, for `attnUSD` to be listed on DeFi protocols (e.g. Kamino) and become a prime asset for portfolio construction (treasuries, funds, vault curators, yield farmers).
 
+## Challenges
+* Defensibility: We will have to deploy significant resources to acquire users for them to switch to a Squads vault. We will need to defend these users and avoid new projects that will simply request to be added to the vault.
+* Legal: We deal with revenues and cashflows and people. 
+* Custody: On paper nothing blocks the user from requesting another CTO so we will need collaboration with Pump and other platforms.
 
 
 
