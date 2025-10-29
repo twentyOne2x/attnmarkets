@@ -100,15 +100,18 @@ export const DataModeProvider = ({ children }: { children: ReactNode }) => {
           setModeState('live');
           persistMode('live');
         } catch (error) {
-          console.warn('[attn] Live mode startup health check failed', error);
-          setLastError(error instanceof Error ? error.message : 'Live mode unavailable');
+          const message = error instanceof Error ? error.message : 'Live mode unavailable';
+          console.warn('[attn] Live mode startup health check failed', message);
+          setLastError(message);
           setHealthStatus('unhealthy');
-          setModeState('demo');
-          persistMode('demo');
+          if (!forceLiveDefault) {
+            setModeState('demo');
+            persistMode('demo');
+          }
         }
       })();
     }
-  }, [initialMode, apiBaseUrl]);
+  }, [initialMode, apiBaseUrl, forceLiveDefault]);
 
   const provider = useMemo<DataProvider>(() => {
     if (mode === 'live' && apiBaseUrl) {
@@ -138,11 +141,14 @@ export const DataModeProvider = ({ children }: { children: ReactNode }) => {
           setLastError(undefined);
           persistMode('live');
         } catch (error) {
-          console.warn('[attn] Live mode health check failed', error);
-          setLastError(error instanceof Error ? error.message : 'Live mode unavailable');
+          const message = error instanceof Error ? error.message : 'Live mode unavailable';
+          console.warn('[attn] Live mode health check failed', message);
+          setLastError(message);
           setHealthStatus('unhealthy');
-          setModeState('demo');
-          persistMode('demo');
+          if (!forceLiveDefault) {
+            setModeState('demo');
+            persistMode('demo');
+          }
         }
       } else {
         setModeState('demo');
@@ -151,7 +157,7 @@ export const DataModeProvider = ({ children }: { children: ReactNode }) => {
         persistMode('demo');
       }
     },
-    [mode, apiBaseUrl]
+    [mode, apiBaseUrl, forceLiveDefault]
   );
 
   const toggleMode = useCallback(() => setMode(mode === 'demo' ? 'live' : 'demo'), [mode, setMode]);
