@@ -17,6 +17,7 @@ export default function Navigation(): React.JSX.Element {
     isConnecting,
     isListing,
     isWalletConnected,
+    isUserPreviewed,
     isUserListed,
     isFullyConnected,
     connectWallet,
@@ -39,6 +40,8 @@ export default function Navigation(): React.JSX.Element {
   const liveBadgeLabel = upperCluster ? `LIVE — ${upperCluster}` : 'LIVE';
   const liveBannerLabel = cluster ? `Live — ${cluster}` : 'Live mode';
   const [livePulseActive, setLivePulseActive] = useState(false);
+  const showPendingBadge = isLive && isUserPreviewed && !isUserListed;
+  const pendingBannerMessage = 'Leaderboard preview ready — finish your Squads safe to unlock advances.';
 
   // Ensure component is mounted before using context values to prevent hydration mismatches
   useEffect(() => {
@@ -118,6 +121,8 @@ export default function Navigation(): React.JSX.Element {
       ? `Checking ${cluster || 'live'} readiness…`
       : healthStatus === 'unhealthy'
       ? lastModeError || (isLiveForced ? 'Live mode degraded; staying in Live.' : 'Live mode unavailable; reverted to Demo.')
+      : showPendingBadge
+      ? pendingBannerMessage
       : liveBannerLabel
     : '';
   const liveBadgeClasses =
@@ -372,6 +377,12 @@ export default function Navigation(): React.JSX.Element {
 
             {getWalletButton()}
 
+            {showPendingBadge && (
+              <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-warning/40 bg-warning/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-warning">
+                Pending Squads setup
+              </span>
+            )}
+
             <button
               onClick={handleReset}
               className="bg-gray-600 text-gray-400 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-500 hover:text-gray-300 transition-colors"
@@ -384,8 +395,14 @@ export default function Navigation(): React.JSX.Element {
           {/* Mobile Menu Button & Wallet */}
           <div className="flex md:hidden items-center space-x-2">
             {getWalletButton()}
-            
-            <button 
+
+            {showPendingBadge && (
+              <span className="inline-flex md:hidden items-center gap-2 rounded-full border border-warning/40 bg-warning/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-warning">
+                Pending
+              </span>
+            )}
+
+            <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="text-text-primary p-2"
             >

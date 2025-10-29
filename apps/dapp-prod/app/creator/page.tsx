@@ -74,6 +74,8 @@ export default function CreatorPage(): React.JSX.Element {
     connectWallet,
     signAndListCreator,
     isWalletConnected,
+    currentUserCreator,
+    isUserPreviewed,
     isUserListed,
     isFullyConnected,
     isLive,
@@ -89,14 +91,11 @@ export default function CreatorPage(): React.JSX.Element {
   const [hasMounted, setHasMounted] = useState(false);
   
   // Initialize weekly earnings from context
-  const [weeklyEarnings, setWeeklyEarnings] = useState<number>(() => {
-    const existingCreator = creators.find(c => c.wallet === currentUserWallet);
-    return existingCreator?.fees7d_usd || 10000;
-  });
+  const [weeklyEarnings, setWeeklyEarnings] = useState<number>(() => currentUserCreator?.fees7d_usd || 10000);
   
   // Smart default borrow percentage - always try 50% first, then constrain by liquidity
   const [borrowPercentage, setBorrowPercentage] = useState<number>(() => {
-    const initialEarnings = creators.find(c => c.wallet === currentUserWallet)?.fees7d_usd || 10000;
+    const initialEarnings = currentUserCreator?.fees7d_usd || 10000;
     const maxBorrowable = initialEarnings * 2; // 2 weeks
     const currentLiquidity = getAvailableLiquidity();
     
@@ -174,7 +173,6 @@ export default function CreatorPage(): React.JSX.Element {
 
   // Get user's loan history from context
   const userLoanHistory = getLoanHistoryForWallet(currentUserWallet || '');
-  const currentUserCreator = creators.find(c => c.wallet === currentUserWallet);
   const creatorMetrics = currentUserCreator?.metrics;
   const hasCreatorVault = currentUserCreator?.hasCreatorVault ?? false;
   const userNeedsListing = isWalletConnected && !isUserListed;
@@ -271,7 +269,8 @@ export default function CreatorPage(): React.JSX.Element {
 
   // Derived state - A user is "listed" if they exist in creators array OR have an active loan
   const currentCreator = currentUserCreator;
-  const isListed = !!currentCreator; // If they exist in the array, they're listed
+  const isListed = isUserListed;
+  const isPreviewOnly = isUserPreviewed && !isUserListed;
   const hasActiveLoan = !!(currentCreator?.activeLoan);
   const borrowingTerms = calculateBorrowingTerms(weeklyEarnings, borrowPercentage);
   const availableLiquidity = getAvailableLiquidity();
@@ -305,7 +304,7 @@ export default function CreatorPage(): React.JSX.Element {
   useEffect(() => {
     if (!currentUserWallet) return;
     
-    const existingCreator = creators.find(c => c.wallet === currentUserWallet);
+    const existingCreator = currentUserCreator;
     if (existingCreator) {
       console.log('🔄 SYNCING CREATOR DATA');
       console.log('Creator found:', {
@@ -343,19 +342,19 @@ export default function CreatorPage(): React.JSX.Element {
     } else {
       console.warn('User wallet not found in creators array:', currentUserWallet);
     }
-  }, [currentUserWallet, creators]); // Re-run when creators change
+  }, [currentUserWallet, currentUserCreator, simulatedLoan]); // Re-run when creators change
 
   // Load earnings on component mount from context
   useEffect(() => {
     if (!currentUserWallet) return;
     
-    const existingCreator = creators.find(c => c.wallet === currentUserWallet);
+    const existingCreator = currentUserCreator;
     if (existingCreator && weeklyEarnings === 10000) {
       // Only set earnings if we're still at default value
       console.log('Loading earnings from context on mount:', existingCreator.fees7d_usd);
       setWeeklyEarnings(existingCreator.fees7d_usd);
     }
-  }, [currentUserWallet, creators]); // Load once when wallet/creators are available
+  }, [currentUserWallet, currentUserCreator]); // Load once when wallet/creators are available
 
   // Update borrow percentage when earnings change - only when earnings actually change, not continuously
   useEffect(() => {
@@ -387,7 +386,7 @@ export default function CreatorPage(): React.JSX.Element {
   useEffect(() => {
     if (!currentUserWallet || isUserEditing) return;
     
-    const existingCreator = creators.find(c => c.wallet === currentUserWallet);
+    const existingCreator = currentUserCreator;
     if (existingCreator && Math.abs(existingCreator.fees7d_usd - weeklyEarnings) > 0.01) {
       console.log('Updating creator earnings in context:', weeklyEarnings);
       
@@ -398,7 +397,7 @@ export default function CreatorPage(): React.JSX.Element {
       
       return () => clearTimeout(timeoutId);
     }
-  }, [weeklyEarnings, currentUserWallet, isUserEditing]);
+  }, [weeklyEarnings, currentUserWallet, currentUserCreator, isUserEditing]);
 
   // Helper function for currency formatting
   const formatCurrency = (value: number): string => {
@@ -559,7 +558,7 @@ export default function CreatorPage(): React.JSX.Element {
       console.log('Starting borrow process for wallet:', currentUserWallet);
       
       // CRITICAL: Ensure creator is listed BEFORE taking loan
-      const existingCreator = creators.find(c => c.wallet === currentUserWallet);
+      const existingCreator = currentUserCreator;
       if (!existingCreator) {
         console.log('Creator not found in array, adding them first before loan');
         const newCreator = {
@@ -572,9 +571,12 @@ export default function CreatorPage(): React.JSX.Element {
           est_beta_next30d_usd: weeklyEarnings * 4.3
         };
         addCreatorToList(newCreator);
-        
+
         // Wait a moment for state to update
         await new Promise(resolve => setTimeout(resolve, 100));
+      } else if (existingCreator.status === 'pending_squads') {
+        addCreatorToList({ ...existingCreator, status: 'listed' });
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
       
       const loanData = {
@@ -855,8 +857,6 @@ export default function CreatorPage(): React.JSX.Element {
   // Get leaderboard preview - show top 2 + current user if listed
   const getLeaderboardPreview = () => {
     const topTwo = sortedCreators.slice(0, 2);
-    const currentUserCreator = creators.find(c => c.wallet === currentUserWallet);
-    
     if (currentUserCreator && !topTwo.some(c => c.wallet === currentUserWallet)) {
       // Add current user if they're not in top 2
       return [...topTwo, currentUserCreator];
@@ -1004,6 +1004,17 @@ export default function CreatorPage(): React.JSX.Element {
 
       <Navigation />
 
+      {isLive && isPreviewOnly && (
+        <div className="mx-auto mt-6 max-w-3xl px-4">
+          <div className="rounded-xl border border-warning/30 bg-warning/10 px-5 py-4 text-left text-warning">
+            <div className="text-sm font-semibold uppercase tracking-wide text-warning/80">Leaderboard preview active</div>
+            <p className="mt-1 text-sm text-warning/90">
+              You&apos;re already queued on the Live leaderboard. Finish the Squads 2-of-2 safe below to unlock borrowing and auto-sweeps.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
@@ -1083,12 +1094,14 @@ export default function CreatorPage(): React.JSX.Element {
                 <div className={`rounded-lg border ${(isFullyConnected && hasCreatorVault) ? 'border-green-400/40 bg-green-500/10' : 'border-gray-700 bg-gray-900/60'} p-4`}>
                   <div className="flex items-center justify-between text-sm font-semibold">
                     <span>3. List + unlock financing</span>
-                    <span className={`text-xs ${(isFullyConnected && hasCreatorVault) ? 'text-green-300' : 'text-text-secondary'}`}>
-                      {(isFullyConnected && hasCreatorVault) ? 'Ready' : 'Pending'}
+                    <span className={`text-xs ${(isFullyConnected && hasCreatorVault) ? 'text-green-300' : isPreviewOnly ? 'text-warning' : 'text-text-secondary'}`}>
+                      {(isFullyConnected && hasCreatorVault) ? 'Ready' : isPreviewOnly ? 'Preview saved' : 'Pending'}
                     </span>
                   </div>
                   <p className="mt-2 text-xs text-text-secondary">
-                    Sign the attn creator agreement to appear on the leaderboard and enable loan quotes.
+                    {isPreviewOnly
+                      ? 'Preview created — sign once your Squads safe is live to activate borrowing.'
+                      : 'Sign the attn creator agreement to appear on the leaderboard and enable loan quotes.'}
                   </p>
                   {creatorMetrics ? (
                     <div className="mt-3 space-y-1 rounded-md border border-secondary/20 bg-black/30 px-3 py-2 text-[11px] text-text-secondary">
@@ -1198,7 +1211,11 @@ export default function CreatorPage(): React.JSX.Element {
                       />
                     </div>
                     <div className="text-xs text-text-secondary mt-1">
-                      {!currentUserWallet ? 'Connect wallet first to adjust earnings' : 'List yourself first to start borrowing'}
+                      {!currentUserWallet
+                        ? 'Connect wallet first to adjust earnings'
+                        : isPreviewOnly
+                        ? 'Leaderboard preview saved — finish Squads to unlock borrowing'
+                        : 'List yourself first to start borrowing'}
                     </div>
                   </div>
                 )}
@@ -1466,7 +1483,20 @@ export default function CreatorPage(): React.JSX.Element {
                 {previewCreators.map((creator, index) => {
                   // Find this creator's actual rank in the full sorted list
                   const actualRank = sortedCreators.findIndex(c => c.wallet === creator.wallet) + 1;
-                  
+                  const isBorrowing = creator.status === 'active' || !!creator.activeLoan;
+                  const isPendingSquads = creator.status === 'pending_squads';
+                  const statusSummary = isPendingSquads
+                    ? 'Pending Squads safe • Finish setup to activate'
+                    : isBorrowing
+                    ? 'Borrowing • Auto-repayment active'
+                    : 'Listed • No active advance';
+                  const statusChipClasses = isPendingSquads
+                    ? 'bg-warning/20 text-warning'
+                    : isBorrowing
+                    ? 'bg-success/20 text-success'
+                    : 'bg-primary/20 text-primary';
+                  const statusLabel = isPendingSquads ? 'PENDING SQUADS' : isBorrowing ? 'BORROWING' : 'LISTED';
+
                   return (
                     <div key={creator.wallet} className="flex items-center justify-between py-2 border-b border-gray-700/50 last:border-b-0">
                       <div>
@@ -1485,18 +1515,11 @@ export default function CreatorPage(): React.JSX.Element {
                           )}
                         </div>
                         <div className="text-xs text-text-secondary">
-                          {creator.status === 'active' || creator.activeLoan
-                            ? `Borrowing • Auto-repayment active`
-                            : 'Listed • No active advance'
-                          } • ${creator.fees7d_usd.toLocaleString()} 7d earnings
+                          {statusSummary} • ${creator.fees7d_usd.toLocaleString()} 7d earnings
                         </div>
                       </div>
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        creator.status === 'active' || creator.activeLoan
-                          ? 'bg-success/20 text-success' 
-                          : 'bg-primary/20 text-primary'
-                      }`}>
-                        {creator.status === 'active' || creator.activeLoan ? 'BORROWING' : 'LISTED'}
+                      <span className={`px-2 py-1 rounded text-xs ${statusChipClasses}`}>
+                        {statusLabel}
                       </span>
                     </div>
                   );
@@ -1582,6 +1605,7 @@ export default function CreatorPage(): React.JSX.Element {
           <div className="rounded-xl border border-gray-700 bg-gray-900/60 p-8 text-center text-text-secondary">
             <h2 className="text-2xl font-semibold text-primary">Complete Squads setup to unlock financing</h2>
             <p className="mt-3 text-sm">
+              {isPreviewOnly ? 'Your wallet is already on the leaderboard preview. ' : ''}
               Once your creator vault is linked to a Squads 2-of-2 safe and you&apos;re listed, the borrowing and repayment tools will appear here.
             </p>
             <p className="mt-3 text-xs uppercase tracking-wide text-text-secondary/70">
