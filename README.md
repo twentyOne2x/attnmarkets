@@ -11,7 +11,7 @@
 - Tokenize ICM + CCM Solana fee streams starting with Pump.fun into Principal `PT` + Yield `YT`. 
 - Builders/Creators get cash advance, loans, fees autosweep, fees autostake products.
 - LPs get yield uncorrelated to market returns sourced from attn products.
-- Dual-control via Squads 2-of-2; with creator withdrawals remaining single-signer while no position is opened.
+- Dual-control via Squads 2-of-2; with user withdrawals remaining single-signer while no position is opened.
 - Builder/Creator onboarding with Squads Safe creation live on Devnet.
 
 ## Why now - creator + builder payouts (as of 2025-10-25)
@@ -53,6 +53,7 @@ Revenues will be primary sourced from:
 (2) % fee from yields from autostaked fees. 
 
 ## Cost centers
+In essence engineers + designer + legal + audits:
 * Incentives for user acquisition. We need builders/creators to redirect their fees for the long term.
 * Feature development. We enable all banking services sourced from DeFi and need to offer a lot of value to capture builders/creators.
 * Security. We need to guarantee that:
@@ -60,7 +61,9 @@ Revenues will be primary sourced from:
    * LPs that they'll get sustained profits for a quantified risk.
 * Legal. Projects like MetaDAO seem innovative on that dimension, likely we'll have to innovate here too.
 
-The above four elements are required to increase TVL sustainably, for `attnUSD` to be listed on DeFi protocols (e.g. Kamino) and become a prime asset for portfolio construction (treasuries, funds, vault curators, yield farmers).
+The above elements are required to increase TVL sustainably, for `attnUSD` to be listed on DeFi protocols (e.g. Kamino) and become a prime asset for portfolio construction (treasuries, funds, vault curators, yield farmers).
+
+
 
 
 
