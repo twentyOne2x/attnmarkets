@@ -1,7 +1,16 @@
 // apps/dapp/app/context/AppContext.tsx
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+  ReactNode
+} from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import {
@@ -160,6 +169,7 @@ interface AppContextType {
   // Current user wallet
   currentUserWallet: string;
   setCurrentUserWallet: (wallet: string) => void;
+  currentUserCreator: Creator | null;
 
   // Data mode
   mode: DataMode;
@@ -186,10 +196,12 @@ interface AppContextType {
   isConnecting: boolean;
   isListing: boolean;
   isWalletConnected: boolean;
+  isUserPreviewed: boolean;
   isUserListed: boolean;
   isFullyConnected: boolean;
   connectWallet: () => Promise<void>;
   signAndListCreator: () => Promise<void>;
+  ensureCreatorPreview: (wallet: string, overrides?: Partial<Creator>) => void;
   
   // Utility functions
   calculateLPAPR: () => number;
@@ -406,11 +418,17 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     !adapterNetwork ||
     adapterNetwork === 'devnet' ||
     adapterNetwork === WalletAdapterNetwork.Devnet;
-  const isUserListed = creators.some(c => c.wallet === currentUserWallet);
+  const currentUserCreator = useMemo(
+    () => creators.find(c => c.wallet === currentUserWallet) ?? null,
+    [creators, currentUserWallet]
+  );
+  const isUserPreviewed = !!currentUserCreator;
+  const isUserListed = !!(currentUserCreator && currentUserCreator.status !== 'pending_squads');
   const isFullyConnected = isWalletConnected && isUserListed;
   const isLive = mode === 'live';
   const writeEnabled =
     isLive && cluster === 'devnet' && isWalletConnected && !governancePaused && isWalletOnDevnet;
+  const leaderboardPreviewAnnouncedRef = useRef(false);
 
   useEffect(() => {
     if (wallet.connected && wallet.publicKey) {
@@ -421,6 +439,38 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       }
     }
   }, [wallet.connected, wallet.publicKey, currentUserWallet]);
+
+  useEffect(() => {
+    if (!currentUserWallet || !isLive) {
+      if (!isLive) {
+        leaderboardPreviewAnnouncedRef.current = false;
+      }
+      return;
+    }
+
+    ensureCreatorPreview(currentUserWallet);
+  }, [currentUserWallet, isLive, ensureCreatorPreview]);
+
+  useEffect(() => {
+    if (!isLive || !currentUserWallet) {
+      return;
+    }
+
+    if (isUserListed) {
+      leaderboardPreviewAnnouncedRef.current = false;
+      return;
+    }
+
+    if (isUserPreviewed && !leaderboardPreviewAnnouncedRef.current) {
+      addNotification({
+        type: 'success',
+        title: 'Leaderboard preview ready',
+        message: 'Finish your Squads safe to unlock advances.',
+        duration: 4200,
+      });
+      leaderboardPreviewAnnouncedRef.current = true;
+    }
+  }, [isLive, currentUserWallet, isUserPreviewed, isUserListed, addNotification]);
 
   // Global notification management
   const addNotification = (notification: Omit<Notification, 'id' | 'position'>) => {
@@ -1017,6 +1067,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     const metrics = creatorData.metrics ?? computeCreatorMetrics(creatorData.fees7d_usd, creatorData.est_beta_next30d_usd);
     return {
       ...creatorData,
+      status: creatorData.status ?? 'listed',
       metrics,
       hasCreatorVault: creatorData.hasCreatorVault ?? false,
     };
@@ -1025,22 +1076,18 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const addCreatorToList = (creatorData: Omit<Creator, 'activeLoan'>) => {
     const existingCreatorIndex = creators.findIndex(c => c.wallet === creatorData.wallet);
     const enrichedCreator = materializeCreator(creatorData);
-    
+
     let newCreators: Creator[];
     if (existingCreatorIndex >= 0) {
-      newCreators = creators.map((creator, index) => 
-        index === existingCreatorIndex 
-          ? { ...creator, ...enrichedCreator, status: 'listed' }
+      newCreators = creators.map((creator, index) =>
+        index === existingCreatorIndex
+          ? { ...creator, ...enrichedCreator }
           : creator
       );
     } else {
-      const newCreator: Creator = {
-        ...enrichedCreator,
-        status: 'listed'
-      };
-      newCreators = [...creators, newCreator];
+      newCreators = [...creators, enrichedCreator];
     }
-    
+
     setCreatorsState(newCreators);
     saveToLocalStorage({ creators: newCreators });
 
@@ -1053,6 +1100,46 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       saveToLocalStorage({ userPosition: newPosition });
     }
   };
+
+  const ensureCreatorPreview = useCallback(
+    (walletAddress: string, overrides?: Partial<Creator>) => {
+      if (!walletAddress) {
+        return;
+      }
+
+      const existingCreator = creators.find(c => c.wallet === walletAddress);
+      if (existingCreator) {
+        if (overrides) {
+          addCreatorToList({
+            ...existingCreator,
+            ...overrides,
+            wallet: walletAddress,
+            status: overrides.status ?? existingCreator.status,
+          });
+        }
+        return;
+      }
+
+      const placeholder: Omit<Creator, 'activeLoan'> = {
+        wallet: walletAddress,
+        fees7d_usd: overrides?.fees7d_usd ?? 0,
+        beta_pct: overrides?.beta_pct ?? 0.15,
+        alpha_pct: overrides?.alpha_pct ?? 0.70,
+        gamma_pct: overrides?.gamma_pct ?? 0.15,
+        status: overrides?.status ?? 'pending_squads',
+        est_beta_next30d_usd: overrides?.est_beta_next30d_usd ?? 0,
+        hasCreatorVault: overrides?.hasCreatorVault ?? false,
+        creator_vault: overrides?.creator_vault ?? null,
+        market: overrides?.market,
+        admin: overrides?.admin ?? null,
+        pump_mint: overrides?.pump_mint ?? null,
+        metrics: overrides?.metrics,
+      };
+
+      addCreatorToList(placeholder);
+    },
+    [creators, addCreatorToList]
+  );
 
   const updateCreatorEarnings = (wallet: string, newEarnings: number) => {
     const existingCreator = creators.find(c => c.wallet === wallet);
@@ -1276,6 +1363,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     setLoading,
     currentUserWallet,
     setCurrentUserWallet,
+    currentUserCreator,
     mode,
     isLive,
     healthStatus,
@@ -1300,11 +1388,13 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     isConnecting,
     isListing,
     isWalletConnected,
+    isUserPreviewed,
     isUserListed,
     isFullyConnected,
     connectWallet,
     signAndListCreator,
-    
+    ensureCreatorPreview,
+
     calculateLPAPR: calculateLPAPRValue,
     calculateCreatorBorrowingRate,
     calculateMonthlyYield,

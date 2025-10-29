@@ -18,6 +18,9 @@ export default function LeaderboardPage(): React.JSX.Element {
     connectWallet,
     signAndListCreator,
     isWalletConnected,
+    currentUserCreator,
+    isUserPreviewed,
+    isUserListed,
     isFullyConnected,
     isLive,
     cluster,
@@ -26,9 +29,10 @@ export default function LeaderboardPage(): React.JSX.Element {
   const [filter, setFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('fees7d');
   
-  const currentCreator = creators.find(c => c.wallet === currentUserWallet);
+  const currentCreator = currentUserCreator;
   const creatorMetrics = currentCreator?.metrics;
   const hasCreatorVault = currentCreator?.hasCreatorVault ?? false;
+  const isPreviewOnly = isUserPreviewed && !isUserListed;
 
   const filteredCreators = creators
     .filter(creator => {
@@ -109,6 +113,17 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
     <div className="min-h-screen bg-dark text-text-primary">
       <Navigation />
 
+      {isLive && isPreviewOnly && (
+        <div className="mx-auto mt-6 max-w-3xl px-4">
+          <div className="rounded-xl border border-warning/30 bg-warning/10 px-5 py-4 text-left text-warning">
+            <div className="text-sm font-semibold uppercase tracking-wide text-warning/80">You&apos;re in the preview</div>
+            <p className="mt-1 text-sm text-warning/90">
+              Your wallet is pinned to the Live leaderboard with a pending Squads status. Link the safe to start posting real metrics and unlock advances.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
@@ -179,12 +194,14 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
                 <div className={`rounded-lg border ${(isFullyConnected && hasCreatorVault) ? 'border-green-400/40 bg-green-500/10' : 'border-gray-700 bg-gray-900/60'} p-4`}>
                   <div className="flex items-center justify-between text-sm font-semibold">
                     <span>3. Sign &amp; list</span>
-                    <span className={`text-xs ${(isFullyConnected && hasCreatorVault) ? 'text-green-300' : 'text-text-secondary'}`}>
-                      {(isFullyConnected && hasCreatorVault) ? 'Ready' : 'Pending'}
+                    <span className={`text-xs ${(isFullyConnected && hasCreatorVault) ? 'text-green-300' : isPreviewOnly ? 'text-warning' : 'text-text-secondary'}`}>
+                      {(isFullyConnected && hasCreatorVault) ? 'Ready' : isPreviewOnly ? 'Preview saved' : 'Pending'}
                     </span>
                   </div>
                   <p className="mt-2 text-xs text-text-secondary">
-                    Authorize attn.markets to publish your vault metrics and show up on the leaderboard.
+                    {isPreviewOnly
+                      ? 'Preview created — sign once your Squads safe is live to activate borrowing.'
+                      : 'Authorize attn.markets to publish your vault metrics and show up on the leaderboard.'}
                   </p>
                   {creatorMetrics ? (
                     <div className="mt-3 space-y-1 rounded-md border border-secondary/20 bg-black/30 px-3 py-2 text-[11px] text-text-secondary">
@@ -472,15 +489,28 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
                       )}
                     </td>
                     <td className="py-4 px-6">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        creator.activeLoan 
-                          ? 'bg-secondary/20 text-secondary' 
+                      {(() => {
+                        const isPending = creator.status === 'pending_squads';
+                        const isBorrowing = !!creator.activeLoan;
+                        const statusLabel = isBorrowing
+                          ? 'BORROWING'
+                          : isPending
+                          ? 'PENDING SQUADS'
+                          : creator.status.toUpperCase();
+                        const chipClasses = isBorrowing
+                          ? 'bg-secondary/20 text-secondary'
+                          : isPending
+                          ? 'bg-warning/20 text-warning'
                           : creator.status === 'active'
-                          ? 'bg-success/20 text-success' 
-                          : 'bg-gray-600/20 text-gray-400'
-                      }`}>
-                        {creator.activeLoan ? 'BORROWING' : creator.status.toUpperCase()}
-                      </span>
+                          ? 'bg-success/20 text-success'
+                          : 'bg-gray-600/20 text-gray-400';
+
+                        return (
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${chipClasses}`}>
+                            {statusLabel}
+                          </span>
+                        );
+                      })()}
                     </td>
                   </tr>
                 ))}
