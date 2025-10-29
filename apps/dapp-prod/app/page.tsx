@@ -1,11 +1,13 @@
 // apps/dapp/app/page.tsx
 'use client';
 
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Analytics } from '@vercel/analytics/react';
+import { useRouter } from 'next/navigation';
 import Navigation from './components/Navigation';
 import Tooltip from './components/Tooltip';
 import { useAppContext } from './context/AppContext';
+import WelcomeGuideModal from './components/WelcomeGuideModal';
 
 interface DashboardData {
   totalTVL: number;
@@ -20,9 +22,13 @@ interface DashboardData {
   totalBorrowed: number;
 }
 
+const LANDING_GUIDE_STORAGE_KEY = 'attn.landingGuidePrompt';
+const CREATOR_TOUR_STORAGE_KEY = 'attn.liveCreatorTour';
+
 export default function Dashboard(): React.JSX.Element {
-  const { 
-    poolData, 
+  const router = useRouter();
+  const {
+    poolData,
     creators, 
     userPosition, 
     currentUserWallet,
@@ -49,6 +55,45 @@ export default function Dashboard(): React.JSX.Element {
     totalBorrowed: creators.filter(c => c.activeLoan).reduce((sum, c) => sum + (c.activeLoan?.amount || 0), 0),
     utilization: poolData.tvl_usdc > 0 ? (creators.filter(c => c.activeLoan).reduce((sum, c) => sum + (c.activeLoan?.amount || 0), 0) / poolData.tvl_usdc) * 100 : 0
   } : null;
+
+  const [showWelcomeGuide, setShowWelcomeGuide] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const storedPreference = window.localStorage.getItem(LANDING_GUIDE_STORAGE_KEY);
+    if (!storedPreference || storedPreference === 'ask') {
+      setShowWelcomeGuide(true);
+    }
+  }, []);
+
+  const persistGuideChoice = useCallback((choice: string) => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(LANDING_GUIDE_STORAGE_KEY, choice);
+  }, []);
+
+  const handleOpenGuide = useCallback(() => {
+    setShowWelcomeGuide(true);
+  }, []);
+
+  const handleExploreFreely = useCallback(() => {
+    persistGuideChoice('explore');
+    setShowWelcomeGuide(false);
+  }, [persistGuideChoice]);
+
+  const handleCreatorGuide = useCallback(() => {
+    persistGuideChoice('creator');
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(CREATOR_TOUR_STORAGE_KEY);
+    }
+    setShowWelcomeGuide(false);
+    router.push('/creator?startTour=1');
+  }, [persistGuideChoice, router]);
+
+  const handleLpGuide = useCallback(() => {
+    persistGuideChoice('lp');
+    setShowWelcomeGuide(false);
+    router.push('/deposit?guide=lp');
+  }, [persistGuideChoice, router]);
 
   // Debug logging to see what's happening
   console.log('🎯 Dashboard Data Check:', {
@@ -109,7 +154,25 @@ Active borrowers: ${activeCreators.length}`;
     <div className="min-h-screen bg-dark text-text-primary">
       <Navigation />
 
+      <WelcomeGuideModal
+        open={showWelcomeGuide}
+        onChooseCreator={handleCreatorGuide}
+        onChooseLP={handleLpGuide}
+        onExplore={handleExploreFreely}
+      />
+
       <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary/80">
+          <span>Not sure where to start? Launch the guided tour for creators and LPs.</span>
+          <button
+            type="button"
+            onClick={handleOpenGuide}
+            className="rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-primary transition hover:bg-primary/20"
+          >
+            Open welcome guide
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
             <Tooltip content="Total funding available for creators to borrow against their future earnings">
