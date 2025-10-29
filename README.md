@@ -3,14 +3,14 @@
 ## Fast links
 - Site/Demo: https://attn.markets
 - X: https://x.com/attndotmarkets
-- Founder (full-time on attn): https://x.com/twentyOne2x
+- Founder (full-time on attn, 3 yoe in defi, 2 yoe in hft): https://x.com/twentyOne2x
 - Forum post: https://arena.colosseum.org/posts/3308
 - Devnet setup checklist: [docs/devnet-setup.md](docs/devnet-setup.md)
 
 ## TL;DR
 - Tokenize ICM + CCM Solana fee streams starting with Pump.fun into Principal `PT` + Yield `YT`. 
 - Builders/Creators get cash advance, loans, fees autosweep, fees autostake products.
-- LPs get yield uncorrelated to market returns sourced from creator products.
+- LPs get yield uncorrelated to market returns sourced from attn products.
 - Dual-control via Squads 2-of-2; with creator withdrawals remaining single-signer while no position is opened.
 - Builder/Creator onboarding with Squads Safe creation live on Devnet.
 
@@ -37,38 +37,56 @@ attn.markets tokenises Solana fee streams (ICM + CCM) into Pendle-style Principa
 
 Pump.fun’s CTO flow is the first on-ramp: once fees point to the CreatorVault PDA (Squads 2-of-2: creator+attn), we wrap them into Standardized Yield (SY) and split into Principal (PT) and Yield (YT) tokens, rails we can reuse wherever fee authority can be reassigned. 
 
-LPs deposit stables (USDC, USDT, USDe, USDC+) to mint `attnUSD` and accrue fees services given to builders/creators.
+LPs deposit stables (USDC, USDT, USDe, USDC+) to mint `attnUSD` and accrue fees from services given to builders/creators.
 
 ### What this unlocks
-- **Creators & builders** – Autosweep fees, autostake fees (~ +4.5% APR), cash advance by selling YT, or selling slice of PT i.e. all future cash flows.
-- **DeFi users, protocols, risk desks** – `attnUSD` and YT tranches turn fee exposure into diversified, yield-bearing assets for farmers, risk custodians, treasuries, and structured products.
-- **Composable rails** – SY/PT/YT feed the AMM, stable vault, and forthcoming credit/hedging modules, the backbone for internet capital markets on Solana.
+- **Creators & builders**:  Autosweep fees, autostake fees (~ +4.5% APR) through Helius/Jito/Bulk, cash advance by selling YT, or selling slice of PT i.e. all future cash flows. Later: loans, credit card powered by earnings.
+- **DeFi users, protocols, vault curators**: mint `attnUSD` to source yield uncorrelated to market returns from attn products.
+- **ICM + CCM Launchpads**: send future projects fee streams through attn markets and get priority rev share.
+- **Builders on top of attnmarkets**: create (structured) products built on user fee streams.
+
+## Revenue sources
+attn.markets will be the platform enabling DeFi services for all onchain revenues. 
+Revenues will be primary sourced from:
+
+(1) factoring and credit products: cash advances, loans, and open credit card lines.
+(2) % fee from yields from autostaked fees. 
+
+## Cost centers
+* Incentives for user acquisition. We need builders/creators to redirect their fees for the long term.
+* Feature development. We enable all banking services sourced from DeFi and need to offer a lot of value to capture builders/creators.
+* Security. We need to guarantee that:
+   * The users can access their fees regardless of attnmarkets existing.
+   * LPs that they'll get sustained profits for a quantified risk.
+* Legal. Projects like MetaDAO seem innovative on that dimension, likely we'll have to innovate here too.
+
+The above four elements are required to increase TVL sustainably, for `attnUSD` to be listed on DeFi protocols (e.g. Kamino) and become a prime asset for portfolio construction (treasuries, funds, vault curators, yield farmers).
+
+
 
 ## Why Pump.fun First
-- **Native reassignment path** – Pump.fun supports CTO fee authority transfers, so fees are redirected to the **CreatorVault PDA administered by a Squads Safe (creator+attn, 2-of-2)** without modifying the base token.
-- **Meaningful cash flow** – Top Pump tokens generate material SOL fees.
-- **Active communities** – Migrating fee ownership unlocks new hedging and upfront financing tools while keeping the base token untouched.
+- **Native reassignment path**: Pump.fun supports CTO fee authority transfers, so fees are redirected to the **CreatorVault PDA administered by a Squads Safe (creator+attn, 2-of-2)** without modifying the base token.
+- **Meaningful cash flow**: Top Pump tokens generate material SOL fees.
+- **Active communities**: Migrating fee ownership unlocks new hedging and upfront financing tools while keeping the base token untouched.
 
 ## Core Building Blocks
-1. **CreatorVault PDA (admin = Squads Safe, 2-of-2 creator+attn)** – Custodies the Pump fee PDA post-CTO, collects SOL, tracks `locked` / `lock_expires_at`, exposes optional auto-sweeper delegation, and mints SY SPL tokens plus `withdraw_fees` access while unlocked.
-2. **SY → PT & YT Splitter** – Burns SY and mints equal PT and YT amounts for a chosen maturity. PT redeems principal at maturity; YT accrues fees continuously. Markets close only when PT/YT supply is zero and both the creator authority and admin sign the transaction. CPI hooks enforce the classic SPL Token program (Tokenkeg) to avoid Token-2022 mismatches.
-3. **Stable Yield Vault (`attnUSD`)** – Default destination for YT cash flows. LPs deposit approved stablecoins (USDC/USDT/USDe, etc.) to mint `attnUSD` shares; the vault converts creator fees into the same basket so NAV captures protocol-wide yield.
-4. **RewardsVault (sAttnUSD)** – Optional staking wrapper for `attnUSD`. Stakers mint sAttnUSD and accrue SOL rewards via an index while `attnUSD` NAV remains USD-denominated.
-5. **Pendle-inspired AMM** – Supports PT/quote and `attnUSD`/quote swaps with concentrated liquidity and time-decay pricing.
-6. **Creator + Holder Console** – Web UI and CLI for CTO guidance, wrapping/splitting, fee claims, SOL rewards, redemptions, and liquidity provisioning.
-7. **Indexer & Monitoring** – Tracks fee inflows, SY/PT/YT supply, reward indexes, maturity events, and raises alerts on flow disruption.
+1. **CreatorVault PDA (admin = Squads Safe, 2-of-2 creator+attn)**: Custodies the Pump fee PDA post-CTO, collects SOL, tracks `locked` / `lock_expires_at`, exposes optional auto-sweeper delegation, and mints SY SPL tokens plus `withdraw_fees` access while unlocked.
+2. **SY → PT & YT Splitter**: Burns SY and mints equal PT and YT amounts for a chosen maturity. PT redeems principal at maturity; YT accrues fees continuously. Markets close only when PT/YT supply is zero and both the creator authority and admin sign the transaction.
+3. **Stable Yield Vault (`attnUSD`)**: Default destination for YT cash flows. LPs deposit approved stablecoins (USDC/USDT/USDe/USDC+) to mint `attnUSD` shares.
+4. **RewardsVault (sAttnUSD)**: Optional staking wrapper for `attnUSD`. Stakers mint sAttnUSD and accrue SOL rewards via an index while `attnUSD` NAV remains USD-denominated.
+5. **Pendle-inspired AMM**: Supports PT/quote and `attnUSD`/quote swaps with concentrated liquidity and time-decay pricing.
+6. **Creator + Holder Console**: Web UI and CLI for CTO guidance, wrapping/splitting, fee claims, SOL rewards, redemptions, and liquidity provisioning.
+7. **Indexer & Monitoring**: Tracks fee inflows, SY/PT/YT supply, reward indexes, maturity events, and raises alerts on flow disruption.
 
-## End-to-End User Flow
-1. A sponsor (creator, business, or DAO) submits a Pump.fun CTO request naming the CreatorVault PDA (Squads 2-of-2: creator+attn) as the new fee authority.
+## Onboarding User Flow
+1. Through the UI, the sponsor (creator, business, or DAO) creates the CreatorVault PDA (Squads 2-of-2: creator+attn) and submits the Pump.fun CTO request to name the PDA as the new fee authority.
 2. Pump executes `set_creator`, redirecting fees into the CreatorVault PDA. Set **`CreatorVault.admin` to a Squads Safe with members `{creator, attn}` and threshold `2`**; optionally set an `emergency_admin` Squads Safe. Financing flows toggle the vault lock via `lock_collateral` / `unlock_collateral` (auto-expiring at maturity) so the creator keeps unilateral `withdraw_fees` access whenever no obligation is outstanding; all other admin ops (pause, config) require both creator and attn signatures via Squads.
-3. Users wrap Pump tokens or fee balances to mint SY, then split into PT + YT via Splitter.
-4. Fees stream into the vault; YT holders redeem yield directly or route it into `attnUSD`. A configured SOL slice funds RewardsVault so `attnUSD` stakers earn SOL outside the stablecoin NAV. Splitter CPIs into CreatorVault for both minting and fee transfers to keep mint authority centralised.
+3. Users mint SY, then split into PT + YT via Splitter.
+4. Fees stream into the vault; YT holders redeem yield directly or route it into `attnUSD`. A configured SOL slice (zero by default) funds RewardsVault so `attnUSD` stakers earn SOL outside the stablecoin NAV. Splitter CPIs into CreatorVault for both minting and fee transfers to keep mint authority centralised.
 5. After maturity, PT holders redeem remaining Pump tokens/fees and can roll into a fresh tranche.
 
-**Note on credit/loans:** the current repo does **not** yet implement an attnAdvance loan module or automatic repayment scheduling. There is no dual-signature loan contract between attn and a creator in this MVP; those flows will be specified separately once the credit product ships.
-
 ## MVP Deliverables
-- CreatorVault + SY mint deployed to Solana devnet with CLI support.
+- CreatorVault onboarding flow + SY mint deployed to Solana devnet with CLI support.
 - PT/YT splitter markets with yield redemption accounting, using CreatorVault CPI hooks for minting and yield payouts.
 - Stable Yield Vault aggregating YT flows into `attnUSD` shares.
 - Minimal PT/quote and `attnUSD`/quote AMM pools.
@@ -81,22 +99,17 @@ LPs deposit stables (USDC, USDT, USDe, USDC+) to mint `attnUSD` and accrue fees 
 - ✅ StableVault: sweep (`operation_id`), RewardsVault funding CPI, conversion queue scaffolding.
 - ✅ RewardsVault: stake/unstake/claim/fund (`operation_id`), pause, admin/allowed-funder checks.
 - ✅ SDK/CLI/API: `attn_client`, `attn_cli`, `attn_indexer`, `attn_api` updated for new flows (ETags, `/v1/governance`).
-- ⏳ AMM: CWAMM math + devnet pool deployment.
+- ⏳ AMM (Pendle-based): CWAMM math + devnet pool deployment.
 
-## Work Remaining
-- Implement AMM v0 pricing/LP math and surface via SDK/API.
-- Harden keeper service (op-id monotonicity, pause awareness) and ship runbooks.
-- Finish frontend Live mode (pause banners, Rewards ledger with ETag caching).
-- Re-run property tests once rust-lld issues resolved in CI.
-- Prepare devnet rollout: Squads safe creation, program re-deploy, Keeper + API smoke flows.
 
 ## Path After MVP
-- Expand to additional Pump tokens via batch CTO onboarding.
-- Offer optional standalone YT pools for communities wanting direct exposure.
-- Integrate credit/hedging modules powered by PT/`attnUSD` collateral.
-- Extend migration tooling to other Solana launchpads once fee authority transfers are feasible.
+- Focus on builder/creator acquisition.
+   - reach out + incentives
+   - rev share with ICM launchpads
+- Integrate credit modules with LTVs, grace periods if fees do not cover principal+interest until maturity, liquidations.
+- Reach out for card integration to enable credit lines.
+- When the fee authority from a Solana launchpad cannot be transferred, use or create a token migration tool.
 
-attn.markets turns Pump.fun creator fees into composable DeFi assets, unlocking upfront funding for teams and diversified yield for investors, all without rewriting the original token.
 
 ## Quickstart
 ```bash
