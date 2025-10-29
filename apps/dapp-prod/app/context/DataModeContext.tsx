@@ -44,7 +44,12 @@ const checkHealth = async (apiBase: string): Promise<void> => {
 
 export const DataModeProvider = ({ children }: { children: ReactNode }) => {
   const stored = useStoredMode();
-  const initialMode = runtimeEnv.isValid ? stored : 'demo';
+  const forceLiveDefault = runtimeEnv.isValid && runtimeEnv.defaultMode === 'live';
+  const initialMode = runtimeEnv.isValid
+    ? forceLiveDefault
+      ? 'live'
+      : stored
+    : 'demo';
 
   const [mode, setModeState] = useState<DataMode>(initialMode);
   const [healthStatus, setHealthStatus] = useState<HealthStatus>(initialMode === 'demo' ? 'healthy' : 'unknown');
@@ -52,6 +57,12 @@ export const DataModeProvider = ({ children }: { children: ReactNode }) => {
 
   const programIds = useMemo(() => runtimeEnv.programIds[runtimeEnv.cluster] ?? {}, []);
   const apiBaseUrl = runtimeEnv.apiBaseUrl;
+
+  useEffect(() => {
+    if (forceLiveDefault) {
+      persistMode('live');
+    }
+  }, [forceLiveDefault]);
 
   useEffect(() => {
     if (initialMode === 'live' && apiBaseUrl) {
