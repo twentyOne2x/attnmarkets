@@ -442,38 +442,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
   }, [wallet.connected, wallet.publicKey, currentUserWallet]);
 
-  useEffect(() => {
-    if (!currentUserWallet || !isLive) {
-      if (!isLive) {
-        leaderboardPreviewAnnouncedRef.current = false;
-      }
-      return;
-    }
-
-    ensureCreatorPreview(currentUserWallet);
-  }, [currentUserWallet, isLive, ensureCreatorPreview]);
-
-  useEffect(() => {
-    if (!isLive || !currentUserWallet) {
-      return;
-    }
-
-    if (isUserListed) {
-      leaderboardPreviewAnnouncedRef.current = false;
-      return;
-    }
-
-    if (isUserPreviewed && !leaderboardPreviewAnnouncedRef.current) {
-      addNotification({
-        type: 'success',
-        title: 'Leaderboard preview ready',
-        message: 'Finish your Squads safe to unlock advances.',
-        duration: 4200,
-      });
-      leaderboardPreviewAnnouncedRef.current = true;
-    }
-  }, [isLive, currentUserWallet, isUserPreviewed, isUserListed, addNotification]);
-
   // Global notification management
   const addNotification = (notification: Omit<Notification, 'id' | 'position'>) => {
     const id = Math.random().toString(36).substr(2, 9);
@@ -589,19 +557,28 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       const existingCreator = creators.find(c => c.wallet === currentUserWallet);
-      if (!existingCreator) {
-        const newCreator = {
+      let baseCreatorData: Omit<Creator, 'activeLoan'>;
+
+      if (existingCreator) {
+        const { activeLoan: _ignored, ...rest } = existingCreator;
+        baseCreatorData = {
+          ...rest,
+          status: 'listed',
+        };
+      } else {
+        baseCreatorData = {
           wallet: currentUserWallet,
           fees7d_usd: 10000, // Default earnings
           beta_pct: 0.15,
           alpha_pct: 0.70,
           gamma_pct: 0.15,
           status: 'listed',
-          est_beta_next30d_usd: 10000 * 4.3
+          est_beta_next30d_usd: 10000 * 4.3,
         };
-        console.log('AppContext: Adding new creator to leaderboard:', newCreator);
-        addCreatorToList(newCreator);
       }
+
+      console.log('AppContext: Promoting creator listing:', baseCreatorData);
+      addCreatorToList(baseCreatorData);
       
       addNotification({
         type: 'success',
@@ -1147,6 +1124,38 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     },
     [creators, addCreatorToList]
   );
+
+  useEffect(() => {
+    if (!currentUserWallet || !isLive) {
+      if (!isLive) {
+        leaderboardPreviewAnnouncedRef.current = false;
+      }
+      return;
+    }
+
+    ensureCreatorPreview(currentUserWallet);
+  }, [currentUserWallet, isLive, ensureCreatorPreview]);
+
+  useEffect(() => {
+    if (!isLive || !currentUserWallet) {
+      return;
+    }
+
+    if (isUserListed) {
+      leaderboardPreviewAnnouncedRef.current = false;
+      return;
+    }
+
+    if (isUserPreviewed && !leaderboardPreviewAnnouncedRef.current) {
+      addNotification({
+        type: 'success',
+        title: 'Leaderboard preview ready',
+        message: 'Finish your Squads safe to unlock advances.',
+        duration: 4200,
+      });
+      leaderboardPreviewAnnouncedRef.current = true;
+    }
+  }, [isLive, currentUserWallet, isUserPreviewed, isUserListed, addNotification]);
 
   const updateCreatorEarnings = (wallet: string, newEarnings: number) => {
     const existingCreator = creators.find(c => c.wallet === wallet);
