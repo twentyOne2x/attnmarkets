@@ -368,7 +368,7 @@ export default function CreatorPage(): React.JSX.Element {
       addNotification({
         type: 'processing',
         title: 'Setting Up Account',
-        message: 'Adding to creator leaderboard...',
+        message: 'Adding to sponsor leaderboard...',
         duration: 800
       });
       await new Promise(resolve => setTimeout(resolve, 800));
