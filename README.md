@@ -1,83 +1,124 @@
 # attn.markets
 
 ## Quick links
-- Site/Demo: https://attn.markets
+- Site/Demo: https://attn.markets / https://app.attn.markets
 - Devnet (WIP): https://prod.attn.markets
 - X: https://x.com/attndotmarkets
-- Founder, full-time on attn, 3 yoe in defi (research+bd+product), 2 yoe in hft (c++ dev in marketmaking): https://x.com/twentyOne2x
-- Forum post: https://arena.colosseum.org/posts/3308
+- Founder Billy (https://x.com/twentyOne2x), 
+  * full-time on attn, 
+  * 3 yoe in defi startups (research+bd+product) from pre-PMF to Binance listing, 
+  * 2 yoe in hft (c++ dev in market-making)
 
 
 ## TL;DR
-- Tokenize ICM + CCM Solana fee streams starting with Pump.fun into Principal `PT` + Yield `YT`. 
-- Builders/Creators get cash advance, loans, fees autosweep, fees autostake products.
-- LPs get yield uncorrelated to market returns sourced from attn products.
-- Dual-control via Squads 2-of-2; with user withdrawals remaining single-signer while no position is opened.
-- Builder/Creator onboarding with Squads Safe creation live on Devnet.
+- Tokenising the $2B Solana revenues to bank builders, DAOs, and creators to DeFi.
+- The Sponsor (Builders/DAOs/Creators) get cash advance, loans/corporate bonds, savings account (+4-6% APR from stables/LSTs), credit card lines…
+- LPs mint `attnUSD` with stable to get yield uncorrelated to market returns sourced from attn products.
+- Dual-control via Squads 2of2 (sponsor+attn), with user withdrawals remaining single-signer while no position is opened.
+- Squads Safe creation live on Devnet.
 
-## Why now - creator + builder payouts (as of 2025-10-25)
-Pump.fun creator revenue adds up to $300M annualised, in comparison the creator economy is cumulatively 100x bigger while cash advances on invoices (factoring) is 13000x bigger.
+## Why now
+* Solana app revenues = $1.72B annually. (30d annualised, [DeFiLlama](https://defillama.com/app-revenue/chains))
 
-| Segment / Platform | Latest Payout Volume | Growth / Context | Source |
-|--------------------|----------------------|------------------|--------|
-| Receivables advances (factoring) | **~$4T annual turnover** | +2.7% YoY in 2024 | [fci.nl] |
-| Pump.fun creator fees | **~$300M annualised** | Based on trailing 30-day run-rate | [earnings.wtf] |
-| YouTube | **~$70B** over last 3 years (**~$23B/yr avg**) | ~2.3× increase vs prior 3-year period ($30B) | [youtube] |
-| TikTok LIVE gifts | **~$1.5B** in **2023** | New program boosted creator revenue >250% in 6 months | [fxcintel.com] |
-| OnlyFans | **$5.32B** paid in **FY2023** | +19% YoY (vs $4.46B in 2022) | [upmarket.co] |
-| Twitch | **>$1B** to streamers in **2023** | Roughly flat around ~$1B in recent years | [twitch.tv] |
+* Pump.fun creator rewards = $300M annually. (30d annualised, [earnings.wtf](https://earnings.wtf))
+   * The Web2 creator economy alone pays $30B annually to its creators (YouTube [$23B](https://blog.youtube/inside-youtube/2024-letter-from-neal/), OnlyFans [$5.32B](https://www.upmarket.co/blog/onlyfans-official-revenue-net-profit-creator-and-subscriber-data-updated-september-2024/), TikTok [$1.5B](https://www.fxcintel.com/research/press-releases/new-data-analysis-shows-tiktok-takes-77-cut-of-gift-payments-sent-to-creators), Twitch [$1B](https://blog.twitch.tv/en/2024/01/10/a-difficult-update-about-our-workforce/))
 
-*Notes:* Pump.fun is a 30-day run-rate; others are fiscal-year totals or program subsets. All USD.
+-> These $2B miss out on the entire DeFi ecosystem
 
-[fci.nl]: https://fci.nl/en/news/fci-release-2024-world-industry-statistics-showing-factoring-market-remains-stable
-[earnings.wtf]: https://earnings.wtf
-[youtube]: https://blog.youtube/inside-youtube/2024-letter-from-neal/
-[fxcintel.com]: https://www.fxcintel.com/research/press-releases/new-data-analysis-shows-tiktok-takes-77-cut-of-gift-payments-sent-to-creators
-[upmarket.co]: https://www.upmarket.co/blog/onlyfans-official-revenue-net-profit-creator-and-subscriber-data-updated-september-2024/
-[twitch.tv]: https://blog.twitch.tv/en/2024/01/10/a-difficult-update-about-our-workforce/
+
+
+-> Tradfi products on revenues: [$4T](https://fci.nl/en/news/fci-release-2024-world-industry-statistics-showing-factoring-market-remains-stable) annually for Cash Advances (factoring), [$33T](https://www.oecd.org/content/dam/oecd/en/publications/reports/2024/03/global-debt-report-2024_84b4c408/91844ea2-en.pdf) for corporate bonds
+
+
+With this, the DeFi ecosystem is mature, the US administration is crypto friendly and Solana apps push the boundaries of what's possible:
+* Pump.fun buys back $1M worth of tokens daily
+* MetaDAO’s structure enforces projects’ 
+   1. to assign all IP to their DAOs
+   2. to redirect 100% of their revenues to their DAO
+
 
 
 ## What We’re Building
-attn.markets tokenises Solana fee streams (ICM + CCM) into Pendle-style Principal and Yield tokens. 
+attn.markets tokenises the $2B Solana app revenues into Principal and Yield tokens. 
 
-Pump.fun’s CTO flow is the first on-ramp: once fees point to the CreatorVault PDA (Squads 2-of-2: creator+attn), we wrap them into Standardized Yield (SY) and split into Principal (PT) and Yield (YT) tokens, rails we can reuse wherever fee authority can be reassigned. 
+The Sponsor (creator, business, or DAOs from MetaDAO):
+* Creates Squads 2of2 (sponsor+attn) or hooks attn program to existing Safe
+   * Non-custodial: withdrawals remain single-signer while no position is opened
+* Point revenues to the Safe (Pump.fun through CTO request)
+* Enable: staking, cash advance (selling slice of Yield token), M&A (selling PT), later lending, credit card line
 
-LPs deposit stables (USDC, USDT, USDe, USDC+) to mint `attnUSD` and accrue fees from services given to builders/creators.
+This can be reused wherever the fee authority can be reassigned. 
+
+LPs deposit stables (USDC, USDT, Ethena’s USDe, Reflect’s USDC+) to mint `attnUSD`, the yield-bearing stablecoin acting as attn products counterparty.
 
 ### What this unlocks
-- **Creators & builders**:  Autosweep fees, autostake fees (~ +4.5% APR) through Helius/Jito/Bulk, cash advance by selling YT, or selling slice of PT i.e. all future cash flows. Later: loans, credit card powered by earnings.
-- **DeFi users, protocols, vault curators**: mint `attnUSD` to source yield uncorrelated to market returns from attn products.
-- **ICM + CCM Launchpads**: send future projects fee streams through attn markets and get priority rev share.
-- **Builders on top of attnmarkets**: create (structured) products built on user fee streams.
+- **Creators & builders**:  Autosweep fees, autostake fees (+4%-6% APR) through Helius/Jito/Bulk and Ethena/Reflect, cash advance by selling YT, M&A by selling PT. Later: loans, credit card powered by earnings.
+- **DeFi users, protocols, vault curators**: deposit stables (USDC, USDT, Ethena’s USDe, Reflect’s USDC+) to mint attnUSD, the yield-bearing stablecoin acting as attn products counterparty.
+- **ICM launchpads & Safe-based apps**: get rev-share from Safes hooked to the attn CreatorVault
+- **Builders on top of attnmarkets**: create products built on top of tokenised revenues (M&A desk, structured financing [...]).
 
 ## Revenue sources
-attn.markets will be the platform enabling DeFi services for all onchain revenues. 
+Three primary revenue engines (before rev-share):
 
-Revenues will be primary sourced from:
+1. % take on yields from autostaked revenue flows.
+2. Cash advances (factoring) against future earnings.
+3. Loans & open credit lines secured by fee streams.
 
-(1) factoring and credit products: cash advances, loans, and open credit card lines.
+Assuming attn captures a constant 2 % share of the addressable revenue base, the blended annual run rate scales as follows:
 
-(2) % fee from yields from autostaked fees. 
+| Metric | Baseline | Low growth (1.5×) | Medium growth (3×) | High growth (10×) |
+|--------|---------:|------------------:|-------------------:|------------------:|
+| Total market size | $2.0B | $3.0B | $6.0B | $20.0B |
+| TVL @ 2 % share | $40M | $60M | $120M | $400M |
+| Autostake fee ARR | $64k | $96k | $192k | $640k |
+| Cash advance ARR | $200k | $300k | $600k | $2.0M |
+| Loans & credit ARR | $360k | $540k | $1.08M | $3.60M |
+| **Total ARR** | **$624k** | **$936k** | **$1.87M** | **$6.24M** |
+
+### Appendix: calculation inputs
+
+**(1) Autostaked revenue fee**
+- Formula: `TVL × APR × (staking_months/12) × protocol_take`.
+- Baseline: $40M × 6 % × (4/12) × 8 % ≈ **$64k**.
+- Low: $60M × 6 % × (4/12) × 8 % ≈ **$96k**.
+- Medium: $120M × 6 % × (4/12) × 8 % ≈ **$192k**.
+- High: $400M × 6 % × (4/12) × 8 % ≈ **$640k**.
+
+**(2) Cash advances**
+- Formula: `Advance volume × advance_fee × protocol_share`.
+- Baseline volume $10M (0.5 % of $2B): $10M × 10 % × 20 % = **$200k**.
+- Low: $15M × 10 % × 20 % = **$300k**.
+- Medium: $30M × 10 % × 20 % = **$600k**.
+- High: $100M × 10 % × 20 % = **$2.0M**.
+
+**(3) Loans & credit lines**
+- Formula: `Open interest × APR × protocol_share`.
+- Baseline open interest $20M: $20M × 12 % × 15 % = **$360k**.
+- Low: $30M × 12 % × 15 % = **$540k**.
+- Medium: $60M × 12 % × 15 % = **$1.08M**.
+- High: $200M × 12 % × 15 % = **$3.60M**.
+
+## Challenges
+Retail users (creators) have high switching costs to point their revenues to the Squads vault since they will need to use a new app. Acquisition will be expensive.
+
+The existing Squads users like DAOs will likely be a very competitive ground to gain market share. Defensibility will be expensive.
+
+* Defensibility: create enough value to disincentivise users to hook up other apps to their Squads vaults.
+* Legal: We deal with revenues and cashflows and people. MetaDAO is the most promising innovation so far.
+* Custody: On paper nothing blocks the user from requesting another CTO even with a position opened, so we will need collaboration with Pump and other ICM platforms.
 
 
 ## Cost centers
-Users will have a high UX cost of switching to the Squads vault since their wallet won't accommodate for it, so we'll need to offer a lot of value.
-On the other hand, supposedly they become very sticky once they overcame that initial hurdle. 
-
-In essence engineers + designer + legal + audits:
-* Incentives for user acquisition. We need builders/creators to redirect their fees for the long term.
-* Feature development. We enable all banking services sourced from DeFi and need to offer a lot of value to capture builders/creators.
+We need in essence engineers + designer + legal + audits:
+* Incentives for user acquisition. We need the sponsor (builder/DAO/creator) to redirect their fees for the long term.
+* Feature development. We enable all banking services sourced from DeFi and need to offer a lot of value to capture retail market share.
 * Security. We need to guarantee that:
    * The users can access their fees regardless of attnmarkets existing.
    * LPs that they'll get sustained profits for a quantified risk.
-* Legal. Projects like MetaDAO seem innovative on that dimension, likely we'll have to innovate here too.
+* Legal.
 
 The above elements are required to increase TVL sustainably, for `attnUSD` to be listed on DeFi protocols (e.g. Kamino) and become a prime asset for portfolio construction (treasuries, funds, vault curators, yield farmers).
 
-## Challenges
-* Defensibility: We will have to deploy significant resources to acquire users for them to switch to a Squads vault. We will need to defend these users and avoid new projects that will simply request to be added to the vault.
-* Legal: We deal with revenues and cashflows and people. 
-* Custody: On paper nothing blocks the user from requesting another CTO so we will need collaboration with Pump and other platforms.
 
 
 
