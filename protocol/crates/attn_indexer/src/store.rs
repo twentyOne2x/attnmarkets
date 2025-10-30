@@ -83,9 +83,9 @@ impl ReadStore for SqlxStore {
             select
                 (select count(*) from creator_vaults) as total_creator_vaults,
                 (select count(*) from markets) as total_markets,
-                (select coalesce(sum(total_fees_lamports), 0) from creator_vaults) as total_fees_lamports,
-                (select coalesce(total_supply, 0) from attnusd_stats limit 1) as total_supply,
-                (select coalesce(share_index, 1) from attnusd_stats limit 1) as share_index,
+                (select coalesce(sum(total_fees_lamports), 0)::float8 from creator_vaults) as total_fees_lamports,
+                (select coalesce(total_supply, 0)::float8 from attnusd_stats limit 1) as total_supply,
+                (select coalesce(share_index, 1)::float8 from attnusd_stats limit 1) as share_index,
                 greatest(
                     coalesce((select max(updated_at) from creator_vaults), 'epoch'::timestamptz),
                     coalesce((select max(updated_at) from markets), 'epoch'::timestamptz),
