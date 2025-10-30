@@ -43,7 +43,6 @@ export default function Navigation(): React.JSX.Element {
   const [livePulseActive, setLivePulseActive] = useState(false);
   const showPendingBadge = isLive && isUserPreviewed && !isUserListed;
   const pendingBannerMessage = 'Leaderboard preview ready — finish your Squads safe to unlock advances.';
-  const autoConnectAttemptedRef = useRef(false);
   const sponsorTooltip = 'Sponsors include creators, builders, and DAOs with on-chain revenue.';
 
   // Ensure component is mounted before using context values to prevent hydration mismatches
@@ -83,17 +82,6 @@ export default function Navigation(): React.JSX.Element {
     }
     setLivePulseActive(false);
   }, [mode, mounted]);
-
-  useEffect(() => {
-    if (!mounted) return;
-    if (isLiveForced && !isWalletConnected && !isConnecting && !autoConnectAttemptedRef.current) {
-      autoConnectAttemptedRef.current = true;
-      void connectWallet();
-    }
-    if (!isLiveForced) {
-      autoConnectAttemptedRef.current = false;
-    }
-  }, [mounted, isLiveForced, isWalletConnected, isConnecting, connectWallet]);
 
   const isActive = (path: string) => {
     if (path === '/' && pathname === '/') return true;
@@ -157,22 +145,27 @@ export default function Navigation(): React.JSX.Element {
 
   const clusterTooltip =
     cluster?.toLowerCase() === 'devnet'
-      ? 'Solana devnet active. Switch your wallet network to Devnet (Phantom: Settings → Change Network → Devnet. Backpack: Avatar → Network → Devnet).'
+      ? 'Solana devnet active. Switch your wallet to Devnet (Phantom: Settings → Change Network → Devnet. Backpack: Avatar → Network → Devnet).'
       : 'Toggle between demo data and live cluster mode.';
 
   const renderModeToggle = (className = '') => {
     if (isLiveForced) {
       return (
         <div
-          className={`flex items-center bg-dark/40 border border-gray-700 rounded-full text-xs sm:text-sm px-3 py-1 ${className}`}
-          title={clusterTooltip}
-          aria-label={clusterTooltip}
+          className={`flex items-center gap-2 bg-dark/40 border border-gray-700 rounded-full text-xs sm:text-sm px-3 py-1 ${className}`}
         >
-          <span className={`flex items-center gap-2 font-semibold ${livePulseActive ? 'animate-live-pulse' : ''}`}>
+          <span className={`flex items-center gap-1 font-semibold ${livePulseActive ? 'animate-live-pulse' : ''}`}>
             <span className="text-secondary">Live</span>
             <span className="hidden lg:inline text-[10px] uppercase tracking-wide text-text-secondary">
               {upperCluster || cluster}
             </span>
+          </span>
+          <span
+            className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-secondary/50 text-[11px] text-secondary/80 hover:text-secondary hover:border-secondary transition-colors cursor-help"
+            title={clusterTooltip}
+            aria-label={clusterTooltip}
+          >
+            ?
           </span>
         </div>
       );
@@ -200,8 +193,6 @@ export default function Navigation(): React.JSX.Element {
               ? `bg-secondary text-dark font-semibold ${livePulseActive ? 'animate-live-pulse' : ''}`
               : 'text-text-secondary hover:text-secondary'
           } ${liveDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
-          title={clusterTooltip}
-          aria-label={clusterTooltip}
         >
           {mode === 'live' && (healthStatus === 'checking' || modeChanging) ? (
             <div className="w-3 h-3 border-2 border-secondary/40 border-t-secondary rounded-full animate-spin"></div>
@@ -211,6 +202,13 @@ export default function Navigation(): React.JSX.Element {
             ({upperCluster || cluster})
           </span>
         </button>
+        <span
+          className="px-2 py-1 text-secondary/80 hover:text-secondary cursor-help"
+          title={clusterTooltip}
+          aria-label={clusterTooltip}
+        >
+          ?
+        </span>
       </div>
     );
   };

@@ -236,18 +236,18 @@ Active borrowers: ${activeCreators.length}`;
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           {/* Creator Section - NOW ON LEFT */}
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6 flex flex-col">
-            <h2 className="text-xl font-bold mb-4">Creator Portal</h2>
+            <h2 className="text-xl font-bold mb-4">Sponsor Portal</h2>
             <p className="text-text-secondary mb-6">
-              Get cash backed by your creator earnings, keep your token upside
+              Redirect your on-chain revenue into attn to unlock upfront cash, staking yield, and structured financing.
             </p>
 
             <div className="bg-secondary/10 border border-secondary/20 rounded-lg p-4 mb-6 flex-grow">
               <h3 className="text-secondary font-semibold mb-2">How It Works</h3>
               <ul className="space-y-1 text-sm">
-                <li>• <strong>List for free:</strong> Get on leaderboard with 0% commitment</li>
-                <li>• <strong>Get instant quotes:</strong> See your funding potential immediately</li>
-                <li>• <strong>Only pay when borrowing:</strong> Earnings auto-repay while advance is active</li>
-                <li>• <strong>Keep full control:</strong> No equity given up, adjust repayment % each epoch</li>
+                <li>• <strong>Connect your safe or wallet:</strong> stay 2-of-2 with Squads while attn co-signs locks</li>
+                <li>• <strong>Mint Standardized Yield:</strong> split fees into Principal (PT) and Yield (YT) rails</li>
+                <li>• <strong>Choose your product:</strong> autostake fees, sell YT for cash, or finance via PT sales</li>
+                <li>• <strong>Stay in control:</strong> earnings auto-repay advances and you adjust repayment % each epoch</li>
               </ul>
             </div>
 
@@ -307,16 +307,16 @@ Active borrowers: ${activeCreators.length}`;
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6 flex flex-col">
             <h2 className="text-xl font-bold mb-4">Liquidity Provider</h2>
             <p className="text-text-secondary mb-6">
-              Earn yield from creator earnings and borrowing interest
+              Deposit stables to mint <span className="font-semibold text-primary">attnUSD</span>, the counterparty to every attn product.
             </p>
 
             <div className="bg-success/10 border border-success/20 rounded-lg p-4 mb-6 flex-grow">
               <h3 className="text-success font-semibold mb-2">How It Works</h3>
               <ul className="space-y-1 text-sm">
-                <li>• <strong>Deposit USDC:</strong> Fund the liquidity pool for creator advances</li>
-                <li>• <strong>Earn from two sources:</strong> Creator trading fees + borrowing interest</li>
-                <li>• <strong>Current APR:</strong> {dashboardData ? dashboardData.projectedAPR.toFixed(1) : '0'}% based on active borrowing</li>
-                <li>• <strong>Withdraw anytime:</strong> Your funds remain liquid and accessible</li>
+                <li>• <strong>Deposit USDC, USDT, USDe, or USDC+:</strong> mint attnUSD on entry</li>
+                <li>• <strong>Earn blended yield:</strong> sponsor fee staking plus borrowing spreads flow back to attnUSD</li>
+                <li>• <strong>Track Live APR:</strong> currently {dashboardData ? dashboardData.projectedAPR.toFixed(1) : '0'}% while borrowing is idle</li>
+                <li>• <strong>Redeem anytime:</strong> burn attnUSD to withdraw your chosen stable</li>
               </ul>
             </div>
 

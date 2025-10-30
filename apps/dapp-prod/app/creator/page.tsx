@@ -1020,7 +1020,7 @@ export default function CreatorPage(): React.JSX.Element {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold" title="Sponsors include creators, builders, and DAOs with recurring on-chain revenue.">
-              Sponsor Console (Creators, Builders, DAOs)
+              Sponsor Console (Builders, DAOs, Creators)
             </h1>
             {currentUserWallet && (
               <div className="text-sm text-text-secondary mt-1">
