@@ -20,7 +20,7 @@ pub trait KmsClient: Send + Sync + fmt::Debug + 'static {
 #[derive(Clone)]
 pub struct HttpKmsClient {
     http: HttpClient,
-    auth: AuthenticationManager,
+    auth: Arc<AuthenticationManager>,
 }
 
 impl HttpKmsClient {
@@ -31,7 +31,10 @@ impl HttpKmsClient {
         let auth = AuthenticationManager::new()
             .await
             .context("initialize gcp authentication manager")?;
-        Ok(Self { http, auth })
+        Ok(Self {
+            http,
+            auth: Arc::new(auth),
+        })
     }
 }
 
