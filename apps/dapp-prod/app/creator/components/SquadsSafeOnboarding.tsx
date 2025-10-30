@@ -7,6 +7,7 @@ import bs58 from 'bs58';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { runtimeEnv } from '../../config/runtime';
 import { useDataMode } from '../../context/DataModeContext';
+import { useAppContext } from '../../context/AppContext';
 
 const BASE58_WALLET_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const BASE58_SIGNATURE_REGEX = /^[1-9A-HJ-NP-Za-km-z]{64,120}$/;
@@ -75,6 +76,7 @@ const generateIdempotencyKey = (): string => {
 
 const SquadsSafeOnboarding: React.FC = () => {
   const { mode, apiBaseUrl, cluster: configuredCluster, apiKey, csrfToken, isAdmin } = useDataMode();
+  const { currentUserWallet } = useAppContext();
   const wallet = useWallet();
   const connectedWalletAddress = useMemo(() => wallet.publicKey?.toBase58() ?? null, [wallet.publicKey]);
   const defaultFormState = useMemo<FormState>(
@@ -560,6 +562,15 @@ const SquadsSafeOnboarding: React.FC = () => {
   }, [defaultFormState]);
 
   const sanitizedCreatorWallet = sanitize(form.creatorWallet);
+  const normalizedContextWallet = useMemo(
+    () => (currentUserWallet ? sanitize(currentUserWallet) : ''),
+    [currentUserWallet]
+  );
+  const autoFilledFromWallet =
+    !creatorWalletManuallyEdited &&
+    sanitizedCreatorWallet.length > 0 &&
+    (sanitizedCreatorWallet === (connectedWalletAddress ?? '') ||
+      (normalizedContextWallet && sanitizedCreatorWallet === normalizedContextWallet));
   const signMessage = useMemo(() => {
     const creatorWallet = sanitizedCreatorWallet || '<creator-wallet>';
     const currentNonce = nonce?.nonce || '<nonce>';
@@ -629,6 +640,17 @@ const SquadsSafeOnboarding: React.FC = () => {
   }, [connectedWalletAddress, creatorWalletManuallyEdited, form.creatorWallet, updateForm]);
 
   useEffect(() => {
+    const normalizedCurrentWallet = currentUserWallet ? sanitize(currentUserWallet) : '';
+    if (!normalizedCurrentWallet || creatorWalletManuallyEdited) {
+      return;
+    }
+    if (form.creatorWallet === normalizedCurrentWallet) {
+      return;
+    }
+    updateForm({ creatorWallet: normalizedCurrentWallet });
+  }, [currentUserWallet, creatorWalletManuallyEdited, form.creatorWallet, updateForm]);
+
+  useEffect(() => {
     if (creatorWalletManuallyEdited && connectedWalletAddress && form.creatorWallet === connectedWalletAddress) {
       setCreatorWalletManuallyEdited(false);
     }
@@ -680,7 +702,7 @@ const SquadsSafeOnboarding: React.FC = () => {
         <div>
           <h2 className="text-xl font-semibold text-white">Squads Safe Onboarding</h2>
           <p className="text-sm text-gray-300">
-            Generate a 2-of-2 safe (creator + attn) and capture the request metadata required for Pump.fun CTO
+            Generate a 2-of-2 safe (sponsor + attn) and capture the request metadata required for Pump.fun CTO
             submissions.
           </p>
         </div>
@@ -689,9 +711,16 @@ const SquadsSafeOnboarding: React.FC = () => {
           className="rounded-md border border-primary/40 px-3 py-1 text-sm text-primary hover:bg-primary/10"
           onClick={() => copyToClipboard(runtimeEnv.attnSquadsMember, 'attnWallet')}
         >
-          Copy attn wallet ({formatAddress(runtimeEnv.attnSquadsMember)})
+          Copy attn co-signer wallet ({formatAddress(runtimeEnv.attnSquadsMember)})
         </button>
       </header>
+
+      {mode === 'live' && (
+        <div className="mb-4 rounded-lg border border-secondary/30 bg-secondary/10 p-3 text-xs text-secondary">
+          Set your wallet network to <span className="font-semibold uppercase">{(runtimeEnv.cluster || configuredCluster || 'devnet').toUpperCase()}</span>.
+          Phantom: Settings → Change Network → Devnet. Backpack: Avatar → Network → Devnet.
+        </div>
+      )}
 
       {!canCallApi && (
         <div className="mb-4 rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm text-yellow-200">
@@ -714,7 +743,7 @@ const SquadsSafeOnboarding: React.FC = () => {
           {apiHealth === 'healthy'
             ? 'attn API ready for live submissions.'
             : apiHealth === 'error'
-            ? 'attn API readiness check failed.'
+            ? 'attn API readiness check failed. Verify your devnet API base, key, and CSRF token.'
             : 'API readiness unavailable in demo mode.'}
         </span>
         {mode === 'live' && canCallApi && (
@@ -731,7 +760,7 @@ const SquadsSafeOnboarding: React.FC = () => {
       <form className="space-y-6" onSubmit={handleSubmit}>
         <div className="grid gap-4 md:grid-cols-2">
           <label className="flex flex-col text-sm text-gray-200">
-            Your Solana creator wallet
+            Your sponsor wallet (creator / builder / DAO)
             <input
               className="mt-1 rounded-md border border-primary/40 bg-gray-950/60 p-2 text-white placeholder:text-gray-500 focus:border-primary focus:outline-none"
               value={form.creatorWallet}
@@ -740,9 +769,14 @@ const SquadsSafeOnboarding: React.FC = () => {
               required
             />
             <span className="mt-1 text-xs text-gray-400">
-              Paste the base58 address you control (e.g. Phantom or Backpack wallet).
+              Sponsors default to your connected wallet. Pump.fun creators should use the wallet currently receiving fee
+              payouts; builders and DAOs can enter any signer that will co-own the Squads safe.
             </span>
-            {connectedWalletAddress && !creatorWalletManuallyEdited ? (
+            <span className="mt-1 text-xs text-gray-400">
+              Already operating through an existing Squads safe? Enter the signer that administers it—you can link the
+              safe after this request.
+            </span>
+            {autoFilledFromWallet ? (
               <span className="mt-1 text-xs text-green-400">
                 Auto-filled from your connected wallet. Update it if a different signer should own the safe.
               </span>

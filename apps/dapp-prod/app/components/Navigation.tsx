@@ -28,7 +28,8 @@ export default function Navigation(): React.JSX.Element {
     switchMode,
     lastModeError,
     cluster,
-    isLiveForced
+    isLiveForced,
+    disconnectWallet
   } = useAppContext();
   
   const [isHovering, setIsHovering] = useState(false);
@@ -42,6 +43,8 @@ export default function Navigation(): React.JSX.Element {
   const [livePulseActive, setLivePulseActive] = useState(false);
   const showPendingBadge = isLive && isUserPreviewed && !isUserListed;
   const pendingBannerMessage = 'Leaderboard preview ready — finish your Squads safe to unlock advances.';
+  const autoConnectAttemptedRef = useRef(false);
+  const sponsorTooltip = 'Sponsors include creators, builders, and DAOs with on-chain revenue.';
 
   // Ensure component is mounted before using context values to prevent hydration mismatches
   useEffect(() => {
@@ -81,6 +84,17 @@ export default function Navigation(): React.JSX.Element {
     setLivePulseActive(false);
   }, [mode, mounted]);
 
+  useEffect(() => {
+    if (!mounted) return;
+    if (isLiveForced && !isWalletConnected && !isConnecting && !autoConnectAttemptedRef.current) {
+      autoConnectAttemptedRef.current = true;
+      void connectWallet();
+    }
+    if (!isLiveForced) {
+      autoConnectAttemptedRef.current = false;
+    }
+  }, [mounted, isLiveForced, isWalletConnected, isConnecting, connectWallet]);
+
   const isActive = (path: string) => {
     if (path === '/' && pathname === '/') return true;
     if (path !== '/' && pathname?.startsWith(path)) return true;
@@ -94,8 +108,19 @@ export default function Navigation(): React.JSX.Element {
   };
 
   const handleDisconnectWallet = () => {
-    if (confirm('Disconnect wallet?\n\nThis will:\n• Clear your wallet connection\n• Reset all app data\n• Clear transaction history\n• Reload with fresh demo data\n\nThis is the same as clicking Reset.')) {
-      console.log('🔑 Wallet disconnected - resetting app');
+    if (isLiveForced || mode === 'live') {
+      void disconnectWallet().then(() => {
+        addNotification({
+          type: 'success',
+          title: 'Wallet disconnected',
+          message: 'Reconnect when you are ready to continue.',
+          duration: 2800,
+        });
+      });
+      return;
+    }
+
+    if (confirm('Disconnect demo wallet?\n\nThis will:\n• Clear your wallet connection\n• Reset all app data\n• Clear transaction history\n• Reload with fresh demo data')) {
       resetToDefaults();
     }
   };
@@ -130,10 +155,19 @@ export default function Navigation(): React.JSX.Element {
       ? `bg-secondary/20 text-secondary border-secondary/40 ${livePulseActive ? 'animate-live-pulse' : ''}`
       : 'bg-warning/20 text-warning border-warning/30';
 
+  const clusterTooltip =
+    cluster?.toLowerCase() === 'devnet'
+      ? 'Solana devnet active. Switch your wallet network to Devnet (Phantom: Settings → Change Network → Devnet. Backpack: Avatar → Network → Devnet).'
+      : 'Toggle between demo data and live cluster mode.';
+
   const renderModeToggle = (className = '') => {
     if (isLiveForced) {
       return (
-        <div className={`flex items-center bg-dark/40 border border-gray-700 rounded-full text-xs sm:text-sm px-3 py-1 ${className}`}>
+        <div
+          className={`flex items-center bg-dark/40 border border-gray-700 rounded-full text-xs sm:text-sm px-3 py-1 ${className}`}
+          title={clusterTooltip}
+          aria-label={clusterTooltip}
+        >
           <span className={`flex items-center gap-2 font-semibold ${livePulseActive ? 'animate-live-pulse' : ''}`}>
             <span className="text-secondary">Live</span>
             <span className="hidden lg:inline text-[10px] uppercase tracking-wide text-text-secondary">
@@ -166,6 +200,8 @@ export default function Navigation(): React.JSX.Element {
               ? `bg-secondary text-dark font-semibold ${livePulseActive ? 'animate-live-pulse' : ''}`
               : 'text-text-secondary hover:text-secondary'
           } ${liveDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+          title={clusterTooltip}
+          aria-label={clusterTooltip}
         >
           {mode === 'live' && (healthStatus === 'checking' || modeChanging) ? (
             <div className="w-3 h-3 border-2 border-secondary/40 border-t-secondary rounded-full animate-spin"></div>
@@ -181,6 +217,10 @@ export default function Navigation(): React.JSX.Element {
 
   // Determine button state and appearance
   const getWalletButton = () => {
+    const connectTooltip = isLiveForced
+      ? 'Connect a Solana wallet set to the Devnet network to continue.'
+      : 'Connect your wallet to get started.';
+
     if (!mounted) {
       return (
         <div className="px-3 py-1.5 rounded-lg bg-primary/50 text-dark/70 font-medium text-sm">
@@ -223,7 +263,7 @@ export default function Navigation(): React.JSX.Element {
               ? 'bg-primary/50 text-dark/70 cursor-not-allowed' 
               : 'bg-primary text-dark hover:bg-primary/90'
           }`}
-          title={isConnecting ? 'Connecting...' : 'Connect your wallet to get started'}
+          title={isConnecting ? 'Connecting...' : connectTooltip}
         >
           {isConnecting ? (
             <div className="flex items-center space-x-1">
@@ -359,8 +399,9 @@ export default function Navigation(): React.JSX.Element {
                   ? 'text-primary font-semibold'
                   : 'text-text-secondary hover:text-primary'
               }`}
+              title={sponsorTooltip}
             >
-              Creators
+              Sponsors
             </a>
             <a
               href="/deposit"
@@ -383,13 +424,15 @@ export default function Navigation(): React.JSX.Element {
               </span>
             )}
 
-            <button
-              onClick={handleReset}
-              className="bg-gray-600 text-gray-400 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-500 hover:text-gray-300 transition-colors"
-              title="Reset all app data and reload with fresh demo data"
-            >
-              Reset
-            </button>
+            {mode === 'demo' && (
+              <button
+                onClick={handleReset}
+                className="bg-gray-600 text-gray-400 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-500 hover:text-gray-300 transition-colors"
+                title="Reset all app data and reload with fresh demo data"
+              >
+                Reset
+              </button>
+            )}
           </div>
 
           {/* Mobile Menu Button & Wallet */}
@@ -451,8 +494,9 @@ export default function Navigation(): React.JSX.Element {
                     : 'text-text-secondary'
                 }`}
                 onClick={() => setIsMobileMenuOpen(false)}
+                title={sponsorTooltip}
               >
-                Creators
+                Sponsors
               </a>
               <a
                 href="/deposit"
@@ -468,12 +512,14 @@ export default function Navigation(): React.JSX.Element {
               <div className="px-3">
                 {renderModeToggle('md:hidden w-full justify-between mt-1')}
               </div>
-              <button
-                onClick={handleReset}
-                className="text-left px-3 py-2 text-gray-400 hover:text-gray-300"
-              >
-                Reset Data
-              </button>
+              {mode === 'demo' && (
+                <button
+                  onClick={handleReset}
+                  className="text-left px-3 py-2 text-gray-400 hover:text-gray-300"
+                >
+                  Reset Data
+                </button>
+              )}
             </div>
           </div>
         )}

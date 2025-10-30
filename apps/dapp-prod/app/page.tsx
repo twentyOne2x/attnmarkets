@@ -80,8 +80,8 @@ export default function Dashboard(): React.JSX.Element {
     setShowWelcomeGuide(false);
   }, [persistGuideChoice]);
 
-  const handleCreatorGuide = useCallback(() => {
-    persistGuideChoice('creator');
+  const handleSponsorGuide = useCallback(() => {
+    persistGuideChoice('sponsor');
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(CREATOR_TOUR_STORAGE_KEY);
     }
@@ -156,7 +156,7 @@ Active borrowers: ${activeCreators.length}`;
 
       <WelcomeGuideModal
         open={showWelcomeGuide}
-        onChooseCreator={handleCreatorGuide}
+        onChooseSponsor={handleSponsorGuide}
         onChooseLP={handleLpGuide}
         onExplore={handleExploreFreely}
       />

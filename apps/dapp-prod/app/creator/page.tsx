@@ -22,7 +22,7 @@ const SquadsSafeOnboarding = squadsFeatureEnabled
       ssr: false,
       loading: () => (
         <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-6 text-sm text-neutral-400">
-          Loading creator onboarding…
+          Loading sponsor onboarding…
         </div>
       ),
     })
@@ -1019,7 +1019,9 @@ export default function CreatorPage(): React.JSX.Element {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Creator Portal</h1>
+            <h1 className="text-3xl font-bold" title="Sponsors include creators, builders, and DAOs with recurring on-chain revenue.">
+              Sponsor Console (Creators, Builders, DAOs)
+            </h1>
             {currentUserWallet && (
               <div className="text-sm text-text-secondary mt-1">
                 Wallet: <span className="font-mono">{currentUserWallet?.slice(0, 8)}...{currentUserWallet?.slice(-4)}</span>
@@ -1054,7 +1056,7 @@ export default function CreatorPage(): React.JSX.Element {
                     </span>
                   </div>
                   <p className="mt-2 text-xs text-text-secondary">
-                    Use the wallet adapter to authorize creator actions in Live mode.
+                    Use the wallet adapter to authorize sponsor actions in Live mode.
                   </p>
                   {!isWalletConnected && (
                     <button
@@ -1074,7 +1076,7 @@ export default function CreatorPage(): React.JSX.Element {
                     </span>
                   </div>
                   <p className="mt-2 text-xs text-text-secondary">
-                    Set up a 2-of-2 creator safe so auto-sweeps and locks are co-signed.
+                    Set up a 2-of-2 sponsor safe so auto-sweeps and locks are co-signed.
                   </p>
                   {hasCreatorVault && squadsAdminAddress && (
                     <div className="mt-3 rounded-md bg-black/40 px-3 py-2 text-[11px] font-mono text-text-secondary">
@@ -1101,7 +1103,7 @@ export default function CreatorPage(): React.JSX.Element {
                   <p className="mt-2 text-xs text-text-secondary">
                     {isPreviewOnly
                       ? 'Preview created — sign once your Squads safe is live to activate borrowing.'
-                      : 'Sign the attn creator agreement to appear on the leaderboard and enable loan quotes.'}
+                      : 'Sign the attn sponsor agreement to appear on the leaderboard and enable loan quotes.'}
                   </p>
                   {creatorMetrics ? (
                     <div className="mt-3 space-y-1 rounded-md border border-secondary/20 bg-black/30 px-3 py-2 text-[11px] text-text-secondary">
@@ -1131,7 +1133,7 @@ export default function CreatorPage(): React.JSX.Element {
                       className="mt-3 inline-flex items-center justify-center rounded-lg bg-secondary/30 px-3 py-1.5 text-sm font-medium text-secondary hover:bg-secondary/20 disabled:opacity-50"
                       disabled={!isWalletConnected || (isFullyConnected && hasCreatorVault)}
                     >
-                      Sign &amp; list creator
+                      Sign &amp; list sponsor
                     </button>
                   )}
                 </div>
@@ -1155,7 +1157,7 @@ export default function CreatorPage(): React.JSX.Element {
               {/* COMPACT HEADER with Pool Liquidity */}
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h2 className="text-xl font-bold">Creator Portal</h2>
+                  <h2 className="text-xl font-bold">Sponsor Console</h2>
                 </div>
                 <div className="text-right">
                   <div className="text-sm text-blue-400 font-medium">Pool Liquidity</div>
