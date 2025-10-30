@@ -769,8 +769,9 @@ const SquadsSafeOnboarding: React.FC = () => {
               required
             />
             <span className="mt-1 text-xs text-gray-400">
-              Sponsors default to your connected wallet. Pump.fun creators should use the wallet currently receiving fee
-              payouts; builders and DAOs can enter any signer that will co-own the Squads safe.
+              Sponsors default to your connected wallet. 
+              Builders and DAOs can enter any signer that will co-own the Squads safe.
+              Pump.fun creators should use the wallet currently receiving fee payouts.
             </span>
             <span className="mt-1 text-xs text-gray-400">
               Already operating through an existing Squads safe? Enter the signer that administers it, you can link the

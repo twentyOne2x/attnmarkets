@@ -211,7 +211,7 @@ Active borrowers: ${activeCreators.length}`;
               {dashboardData ? dashboardData.projectedAPR.toFixed(1) : '0'}%
             </p>
             <p className="text-xs text-text-secondary mt-1">
-              {dashboardData ? `${dashboardData.utilization.toFixed(1)}% utilization` : 'From sponsor activity (builders, DAOs, creators)'}
+              {dashboardData ? `${dashboardData.utilization.toFixed(1)}% utilization` : 'From sponsor activity'}
             </p>
           </div>
 
@@ -254,7 +254,7 @@ Active borrowers: ${activeCreators.length}`;
             {/* Current User Status Display */}
             {currentUserCreator && (
               <div className="bg-gray-800/50 rounded-lg p-4 mb-4">
-                <h3 className="font-semibold mb-2">Your Sponsor Status (Builder, DAO, Creator)</h3>
+                <h3 className="font-semibold mb-2">Your Sponsor Status</h3>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span>Status:</span>
@@ -360,7 +360,7 @@ Active borrowers: ${activeCreators.length}`;
 
         <div className="bg-dark-card border border-gray-700 rounded-xl p-6 mb-8">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold">Top Earning Sponsors This Week (Builders, DAOs, Creators)</h2>
+            <h2 className="text-xl font-bold">Top Earning Sponsors This Week</h2>
             <a 
               href="/leaderboard" 
               className="text-primary hover:text-primary/80 text-sm font-medium"
