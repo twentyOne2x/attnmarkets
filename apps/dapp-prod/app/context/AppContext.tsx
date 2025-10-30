@@ -203,6 +203,7 @@ interface AppContextType {
   connectWallet: () => Promise<void>;
   signAndListCreator: () => Promise<void>;
   ensureCreatorPreview: (wallet: string, overrides?: Partial<Creator>) => void;
+  disconnectWallet: () => Promise<void>;
   
   // Utility functions
   calculateLPAPR: () => number;
@@ -528,6 +529,19 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       }
     } finally {
       setIsConnecting(false);
+    }
+  };
+
+  const disconnectWallet = async () => {
+    try {
+      if (wallet.disconnect) {
+        await wallet.disconnect();
+      }
+    } catch (error) {
+      console.warn('Wallet adapter disconnect failed', error);
+    } finally {
+      setCurrentUserWalletState('');
+      saveToLocalStorage({ currentUserWallet: '' });
     }
   };
 
@@ -1410,6 +1424,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     connectWallet,
     signAndListCreator,
     ensureCreatorPreview,
+    disconnectWallet,
 
     calculateLPAPR: calculateLPAPRValue,
     calculateCreatorBorrowingRate,

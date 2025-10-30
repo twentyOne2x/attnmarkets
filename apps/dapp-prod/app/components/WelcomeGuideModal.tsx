@@ -5,14 +5,14 @@ import { createPortal } from 'react-dom';
 
 interface WelcomeGuideModalProps {
   open: boolean;
-  onChooseCreator: () => void;
+  onChooseSponsor: () => void;
   onChooseLP: () => void;
   onExplore: () => void;
 }
 
 const WelcomeGuideModal: React.FC<WelcomeGuideModalProps> = ({
   open,
-  onChooseCreator,
+  onChooseSponsor,
   onChooseLP,
   onExplore,
 }) => {
@@ -51,15 +51,16 @@ const WelcomeGuideModal: React.FC<WelcomeGuideModalProps> = ({
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           <button
             type="button"
-            onClick={onChooseCreator}
+            onClick={onChooseSponsor}
             className="group flex flex-col rounded-xl border border-secondary/30 bg-secondary/10 p-4 text-left transition hover:border-secondary/60 hover:bg-secondary/20"
+            title="Sponsors include creators, builders, and DAOs with on-chain revenue."
           >
-            <span className="text-sm font-semibold text-secondary">I&apos;m a creator</span>
+            <span className="text-sm font-semibold text-secondary">I&apos;m a sponsor (creator, builder, DAO)</span>
             <span className="mt-2 text-xs text-secondary/80">
-              Connect your wallet, spin up a Squads safe, and unlock cash advances on your earnings.
+              Connect your wallet, spin up a Squads safe, and route your revenue flows into attn.
             </span>
             <span className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-secondary/70 group-hover:text-secondary">
-              Take me to the creator portal →
+              Take me to the sponsor console →
             </span>
           </button>
 
