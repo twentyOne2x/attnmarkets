@@ -787,18 +787,22 @@ export default function Home(): React.JSX.Element {
               >
                 Privacy
               </button>
-              <button 
-                onClick={() => showComingSoon('Twitter/X')}
+              <a
+                href="https://x.com/attndotmarkets"
+                target="_blank"
+                rel="noreferrer"
                 className="text-text-secondary hover:text-primary transition-colors text-sm sm:text-base"
               >
                 Twitter/X
-              </button>
-              <button 
-                onClick={() => showComingSoon('GitHub Repository')}
+              </a>
+              <a
+                href="https://github.com/twentyOne2x/attnmarket"
+                target="_blank"
+                rel="noreferrer"
                 className="text-text-secondary hover:text-primary transition-colors text-sm sm:text-base"
               >
                 GitHub
-              </button>
+              </a>
             </div>
           </div>
           <div className="text-center text-text-secondary text-xs sm:text-sm mt-8">
