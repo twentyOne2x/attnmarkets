@@ -762,11 +762,55 @@ fn build_router(state: AppState) -> Router {
 }
 
 fn cors_layer() -> CorsLayer {
-    let live_origin =
-        env::var("ATTN_API_LIVE_ORIGIN").unwrap_or_else(|_| "https://attn.markets".to_string());
+    let mut allowed_origins: Vec<String> = env::var("ATTN_API_LIVE_ORIGINS")
+        .ok()
+        .map(|raw| {
+            raw.split(',')
+                .map(|value| value.trim())
+                .filter(|value| !value.is_empty())
+                .map(|value| value.to_string())
+                .collect()
+        })
+        .unwrap_or_default();
+
+    if allowed_origins.is_empty() {
+        if let Ok(primary) = env::var("ATTN_API_LIVE_ORIGIN") {
+            let trimmed = primary.trim();
+            if !trimmed.is_empty() {
+                allowed_origins.push(trimmed.to_string());
+            }
+        }
+    }
+
+    if let Ok(extra) = env::var("ATTN_API_ALLOWED_ORIGINS") {
+        for value in extra.split(',').map(|entry| entry.trim()) {
+            if value.is_empty() {
+                continue;
+            }
+            if allowed_origins
+                .iter()
+                .any(|origin| origin.eq_ignore_ascii_case(value))
+            {
+                continue;
+            }
+            allowed_origins.push(value.to_string());
+        }
+    }
+
+    if allowed_origins.is_empty() {
+        allowed_origins.push("https://attn.markets".to_string());
+    }
+
+    allowed_origins.sort_unstable_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+    allowed_origins.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
+
+    let allow_list = allowed_origins.clone();
+
     let allow_origin = AllowOrigin::predicate(move |origin, _| {
         if let Ok(origin_str) = origin.to_str() {
-            if origin_str == live_origin
+            if allow_list
+                .iter()
+                .any(|allowed| origin_str.eq_ignore_ascii_case(allowed))
                 || origin_str.starts_with("http://localhost")
                 || origin_str.starts_with("http://127.0.0.1")
             {
