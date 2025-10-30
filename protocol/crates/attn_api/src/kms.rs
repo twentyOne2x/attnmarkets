@@ -5,7 +5,7 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
-use gcp_auth::Config as GcpAuthConfig;
+use gcp_auth::AuthenticationManager;
 use reqwest::Client as HttpClient;
 use serde::Deserialize;
 use solana_sdk::signature::Signature;
@@ -20,17 +20,18 @@ pub trait KmsClient: Send + Sync + fmt::Debug + 'static {
 #[derive(Clone)]
 pub struct HttpKmsClient {
     http: HttpClient,
-    auth: GcpAuthConfig,
+    auth: AuthenticationManager,
 }
 
 impl HttpKmsClient {
-    pub fn new() -> Result<Self> {
-        Ok(Self {
-            http: HttpClient::builder()
-                .build()
-                .context("build kms http client")?,
-            auth: GcpAuthConfig::default(),
-        })
+    pub async fn new() -> Result<Self> {
+        let http = HttpClient::builder()
+            .build()
+            .context("build kms http client")?;
+        let auth = AuthenticationManager::new()
+            .await
+            .context("initialize gcp authentication manager")?;
+        Ok(Self { http, auth })
     }
 }
 
@@ -134,13 +135,13 @@ impl<C: KmsClient> KmsSigner<C> {
         }
         let mut sig_bytes = [0u8; 64];
         sig_bytes.copy_from_slice(&raw);
-        Ok(Signature::new(&sig_bytes))
+        Ok(Signature::from(sig_bytes))
     }
 }
 
 impl KmsSigner<HttpKmsClient> {
-    pub fn google_cloud(resource_name: impl Into<String>) -> Result<Self> {
-        let client = HttpKmsClient::new()?;
+    pub async fn google_cloud(resource_name: impl Into<String>) -> Result<Self> {
+        let client = HttpKmsClient::new().await?;
         Ok(Self::new(resource_name, client))
     }
 }
