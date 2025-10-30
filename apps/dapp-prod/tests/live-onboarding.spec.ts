@@ -106,34 +106,39 @@ test.describe('Creator live onboarding', () => {
         body: JSON.stringify({ pools: [] }),
       });
     });
+    await page.route('**/api/bridge/readyz', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ status: 'ok' }),
+      });
+    });
+    await page.route('**/api/bridge/version', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ version: '0.0.0', git_sha: 'test', built_at_unix: 0 }),
+      });
+    });
 
     await page.goto('/creator');
-    await expect(page.getByRole('heading', { name: 'Creator Portal', level: 1 })).toBeVisible({
+    await expect(page.getByRole('heading', { name: /Sponsor Console/i, level: 1 })).toBeVisible({
       timeout: 120_000,
     });
 
-    const demoButton = page.getByRole('button', { name: /^Demo$/ });
-    const liveButton = page.getByRole('button', { name: /^Live/ });
+    await page.waitForFunction(() => document.body.dataset.attnMode === 'live', null, {
+      timeout: 60_000,
+    });
+
+    const liveBadge = page.locator('nav [title*="Solana devnet active"]').first();
+    const connectButton = page.getByRole('button', { name: /Connect Wallet/i }).first();
     const gatingCallout = page.locator('text=Complete Squads setup to unlock financing');
 
-    await expect(liveButton).toBeVisible({ timeout: 30000 });
-    await expect(demoButton).toBeVisible({ timeout: 30000 });
-    await expect(demoButton).toBeDisabled();
-    await expect(liveButton).not.toBeDisabled();
-    await expect(gatingCallout).toHaveCount(0);
-    await page.screenshot({
-      path: 'test-artifacts/demo-mode.png',
-      fullPage: true,
-    });
-
-    await liveButton.click();
-    await page.waitForFunction(() => document.body.dataset.attnMode === 'live', null, {
-      timeout: 30_000,
-    });
-
-    const liveBadge = page.locator('nav span', { hasText: /LIVE —/i }).first();
-    await expect(liveBadge).toBeVisible();
+    await expect(liveBadge).toBeVisible({ timeout: 30_000 });
+    await expect(connectButton).toBeVisible();
     await expect(gatingCallout).toBeVisible();
+    const networkReminder = page.locator('text=Set your wallet network to');
+    await expect(networkReminder).toBeVisible();
     await page.screenshot({
       path: 'test-artifacts/live-mode.png',
       fullPage: true,
@@ -143,6 +148,17 @@ test.describe('Creator live onboarding', () => {
     await expect(tourHeading).toBeVisible();
     await page.locator('div[role="presentation"]').click({ force: true });
     await expect(tourHeading).toHaveCount(0);
+
+    const walletModal = page.locator('.wallet-adapter-modal');
+    if (await walletModal.count()) {
+      const closeButton = walletModal.locator('button.wallet-adapter-modal-button-close, button.wallet-adapter-modal-close');
+      if (await closeButton.count()) {
+        await closeButton.first().click();
+      } else {
+        await page.keyboard.press('Escape');
+      }
+      await expect(walletModal).toHaveCount(0);
+    }
 
     const openSquadsLink = page.getByRole('link', { name: 'Open Squads setup' });
     await expect(openSquadsLink).toBeVisible();
@@ -155,13 +171,5 @@ test.describe('Creator live onboarding', () => {
     await squadsSection.screenshot({
       path: 'test-artifacts/squads-onboarding.png',
     });
-
-    await demoButton.click();
-    await page.waitForFunction(() => document.body.dataset.attnMode === 'demo', null, {
-      timeout: 30_000,
-    });
-    await expect(demoButton).toBeDisabled();
-    await expect(page.getByText(/^DEMO$/)).toBeVisible();
-    await expect(gatingCallout).toHaveCount(0);
   });
 });
