@@ -5,11 +5,27 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
+  const normalizedPath =
+    pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+
+  const legacyRedirects: Record<string, string> = {
+    '/creator': '/sponsor',
+    '/creators': '/sponsor',
+    '/sponsors': '/sponsor',
+    '/sponasor': '/sponsor',
+  };
+
+  if (normalizedPath in legacyRedirects) {
+    const url = request.nextUrl.clone();
+    url.pathname = legacyRedirects[normalizedPath];
+    return NextResponse.redirect(url);
+  }
+
   // Define the valid app routes
   const allowedPaths = [
     '/',
+    '/sponsor',
     '/leaderboard',
-    '/creator',
     '/deposit',
     '/_next',
     '/api',
