@@ -183,7 +183,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
                   </p>
                   {!hasCreatorVault && (
                     <a
-                      href="/creator#squads-setup"
+                      href="/sponsor#squads-setup"
                       className="mt-3 inline-flex items-center justify-center rounded-lg border border-secondary/50 px-3 py-1.5 text-sm font-medium text-secondary hover:border-secondary"
                     >
                       Open Squads setup
