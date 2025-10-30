@@ -310,8 +310,8 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Creator Leaderboard</h1>
-            <p className="text-text-secondary mt-2">Top performing creators by earnings generation and borrowing activity</p>
+            <h1 className="text-3xl font-bold">Sponsor Leaderboard</h1>
+            <p className="text-text-secondary mt-2">Top performing sponsors by earnings generation and borrowing activity</p>
           </div>
           <a href="/" className="text-text-secondary hover:text-primary transition-colors">
             ← Back to Dashboard
@@ -352,16 +352,16 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-            <Tooltip content="Total number of creators who have joined the platform and are available for lending">
+            <Tooltip content="Total number of sponsors who have joined the platform and are available for lending">
               <h3 className="text-sm text-text-secondary mb-2 cursor-help flex items-center">
-                Total Creators
+                Total Sponsors
                 <span className="ml-1 text-xs text-primary">ⓘ</span>
               </h3>
             </Tooltip>
             <p className="text-2xl font-bold text-primary">{creators.length}</p>
           </div>
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-            <Tooltip content="Creators currently borrowing against their future earnings. These active loans generate interest for LP providers.">
+            <Tooltip content="Sponsors currently borrowing against their future earnings. These active loans generate interest for LP providers.">
               <h3 className="text-sm text-text-secondary mb-2 cursor-help flex items-center">
                 Active Borrowers
                 <span className="ml-1 text-xs text-primary">ⓘ</span>
@@ -551,7 +551,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
           
           {filteredCreators.length === 0 && (
             <div className="text-center py-12 text-text-secondary">
-              <p>No creators match the current filters.</p>
+              <p>No sponsors match the current filters.</p>
             </div>
           )}
         </div>
