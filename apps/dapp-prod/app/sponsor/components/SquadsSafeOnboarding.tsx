@@ -880,17 +880,17 @@ const SquadsSafeOnboarding: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-3">
             {wallet?.signMessage ? (
               <button
                 type="button"
                 onClick={handleSignWithWallet}
                 disabled={signButtonDisabled}
                 className={clsx(
-                  'rounded-md border px-3 py-1 text-xs font-medium transition-colors',
+                  'rounded-xl border-2 px-4 py-3 text-sm sm:text-base font-semibold transition-all duration-200 shadow-lg focus:outline-none focus:ring-2 focus:ring-secondary/60 disabled:cursor-not-allowed disabled:opacity-60',
                   signButtonDisabled
-                    ? 'border-gray-700 text-gray-500 cursor-not-allowed'
-                    : 'border-secondary text-secondary hover:bg-secondary/10'
+                    ? 'border-gray-700 text-gray-500'
+                    : 'border-secondary bg-secondary/10 text-secondary hover:bg-secondary/20 hover:-translate-y-0.5'
                 )}
               >
                 {signingButtonLabel}
@@ -900,6 +900,14 @@ const SquadsSafeOnboarding: React.FC = () => {
                 Connect a wallet that supports message signing to autofill the signature automatically.
               </span>
             )}
+            <a
+              href="https://t.me/twentyOne2x"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center rounded-lg border border-primary/30 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+            >
+              Chat with the team
+            </a>
             <button
               type="button"
               className="rounded-md border border-primary/40 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
@@ -963,7 +971,7 @@ const SquadsSafeOnboarding: React.FC = () => {
           )}
 
           <label className="flex flex-col text-sm text-gray-200">
-            Creator signature
+            Manual signature (optional)
             <input
               className="mt-1 rounded-md border border-primary/40 bg-gray-950/60 p-2 text-white focus:border-primary focus:outline-none"
               value={form.creatorSignature}
@@ -971,7 +979,7 @@ const SquadsSafeOnboarding: React.FC = () => {
               placeholder="Base58 signature"
             />
             <span className="mt-1 text-xs text-gray-400">
-              Wallets such as Phantom show this under “Copy signature” after you sign.
+              Only needed if your wallet cannot sign automatically. Wallets such as Phantom show this under “Copy signature” after you sign.
             </span>
           </label>
         </div>
