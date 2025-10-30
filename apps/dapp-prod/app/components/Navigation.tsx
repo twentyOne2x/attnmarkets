@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAppContext } from '../context/AppContext';
 import type { DataMode } from '../config/runtime';
+import Tooltip from './Tooltip';
 
 export default function Navigation(): React.JSX.Element {
   const pathname = usePathname();
@@ -160,13 +161,15 @@ export default function Navigation(): React.JSX.Element {
               {upperCluster || cluster}
             </span>
           </span>
-          <span
-            className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-secondary/50 text-[11px] text-secondary/80 hover:text-secondary hover:border-secondary transition-colors cursor-help"
-            title={clusterTooltip}
-            aria-label={clusterTooltip}
-          >
-            ?
-          </span>
+          <Tooltip content={clusterTooltip}>
+            <button
+              type="button"
+              className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-secondary/50 text-[11px] text-secondary/80 hover:text-secondary hover:border-secondary transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-secondary/80"
+              aria-label={clusterTooltip}
+            >
+              ?
+            </button>
+          </Tooltip>
         </div>
       );
     }
@@ -202,13 +205,15 @@ export default function Navigation(): React.JSX.Element {
             ({upperCluster || cluster})
           </span>
         </button>
-        <span
-          className="px-2 py-1 text-secondary/80 hover:text-secondary cursor-help"
-          title={clusterTooltip}
-          aria-label={clusterTooltip}
-        >
-          ?
-        </span>
+        <Tooltip content={clusterTooltip}>
+          <button
+            type="button"
+            className="px-2 py-1 text-secondary/80 hover:text-secondary cursor-pointer focus:outline-none focus:ring-1 focus:ring-secondary/80 rounded-full"
+            aria-label={clusterTooltip}
+          >
+            ?
+          </button>
+        </Tooltip>
       </div>
     );
   };
