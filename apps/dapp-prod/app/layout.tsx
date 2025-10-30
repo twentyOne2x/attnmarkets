@@ -9,8 +9,8 @@ import WalletProviders from './components/WalletProviders';
 import AppFooter from './components/AppFooter';
 
 export const metadata: Metadata = {
-  title: 'attn.markets App - Builder, DAO, Creator Earnings to Liquidity',
-  description: 'Lock builder, DAO, and creator earnings, mint liquidity, earn uncorrelated yields on Solana',
+  title: 'attn.markets App - Builder, DAO, Creator Revenues to Liquidity',
+  description: 'Lock builder, DAO, and creator revenues, mint liquidity, earn uncorrelated yields on Solana',
   icons: {
     icon: [
       { url: '/favicon.ico', rel: 'icon', type: 'image/x-icon' },

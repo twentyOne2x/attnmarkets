@@ -272,7 +272,7 @@ const saveToLocalStorage = (state: Partial<AppState>) => {
 // Create deterministic demo creators with EXACTLY 60% pool utilization ($150K borrowed)
 // Current user is EXCLUDED from active loans but CAN have historical loan data
 const createDeterministicDemoCreators = (baseCreators: any[]): Creator[] => {
-  // ENHANCED creator earnings to enable $150K total borrowing
+  // ENHANCED sponsor revenues to enable $150K total borrowing
   // Current user is NOT included in active borrowers
   const fixedBaseCreators = [
     { wallet: '0x742d35Cc6639C0532Ffc0434D16ac4a8b42143e5', fees7d_usd: 18000, beta_pct: 0.15, alpha_pct: 0.70, gamma_pct: 0.15, status: 'active', est_beta_next30d_usd: 77400 }, // Max: $36K

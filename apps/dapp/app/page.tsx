@@ -127,7 +127,7 @@ Active borrowers: ${activeCreators.length}`;
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
             <Tooltip content="Interest rate for creators borrowing against their future earnings">
               <h3 className="text-sm text-text-secondary mb-2 cursor-help flex items-center">
-                Creator Borrowing Rate
+                Sponsor Borrowing Rate
                 <span className="ml-1 text-xs text-primary">ⓘ</span>
               </h3>
             </Tooltip>
@@ -171,11 +171,11 @@ Active borrowers: ${activeCreators.length}`;
         {/* REMOVED: Pool Utilization Section - moved to top cards */}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Creator Section - NOW ON LEFT */}
+          {/* Sponsor Section - NOW ON LEFT */}
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6 flex flex-col">
-            <h2 className="text-xl font-bold mb-4">Creator Portal</h2>
+            <h2 className="text-xl font-bold mb-4">Sponsor Portal</h2>
             <p className="text-text-secondary mb-6">
-              Get cash backed by your creator earnings, keep your token upside
+              Get cash backed by your Sponsor (Builder, DAO, Creator) revenues, keep your token upside
             </p>
 
             <div className="bg-secondary/10 border border-secondary/20 rounded-lg p-4 mb-6 flex-grow">
@@ -244,14 +244,14 @@ Active borrowers: ${activeCreators.length}`;
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6 flex flex-col">
             <h2 className="text-xl font-bold mb-4">Liquidity Provider</h2>
             <p className="text-text-secondary mb-6">
-              Earn yield from creator earnings and borrowing interest
+              Earn yield from sponsor revenues and borrowing interest
             </p>
 
             <div className="bg-success/10 border border-success/20 rounded-lg p-4 mb-6 flex-grow">
               <h3 className="text-success font-semibold mb-2">How It Works</h3>
               <ul className="space-y-1 text-sm">
-                <li>• <strong>Deposit USDC:</strong> Fund the liquidity pool for creator advances</li>
-                <li>• <strong>Earn from two sources:</strong> Creator trading fees + borrowing interest</li>
+                <li>• <strong>Deposit USDC:</strong> Fund the liquidity pool for sponsor advances</li>
+                <li>• <strong>Earn from two sources:</strong> Sponsor trading fees + borrowing interest</li>
                 <li>• <strong>Current APR:</strong> {dashboardData ? dashboardData.projectedAPR.toFixed(1) : '0'}% based on active borrowing</li>
                 <li>• <strong>Withdraw anytime:</strong> Your funds remain liquid and accessible</li>
               </ul>
@@ -297,7 +297,7 @@ Active borrowers: ${activeCreators.length}`;
 
         <div className="bg-dark-card border border-gray-700 rounded-xl p-6 mb-8">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold">Top Earning Creators This Week</h2>
+            <h2 className="text-xl font-bold">Top Earning Sponsors This Week</h2>
             <a 
               href="/leaderboard" 
               className="text-primary hover:text-primary/80 text-sm font-medium"
