@@ -1,4 +1,8 @@
 /** @type {import('next').NextConfig} */
+const defaultApiBase =
+  process.env.NEXT_PUBLIC_DEFAULT_API_BASE ??
+  'https://attn-api-406386298457.us-central1.run.app';
+
 const env = {
   NEXT_PUBLIC_PROGRAM_IDS:
     process.env.NEXT_PUBLIC_PROGRAM_IDS ??
@@ -11,13 +15,10 @@ const env = {
       },
     }),
   NEXT_PUBLIC_DATA_MODE: process.env.NEXT_PUBLIC_DATA_MODE ?? 'live',
+  NEXT_PUBLIC_DEFAULT_API_BASE: defaultApiBase,
 };
 
-if (process.env.NEXT_PUBLIC_API_BASE) {
-  env.NEXT_PUBLIC_API_BASE = process.env.NEXT_PUBLIC_API_BASE;
-} else if (process.env.NODE_ENV !== 'production') {
-  env.NEXT_PUBLIC_API_BASE = 'http://localhost:8080';
-}
+env.NEXT_PUBLIC_API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? defaultApiBase;
 
 const nextConfig = {
   experimental: {
