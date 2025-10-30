@@ -163,7 +163,7 @@ Active borrowers: ${activeCreators.length}`;
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary/80">
-          <span>Not sure where to start? Launch the guided tour for sponsors (Builders, DAOs, Creators) and LPs.</span>
+          <span>Not sure where to start? Launch the guided tour for sponsors and LPs.</span>
           <button
             type="button"
             onClick={handleOpenGuide}
@@ -175,7 +175,7 @@ Active borrowers: ${activeCreators.length}`;
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-            <Tooltip content="Total funding available for sponsors (builders, DAOs, creators) to borrow against their on-chain revenue">
+            <Tooltip content="Total funding available for sponsors to borrow against their on-chain revenue">
               <h3 className="text-sm text-text-secondary mb-2 cursor-help flex items-center">
                 Available Funding
                 <span className="ml-1 text-xs text-primary">ⓘ</span>
