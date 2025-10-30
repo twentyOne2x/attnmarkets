@@ -32,12 +32,30 @@ const buildBridgeUrl = (apiBase: string, path: string): string => {
   return `/api/bridge${normalizedPath}`;
 };
 
+const buildAuthHeaders = (): HeadersInit => {
+  const headers: Record<string, string> = {};
+  if (runtimeEnv.apiKey) {
+    headers['X-API-Key'] = runtimeEnv.apiKey;
+  }
+  if (runtimeEnv.csrfToken) {
+    headers['X-ATTN-Client'] = runtimeEnv.csrfToken;
+  }
+  return headers;
+};
+
 const checkHealth = async (apiBase: string): Promise<void> => {
-  const readyz = await fetch(buildBridgeUrl(apiBase, '/readyz'), { cache: 'no-store' });
+  const headers = buildAuthHeaders();
+  const readyz = await fetch(buildBridgeUrl(apiBase, '/readyz'), {
+    cache: 'no-store',
+    headers,
+  });
   if (!readyz.ok) {
     throw new Error(`/readyz returned ${readyz.status}`);
   }
-  const version = await fetch(buildBridgeUrl(apiBase, '/version'), { cache: 'no-store' });
+  const version = await fetch(buildBridgeUrl(apiBase, '/version'), {
+    cache: 'no-store',
+    headers,
+  });
   if (!version.ok) {
     throw new Error(`/version returned ${version.status}`);
   }

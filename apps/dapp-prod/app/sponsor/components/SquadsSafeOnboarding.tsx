@@ -986,7 +986,7 @@ const SquadsSafeOnboarding: React.FC = () => {
         <div className="rounded-lg border border-primary/30 bg-gray-900/60 p-4 text-sm text-gray-200">
           <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className="text-base font-medium text-white">Step 3. Send the Squads safe request</h3>
+              <h3 className="text-base font-medium text-white">Step 2. Send the Squads safe request</h3>
               <p className="text-xs text-gray-300">
                 This packages your verified wallet into a Squads 2-of-2 request (sponsor + attn). Keep the submission key handy if you need support or have to retry.
               </p>
