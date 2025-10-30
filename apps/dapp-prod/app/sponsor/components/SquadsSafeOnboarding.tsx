@@ -181,11 +181,11 @@ const SquadsSafeOnboarding: React.FC = () => {
       return;
     }
     if (!creatorWallet) {
-      setNonceError('Enter the creator wallet before requesting a nonce.');
+      setNonceError('Enter the sponsor wallet (Builder, DAO, Creator) before requesting a nonce.');
       return;
     }
     if (!BASE58_WALLET_REGEX.test(creatorWallet)) {
-      setNonceError('Creator wallet must be a valid Solana address (base58, 32-44 chars).');
+      setNonceError('Sponsor wallet must be a valid Solana address (base58, 32-44 chars).');
       return;
     }
 
@@ -230,9 +230,9 @@ const SquadsSafeOnboarding: React.FC = () => {
 
       const errors: string[] = [];
       if (!creatorWallet) {
-        errors.push('Creator wallet is required.');
+        errors.push('Sponsor wallet is required.');
       } else if (!BASE58_WALLET_REGEX.test(creatorWallet)) {
-        errors.push('Creator wallet must be a valid Solana address (base58, 32-44 chars).');
+        errors.push('Sponsor wallet must be a valid Solana address (base58, 32-44 chars).');
       }
       if (!BASE58_WALLET_REGEX.test(attnWallet)) {
         errors.push('attn wallet must be a valid Solana address.');
@@ -241,9 +241,9 @@ const SquadsSafeOnboarding: React.FC = () => {
         errors.push('Request a nonce before submitting the safe creation request.');
       }
       if (!signature) {
-        errors.push('Provide the creator signature for the nonce.');
+        errors.push('Provide the sponsor signature for the nonce.');
       } else if (!BASE58_SIGNATURE_REGEX.test(signature)) {
-        errors.push('Creator signature must be base58 encoded.');
+        errors.push('Sponsor signature must be base58 encoded.');
       }
       if (form.threshold < 1 || form.threshold > 10) {
         errors.push('Threshold must be between 1 and 10.');
@@ -760,7 +760,7 @@ const SquadsSafeOnboarding: React.FC = () => {
       <form className="space-y-6" onSubmit={handleSubmit}>
         <div className="grid gap-4 md:grid-cols-2">
           <label className="flex flex-col text-sm text-gray-200">
-            Your sponsor wallet (creator / builder / DAO)
+            Your sponsor wallet (Builder, DAO, Creator)
             <input
               className="mt-1 rounded-md border border-primary/40 bg-gray-950/60 p-2 text-white placeholder:text-gray-500 focus:border-primary focus:outline-none"
               value={form.creatorWallet}
@@ -1183,7 +1183,7 @@ const SquadsSafeOnboarding: React.FC = () => {
                 <div>
                   <h4 className="text-base font-medium text-white">Governance linkage</h4>
                   <p className="text-xs text-gray-300">
-                    Both creator and attn must sign the message below to associate the safe with the CreatorVault.
+                    Both sponsor (Builder, DAO, Creator) and attn must sign the message below to associate the safe with the CreatorVault.
                   </p>
                 </div>
                 <button

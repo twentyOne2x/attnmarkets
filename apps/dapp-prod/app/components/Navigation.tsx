@@ -43,7 +43,7 @@ export default function Navigation(): React.JSX.Element {
   const [livePulseActive, setLivePulseActive] = useState(false);
   const showPendingBadge = isLive && isUserPreviewed && !isUserListed;
   const pendingBannerMessage = 'Leaderboard preview ready — finish your Squads safe to unlock advances.';
-  const sponsorTooltip = 'Sponsors include creators, builders, and DAOs with on-chain revenue.';
+  const sponsorTooltip = 'Sponsors include builders, DAOs, and creators with on-chain revenue.';
 
   // Ensure component is mounted before using context values to prevent hydration mismatches
   useEffect(() => {
@@ -90,7 +90,7 @@ export default function Navigation(): React.JSX.Element {
   };
 
   const handleReset = () => {
-    if (confirm('⚠️ Reset all app data?\n\nThis will clear:\n• All creators and loans\n• All transaction history\n• Your wallet and deposits\n• Pool data\n\nThe page will reload with fresh demo data.')) {
+    if (confirm('⚠️ Reset all app data?\n\nThis will clear:\n• All sponsors and loans\n• All transaction history\n• Your wallet and deposits\n• Pool data\n\nThe page will reload with fresh demo data.')) {
       resetToDefaults();
     }
   };

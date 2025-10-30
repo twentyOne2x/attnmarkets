@@ -14,7 +14,7 @@ export default function Home(): React.JSX.Element {
   // Rotating words animation
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [hasStoppedRotating, setHasStoppedRotating] = useState(false);
-  const rotatingWords = ['creator', 'founder', 'streamer', 'artist'];
+  const rotatingWords = ['builder', 'DAO', 'creator'];
 
   useEffect(() => {
     setIsVisible(true);
@@ -57,9 +57,9 @@ export default function Home(): React.JSX.Element {
 
   // Rotating words effect - stops after 5 rotations on 'creator'
   useEffect(() => {
-    // Since 'creator' is at index 0, after 5 full rotations (5 * 4 = 20 steps)
-    // we'll be back at index 20, which shows 'creator'
-    const finalIndex = 20; // This will show 'creator' (20 % 4 = 0)
+    // With builder/DAO/creator ordering (index 0/1/2), five rotations plus a final step
+    // leaves us on index 17, which resolves to 'creator' (final focus state).
+    const finalIndex = rotatingWords.length * 5 + (rotatingWords.length - 1); // 17 for 3-word list
     
     if (!hasStoppedRotating) {
       const interval = setInterval(() => {
@@ -69,7 +69,7 @@ export default function Home(): React.JSX.Element {
           if (nextIndex >= finalIndex) {
             setHasStoppedRotating(true);
             clearInterval(interval);
-            return finalIndex; // Stay at index 20 (shows 'creator')
+            return finalIndex; // Stay at the last 'creator' entry
           }
           
           return nextIndex;
@@ -193,9 +193,9 @@ export default function Home(): React.JSX.Element {
                           {/* Create array for 5 rotations plus landing on 'creator' */}
                           {(() => {
                             const displayArray = [];
-                            // Need enough words to cover 5 full rotations (20 words) plus landing on creator (index 21)
-                            // Add a few extra for visual continuity
-                            const totalWords = rotatingWords.length * 6; // 24 words total
+                            // Need enough words to cover 5 full rotations plus landing on creator
+                            // Add a few extra for visual continuity (18 items for 3-word list)
+                            const totalWords = rotatingWords.length * 6;
                             
                             for (let i = 0; i < totalWords; i++) {
                               displayArray.push(rotatingWords[i % rotatingWords.length]);
@@ -230,17 +230,17 @@ export default function Home(): React.JSX.Element {
             Access capital when you need it. No upfront commitments, no token dilution. Only pay back when you borrow.
           </p>
           
-          {/* Creator vs LP Blocks */}
+          {/* Sponsor vs LP Blocks */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16 max-w-5xl mx-auto">
-            {/* Creator Block */}
+            {/* Sponsor Block */}
             <div className="bg-dark-card border border-primary/20 rounded-2xl p-6 sm:p-8">
               <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <span className="text-primary text-2xl">🚀</span>
               </div>
-              <h3 className="text-xl sm:text-2xl font-semibold mb-4 text-primary">For Creators</h3>
+              <h3 className="text-xl sm:text-2xl font-semibold mb-4 text-primary">For Sponsors (Builders, DAOs, Creators)</h3>
               <p className="text-base sm:text-lg font-medium mb-6">Unlock cash, keep your upside</p>
               <p className="text-text-secondary mb-8 text-sm sm:text-base">
-                Get a funding limit instantly. Only when you borrow do earnings auto-repay. No upfront commitment required.
+                Get a funding limit instantly. Only when you borrow do earnings auto-repay. No upfront commitment required for builders, DAOs, or creators.
               </p>
               <div className="space-y-3 mb-8">
                 <div className="flex items-center space-x-3">
@@ -267,9 +267,9 @@ export default function Home(): React.JSX.Element {
                 <span className="text-secondary text-2xl">💰</span>
               </div>
               <h3 className="text-xl sm:text-2xl font-semibold mb-4 text-secondary">For LPs</h3>
-              <p className="text-base sm:text-lg font-medium mb-6">Yield paid first from creator earnings</p>
+              <p className="text-base sm:text-lg font-medium mb-6">Yield paid first from sponsor earnings (Builders, DAOs, Creators)</p>
               <p className="text-text-secondary mb-8 text-sm sm:text-base">
-                Earn returns uncorrelated to crypto markets. First-priority claims on active creator repayments.
+                Earn returns uncorrelated to crypto markets. First-priority claims on active sponsor repayments across builders, DAOs, and creators.
               </p>
               <div className="space-y-3 mb-8">
                 <div className="flex items-center space-x-3">
@@ -303,7 +303,7 @@ export default function Home(): React.JSX.Element {
             </div>
             <div className="bg-dark-card border border-gray-700 rounded-xl p-3 sm:p-4 card-hover">
               <div className="text-lg sm:text-xl font-mono font-semibold text-accent mb-1">89.2%</div>
-              <div className="text-xs sm:text-sm text-text-secondary">Creator Borrowing Rate</div>
+              <div className="text-xs sm:text-sm text-text-secondary">Borrowing Rate (Builders, DAOs, Creators)</div>
             </div>
             <div className="bg-dark-card border border-gray-700 rounded-xl p-3 sm:p-4 card-hover">
               <div className="text-lg sm:text-xl font-mono font-semibold text-success mb-1">48.2%</div>
@@ -329,7 +329,7 @@ export default function Home(): React.JSX.Element {
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl sm:text-4xl font-bold text-center mb-4">How It Works</h2>
           <p className="text-lg sm:text-xl text-text-secondary text-center mb-16 max-w-3xl mx-auto">
-            Simple, creator-friendly process with no upfront commitments
+            Simple, sponsor-friendly flow for builders, DAOs, and creators—no upfront commitments
           </p>
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 mb-16">
@@ -378,24 +378,24 @@ export default function Home(): React.JSX.Element {
       {/* Problem Section */}
       <section id="problem" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl sm:text-4xl font-bold text-center mb-12">The Creator Funding Gap</h2>
+          <h2 className="text-3xl sm:text-4xl font-bold text-center mb-12">The Builder/DAO/Creator Funding Gap</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 mb-12">
             <div className="bg-dark-card border border-red-500/20 rounded-xl p-6 sm:p-8">
               <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center mb-4">
                 <span className="text-red-400 text-2xl">⚡</span>
               </div>
-              <h3 className="text-lg sm:text-xl font-semibold mb-4 text-red-400">Creators need cash before earnings hit</h3>
+              <h3 className="text-lg sm:text-xl font-semibold mb-4 text-red-400">Builders, DAOs, and Creators need cash before earnings hit</h3>
               <p className="text-text-secondary text-sm sm:text-base">
-                Growth opportunities don't wait for monthly payments. Equipment, team expansion, viral moment investments - timing matters for creator success.
+                Growth opportunities don't wait for monthly payments. Equipment, team expansion, viral moment investments - timing matters for sponsor success across builders, DAOs, and creators.
               </p>
             </div>
             <div className="bg-dark-card border border-red-500/20 rounded-xl p-6 sm:p-8">
               <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center mb-4">
                 <span className="text-red-400 text-2xl">🏦</span>
               </div>
-              <h3 className="text-lg sm:text-xl font-semibold mb-4 text-red-400">Banks don't get creator income</h3>
+              <h3 className="text-lg sm:text-xl font-semibold mb-4 text-red-400">Banks don't get builder/DAO/creator income</h3>
               <p className="text-text-secondary text-sm sm:text-base">
-                Traditional finance requires extensive paperwork, credit checks, and collateral. They don't understand irregular creator earnings or future potential.
+                Traditional finance requires extensive paperwork, credit checks, and collateral. They don't understand irregular builder/DAO/creator earnings or future potential.
               </p>
             </div>
           </div>
@@ -403,7 +403,7 @@ export default function Home(): React.JSX.Element {
             <div className="bg-primary/10 border border-primary/20 rounded-xl p-6 sm:p-8 inline-block max-w-lg">
               <h3 className="text-lg sm:text-xl font-semibold mb-4 text-primary">We bridge both sides</h3>
               <p className="text-text-secondary text-sm sm:text-base">
-                LPs want uncorrelated yield. Creators need flexible funding. We connect creator earnings to internet capital markets without the traditional banking overhead.
+                LPs want uncorrelated yield. Builders, DAOs, and creators need flexible funding. We connect those earnings to internet capital markets without the traditional banking overhead.
               </p>
             </div>
           </div>
@@ -415,13 +415,13 @@ export default function Home(): React.JSX.Element {
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl sm:text-4xl font-bold text-center mb-4">Our Solution</h2>
           <p className="text-lg sm:text-xl text-text-secondary text-center mb-16 max-w-3xl mx-auto">
-            No forced commitments. Creators list first, borrow only when needed. While borrowed, chosen earnings percentage auto-repays.
+            No forced commitments. Sponsors (builders, DAOs, creators) list first, borrow only when needed. While borrowed, chosen earnings percentage auto-repays.
           </p>
           
           <div className="space-y-8 sm:space-y-12">
-            {/* For Creators */}
+            {/* For Sponsors */}
             <div className="bg-dark-card border border-primary/20 rounded-2xl p-6 sm:p-8">
-              <h3 className="text-xl sm:text-2xl font-semibold mb-6 text-primary text-center">For Creators: No Lock, Just Options</h3>
+              <h3 className="text-xl sm:text-2xl font-semibold mb-6 text-primary text-center">For Sponsors (Builders, DAOs, Creators): No Lock, Just Options</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="text-center">
                   <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center mx-auto mb-4">
@@ -456,14 +456,14 @@ export default function Home(): React.JSX.Element {
                     <span className="text-secondary">🏆</span>
                   </div>
                   <h4 className="font-semibold mb-2">Priority Pool</h4>
-                  <p className="text-text-secondary text-sm sm:text-base">First-in-line on all active creator repayments. Your deposits get priority claims.</p>
+                  <p className="text-text-secondary text-sm sm:text-base">First-in-line on all active sponsor repayments across builders, DAOs, and creators. Your deposits get priority claims.</p>
                 </div>
                 <div className="text-center">
                   <div className="w-12 h-12 bg-secondary/20 rounded-xl flex items-center justify-center mx-auto mb-4">
                     <span className="text-secondary">📊</span>
                   </div>
                   <h4 className="font-semibold mb-2">Uncorrelated Returns</h4>
-                  <p className="text-text-secondary text-sm sm:text-base">Earn from creator economics, not crypto or money market movements.</p>
+                  <p className="text-text-secondary text-sm sm:text-base">Earn from builder/DAO/creator economics, not crypto or money market movements.</p>
                 </div>
                 <div className="text-center">
                   <div className="w-12 h-12 bg-secondary/20 rounded-xl flex items-center justify-center mx-auto mb-4">
@@ -484,9 +484,9 @@ export default function Home(): React.JSX.Element {
           <h2 className="text-3xl sm:text-4xl font-bold text-center mb-16">Why This Works</h2>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12">
-            {/* Creator Benefits */}
+          {/* Sponsor Benefits */}
             <div>
-              <h3 className="text-xl sm:text-2xl font-semibold mb-6 text-primary">Creator Advantages</h3>
+              <h3 className="text-xl sm:text-2xl font-semibold mb-6 text-primary">Sponsor (Builders, DAOs, Creators) Advantages</h3>
               <div className="space-y-6">
                 <div className="flex items-start space-x-4">
                   <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
@@ -528,7 +528,7 @@ export default function Home(): React.JSX.Element {
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">True Diversification</h4>
-                    <p className="text-text-secondary text-sm sm:text-base">Returns based on creator economy growth, completely separate from crypto and traditional markets.</p>
+                    <p className="text-text-secondary text-sm sm:text-base">Returns based on builder/DAO/creator economy growth, completely separate from crypto and traditional markets.</p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-4">
@@ -537,7 +537,7 @@ export default function Home(): React.JSX.Element {
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Priority Claims</h4>
-                    <p className="text-text-secondary text-sm sm:text-base">First-in-line for all active creator repayments. Built-in risk management through diversified creator pools.</p>
+                    <p className="text-text-secondary text-sm sm:text-base">First-in-line for all active sponsor repayments. Built-in risk management through diversified builder/DAO/creator pools.</p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-4">
@@ -560,9 +560,9 @@ export default function Home(): React.JSX.Element {
         <div className="max-w-4xl mx-auto">
           <h2 className="text-3xl sm:text-4xl font-bold text-center mb-16">Frequently Asked Questions</h2>
           
-          {/* Creator FAQs */}
+          {/* Sponsor FAQs */}
           <div className="mb-12">
-            <h3 className="text-xl sm:text-2xl font-semibold mb-8 text-primary">For Creators</h3>
+            <h3 className="text-xl sm:text-2xl font-semibold mb-8 text-primary">For Sponsors (Builders, DAOs, Creators)</h3>
             <div className="space-y-4">
               <div className="bg-dark-card border border-gray-700 rounded-xl">
                 <button
@@ -654,7 +654,7 @@ export default function Home(): React.JSX.Element {
                 {openFAQs.has('creator-5') && (
                   <div className="px-4 sm:px-6 pb-4 sm:pb-6">
                     <p className="text-text-secondary text-sm sm:text-base">
-                      Currently focused on Solana-based platforms like Pump.fun, but expanding to support any platform where creator earnings can be tracked and verified on-chain.
+                      Currently focused on Solana-based platforms like Pump.fun, but expanding to support any platform where builder, DAO, and creator earnings can be tracked and verified on-chain.
                     </p>
                   </div>
                 )}
@@ -671,7 +671,7 @@ export default function Home(): React.JSX.Element {
                   onClick={() => toggleFAQ('lp-1')}
                   className="w-full text-left p-4 sm:p-6 flex justify-between items-center hover:bg-gray-800/30 transition-colors"
                 >
-                  <h4 className="text-base sm:text-lg font-semibold pr-4">How do I earn from creator earnings?</h4>
+                  <h4 className="text-base sm:text-lg font-semibold pr-4">How do I earn from sponsor earnings (Builders, DAOs, Creators)?</h4>
                   <svg 
                     className={`w-5 h-5 transform transition-transform flex-shrink-0 ${openFAQs.has('lp-1') ? 'rotate-180' : ''}`}
                     fill="none" 
@@ -684,7 +684,7 @@ export default function Home(): React.JSX.Element {
                 {openFAQs.has('lp-1') && (
                   <div className="px-4 sm:px-6 pb-4 sm:pb-6">
                     <p className="text-text-secondary text-sm sm:text-base">
-                      You deposit USDC which funds creator advances. When creators borrow and their earnings flow in, you earn returns as a priority claimant. Your yields come from creator repayments, not speculation.
+                      You deposit USDC which funds sponsor advances. When builders, DAOs, or creators borrow and their earnings flow in, you earn returns as a priority claimant. Your yields come from sponsor repayments, not speculation.
                     </p>
                   </div>
                 )}
@@ -695,7 +695,7 @@ export default function Home(): React.JSX.Element {
                   onClick={() => toggleFAQ('lp-2')}
                   className="w-full text-left p-4 sm:p-6 flex justify-between items-center hover:bg-gray-800/30 transition-colors"
                 >
-                  <h4 className="text-base sm:text-lg font-semibold pr-4">What if creators don't borrow much?</h4>
+                  <h4 className="text-base sm:text-lg font-semibold pr-4">What if sponsors (builders, DAOs, creators) don't borrow much?</h4>
                   <svg 
                     className={`w-5 h-5 transform transition-transform flex-shrink-0 ${openFAQs.has('lp-2') ? 'rotate-180' : ''}`}
                     fill="none" 
@@ -708,7 +708,7 @@ export default function Home(): React.JSX.Element {
                 {openFAQs.has('lp-2') && (
                   <div className="px-4 sm:px-6 pb-4 sm:pb-6">
                     <p className="text-text-secondary text-sm sm:text-base">
-                      APR varies based on utilization, but we bootstrap early epochs with treasury incentives and protocol fees to maintain target yield ranges. As the platform grows, real creator demand drives sustainable returns.
+                      APR varies based on utilization, but we bootstrap early epochs with treasury incentives and protocol fees to maintain target yield ranges. As the platform grows, real sponsor demand from builders, DAOs, and creators drives sustainable returns.
                     </p>
                   </div>
                 )}
@@ -732,7 +732,7 @@ export default function Home(): React.JSX.Element {
                 {openFAQs.has('lp-3') && (
                   <div className="px-4 sm:px-6 pb-4 sm:pb-6">
                     <p className="text-text-secondary text-sm sm:text-base">
-                      Creator earnings volatility, platform changes, smart contract bugs, and concentration risk if many creators underperform. You have priority claims and portfolio diversification across multiple creators.
+                      Sponsor earnings volatility (builders/DAOs/creators), platform changes, smart contract bugs, and concentration risk if many participants underperform. You have priority claims and portfolio diversification across multiple sponsors.
                     </p>
                   </div>
                 )}
@@ -748,7 +748,7 @@ export default function Home(): React.JSX.Element {
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl sm:text-4xl font-bold mb-6">Ready to Get Started?</h2>
           <p className="text-lg sm:text-xl text-text-secondary mb-12 max-w-2xl mx-auto">
-            Join the creator economy's new financial layer. No commitments required to explore your options.
+            Join the on-chain revenue economy's new financial layer for builders, DAOs, and creators. No commitments required to explore your options.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -756,7 +756,7 @@ export default function Home(): React.JSX.Element {
               Get Advance Quote
             </a>
             <a href="https://app.attn.markets/leaderboard" className="bg-secondary text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-semibold text-base sm:text-lg hover:bg-secondary/90 transition-all">
-              View Creator Leaderboard
+              View Sponsor Leaderboard
             </a>
           </div>
           
