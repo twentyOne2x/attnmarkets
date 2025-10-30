@@ -44,10 +44,10 @@ attn.markets tokenises the $2B Solana app revenues into Principal and Yield toke
 The Sponsor (creator, business, or DAOs from MetaDAO):
 * Creates Squads 2of2 (sponsor+attn) or hooks attn program to existing Safe
    * Non-custodial: withdrawals remain single-signer while no position is opened
-* Point revenues to the Safe (Pump.fun through CTO request)
+* Point revenues to the Safe (e.g., Pump.fun via CTO request or other launchpad handoffs)
 * Enable: staking, cash advance (selling slice of Yield token), M&A (selling PT), later lending, credit card line
 
-This can be reused wherever the fee authority can be reassigned. 
+This can be reused wherever the revenue/fee authority can be reassigned. 
 
 LPs deposit stables (USDC, USDT, Ethena’s USDe, Reflect’s USDC+) to mint `attnUSD`, the yield-bearing stablecoin acting as attn products counterparty.
 
@@ -122,7 +122,7 @@ The above elements are required to increase TVL sustainably, for `attnUSD` to be
 
 
 ## Core Building Blocks
-1. **CreatorVault PDA (admin = Squads Safe, 2-of-2 sponsor+attn)**: Custodies the revenues (or creators rewards post Pumpfun CTO), collects SOL, tracks `locked` / `lock_expires_at`, exposes optional auto-sweeper delegation, and mints SY SPL tokens plus `withdraw_fees` access while unlocked.
+1. **CreatorVault PDA (admin = Squads Safe, 2-of-2 sponsor+attn)**: Custodies on-chain revenue streams (Pump.fun rewards or other redirected fees), collects SOL, tracks `locked` / `lock_expires_at`, exposes optional auto-sweeper delegation, and mints SY SPL tokens plus `withdraw_fees` access while unlocked.
 2. **SY → PT & YT Splitter**: Burns SY and mints equal PT and YT amounts for a chosen maturity. PT redeems principal at maturity; YT accrues fees continuously. Markets close only when PT/YT supply is zero and both the creator authority and admin sign the transaction.
 3. **Stable Yield Vault (`attnUSD`)** *(program: `protocol/programs/stable_vault`)*: LPs deposit approved stablecoins (USDC/USDT/USDe/USDC+) via `deposit_stable` to mint `attnUSD`. Keeper sweeps (`sweep_creator_fees`) pull fees from CreatorVault and convert them into the same basket so attnUSD NAV tracks underlying revenues.
 4. **RewardsVault (sAttnUSD)** *(program: `protocol/programs/rewards_vault`)*: Staking layer on top of attnUSD. Stakers call `stake_attnusd` to move attnUSD into the vault and mint `sAttnUSD`, accruing SOL incentives while unstaked attnUSD continues to earn the base NAV growth.
@@ -131,11 +131,11 @@ The above elements are required to increase TVL sustainably, for `attnUSD` to be
 7. **Indexer & Monitoring** *(crates: `protocol/crates/attn_indexer`, `attn_api`)*: The indexer ingests CreatorVault/Splitter/StableVault/RewardsVault events to serve `/v1/governance`, supply charts, and rewards pages. Alert escalation/AMM feeds will follow once the swap program ships.
 
 ## Onboarding User Flow
-1. Through the UI, the sponsor (creator, business, or DAO) hooks the attn program to their existing Squads vault, else creates the CreatorVault PDA (Squads 2-of-2: sponsor+attn) and submits the Pump.fun CTO request to name the PDA as the new fee authority.
-2. Pump executes `set_creator`, redirecting fees into the CreatorVault PDA. Set **`CreatorVault.admin` to a Squads Safe with members `{creator, attn}` and threshold `2`**; optionally set an `emergency_admin` Squads Safe. Financing flows toggle the vault lock via `lock_collateral` / `unlock_collateral` (auto-expiring at maturity) so the creator keeps unilateral `withdraw_fees` access whenever no obligation is outstanding; all other admin ops (pause, config) require both creator and attn signatures via Squads.
+1. Through the UI, the sponsor (creator, business, or DAO) hooks the attn program to their existing Squads vault, else creates the CreatorVault PDA (Squads 2-of-2: sponsor+attn) and—if migrating a Pump.fun token—submits the CTO request to name the PDA as the new fee authority. Other launchpads follow the same template once fee rights are portable.
+2. Once the originating platform (e.g., Pump.fun) executes the authority handoff, revenues flow into the CreatorVault PDA. Set **`CreatorVault.admin` to a Squads Safe with members `{creator, attn}` and threshold `2`**; optionally set an `emergency_admin` Squads Safe. Financing flows toggle the vault lock via `lock_collateral` / `unlock_collateral` (auto-expiring at maturity) so the sponsor keeps unilateral `withdraw_fees` access whenever no obligation is outstanding; all other admin ops (pause, config) require both sponsor and attn signatures via Squads.
 3. Users mint SY, then split into PT + YT via Splitter.
 4. Fees stream into the vault; YT holders redeem yield directly or route it into `attnUSD`. A configured SOL slice (zero by default) funds RewardsVault so `attnUSD` stakers earn SOL outside the stablecoin NAV. Splitter CPIs into CreatorVault for both minting and fee transfers to keep mint authority centralised.
-5. After maturity, PT holders redeem remaining Pump tokens/fees and can roll into a fresh tranche.
+5. After maturity, PT holders redeem remaining token/fee balances and can roll into a fresh tranche.
 
 ## MVP Deliverables
 - CreatorVault onboarding flow + SY mint deployed to Solana devnet with CLI support.
@@ -158,9 +158,9 @@ The above elements are required to increase TVL sustainably, for `attnUSD` to be
 - Focus on builder/creator acquisition.
    - reach out + incentives
    - rev share with ICM launchpads
-- Integrate credit modules with LTVs, grace periods if fees do not cover principal+interest until maturity, liquidations.
+- Integrate credit modules with LTVs, grace periods if revenues do not cover principal+interest until maturity, liquidations.
 - Reach out for card integration to enable credit lines.
-- When the fee authority from a Solana launchpad cannot be transferred, use or create a token migration tool.
+- When the revenue/fee authority from a Solana launchpad cannot be transferred, use or create a token migration tool.
 
 
 ## Quickstart
@@ -197,22 +197,39 @@ cargo run -p attn_api                                             # launches RES
 
 ### Architecture Overview
 ```
-Pump.fun fees → CreatorVault (admin: Squads 2-of-2)
-   ├─ keeper: sweep (rewards_bps) → RewardsVault (claim SOL)
-   ├─ redeem_yield (YT) → pays from CreatorVault fees
-   └─ redeem_principal (PT) after maturity
+On-chain revenue stream ──► CreatorVault (Squads 2-of-2 admin)
+      │
+      ├─ wrap_fees → mint SY
+      ├─ lock_collateral / unlock_collateral → financing control
+      └─ withdraw_fees (creator always retains)
 
-Splitter: SY → PT + YT
-StableVault: user deposits stables ↔ mint/burn attnUSD (no fee sweeps)
-AMM pools: PT/quote and attnUSD/quote (v0 pending)
-Governance: pause gates on Creator/Stable/Rewards; keeper ops use monotonic operation_id
-Indexer/API: /v1/* with weak ETags, /readyz, /version
+SY → PT + YT via Splitter
+      │           │
+      │           └─ redeem_principal → PT (post-maturity)
+      └─ redeem_yield → CreatorVault fees or StableVault inflow
 
+StableVault ←─ keeper sweep (SOL split) ── CreatorVault
+      │
+      ├─ deposit_stable (USDC/USDT/USDe/USDC+) → mint attnUSD
+      ├─ redeem_attnusd → withdraw underlying basket
+      └─ fund_rewards (bps slice) → RewardsVault (sAttnUSD rewards)
+
+RewardsVault
+      ├─ stake_attnusd → mint sAttnUSD, accrue SOL index
+      └─ unstake / claim → return attnUSD + SOL rewards
+
+AMM (v0 pending)
+      └─ Planned PT ↔ attnUSD pools for YT sales and pricing
+
+Governance / Ops
+      ├─ Pause gates on CreatorVault / StableVault / RewardsVault
+      ├─ Keeper ops tagged with monotonic operation_id
+      └─ Indexer/API exposes /v1/* with weak ETags, /readyz, /version
 ```
 
 | Program | Responsibilities | Key Seeds / Notes | Idempotent & Pause Highlights |
 |---------|------------------|-------------------|-------------------------------|
-| **CreatorVault** | Custodies Pump.fun fee PDA post-CTO, mints Standardized Yield (SY), exposes CPI hooks for minting and fee transfers. | `creator-vault`, `fee-vault`, `sy-mint` derived per pump mint via `ctx.bumps`. | **Admin = Squads Safe (2-of-2 sponsor+attn)**; optional `emergency_admin` Safe; `wrap_fees` disabled when `paused`; SOL reward split via `sol_rewards_bps`. |
+| **CreatorVault** | Custodies redirected on-chain revenue PDAs (Pump.fun CTO handovers or other fee migrations), mints Standardized Yield (SY), exposes CPI hooks for minting and fee transfers. | `creator-vault`, `fee-vault`, `sy-mint` derived per stream via `ctx.bumps`. | **Admin = Squads Safe (2-of-2 sponsor+attn)**; optional `emergency_admin` Safe; `wrap_fees` disabled when `paused`; SOL reward split via `sol_rewards_bps`. |
 | **Splitter** | Burns SY, mints PT/YT, accounts for yield and redeems principal. | `market`, `user-position`, `splitter-authority` (derived from CreatorVault). | Uses CreatorVault CPI for both mint and fee transfer; signer seeds recomputed each ix. |
 | **StableVault** | Converts creator-fee SOL into a stable basket, issues `attnUSD`, manages conversion queue. | `stable-vault` seeded by `authority_seed`; custody PDAs for share mint, accepted stables, SOL treasury. | `sweep_creator_fees(operation_id)` funds RewardsVault before conversions; `process_conversion(operation_id)` enforces replay safety; pause + keeper authority gating. |
 | **RewardsVault** | Optional SOL rewards layer for `attnUSD` stakers (sAttnUSD). | `rewards-pool`, `rewards-authority`, `stake-position`, `s-attn-mint`, `attn-vault`, `sol-treasury`. | `fund_rewards(operation_id)` monotonic, tracks `last_fund_id`; pool pause halts stake/claim; admin + allowed funder enforcement. |

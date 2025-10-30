@@ -843,12 +843,12 @@ const SquadsSafeOnboarding: React.FC = () => {
           Network is set automatically based on the mode you chose ({configuredCluster}).
         </p>
 
-        <div className="rounded-lg border border-primary/30 bg-gray-900/60 p-4 text-sm text-gray-200">
-          <div className="mb-3 flex items-center justify-between">
+        <div className="rounded-lg border border-primary/30 bg-gray-900/60 p-4 text-sm text-gray-200 space-y-4">
+          <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-base font-medium text-white">Step 1. Request a nonce</h3>
+              <h3 className="text-base font-medium text-white">Step 1. Verify your wallet</h3>
               <p className="text-xs text-gray-300">
-                A nonce is a one-time code from the attn devnet API. You&apos;ll sign it next so we can confirm the request really came from your wallet.
+                Request a one-time nonce from the attn devnet API, then sign it so we know this submission really came from your wallet.
               </p>
             </div>
             <button
@@ -866,7 +866,7 @@ const SquadsSafeOnboarding: React.FC = () => {
             </button>
           </div>
           {!canCallApi && (
-            <p className="mb-2 rounded-md bg-yellow-500/10 p-2 text-xs text-yellow-200">
+            <p className="rounded-md bg-yellow-500/10 p-2 text-xs text-yellow-200">
               Toggle Live mode (devnet) and provide NEXT_PUBLIC_API_BASE + attn API keys so this step can run.
             </p>
           )}
@@ -887,15 +887,16 @@ const SquadsSafeOnboarding: React.FC = () => {
               </div>
             </div>
           )}
-          {nonceError && <p className="mt-2 text-xs text-red-400">{nonceError}</p>}
-        </div>
+          {nonceError && <p className="text-xs text-red-400">{nonceError}</p>}
 
-        <div className="rounded-lg border border-primary/30 bg-gray-900/60 p-4 text-sm text-gray-200">
-          <h3 className="mb-2 text-base font-medium text-white">Step 2. Sign the nonce</h3>
-          <p className="text-xs text-gray-300">
-            Click &ldquo;Sign with wallet&rdquo; to autofill the signature, or use your wallet&apos;s &ldquo;Sign Message&rdquo; flow.
-            Make sure you use the same creator wallet as above.
-          </p>
+          <hr className="border-gray-800" />
+
+          <div>
+            <h3 className="mb-2 text-base font-medium text-white">Step 2. Sign the nonce</h3>
+            <p className="text-xs text-gray-300">
+              Use your wallet&apos;s &ldquo;Sign Message&rdquo; flow (or click the button below) with the same sponsor wallet. This proves ownership of the address you&apos;re about to register.
+            </p>
+          </div>
           <div className="mt-2 flex flex-col gap-2">
             <pre
               className={clsx(
@@ -955,13 +956,13 @@ const SquadsSafeOnboarding: React.FC = () => {
         <div className="rounded-lg border border-primary/30 bg-gray-900/60 p-4 text-sm text-gray-200">
           <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className="text-base font-medium text-white">Step 3. Submit the safe creation request</h3>
+              <h3 className="text-base font-medium text-white">Step 3. Send the Squads safe request</h3>
               <p className="text-xs text-gray-300">
-                Keep this request key if you need to retry — using the same key tells us it&apos;s the same submission. Click &ldquo;New key&rdquo; to start fresh.
+                This packages your verified wallet into a Squads 2-of-2 request (sponsor + attn). Keep the submission key handy if you need support or have to retry.
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-400">Request key</span>
+              <span className="text-xs text-gray-400">Submission key</span>
               <code className="rounded bg-gray-950/60 px-2 py-1 text-xs text-primary">{idempotencyKey}</code>
               <button
                 type="button"
@@ -984,9 +985,9 @@ const SquadsSafeOnboarding: React.FC = () => {
               type="submit"
               disabled={submitting || !canCallApi}
               className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
-              title="Send this safe request to the attn devnet API."
+              title="Send this safe creation request to the attn devnet API."
             >
-              {submitting ? 'Submitting…' : 'Submit safe request'}
+              {submitting ? 'Submitting…' : 'Submit safe request to attn'}
             </button>
             <button
               type="button"
@@ -996,6 +997,9 @@ const SquadsSafeOnboarding: React.FC = () => {
               Reset form
             </button>
           </div>
+          <p className="mt-2 text-xs text-gray-400">
+            Submissions are idempotent: reuse the same key to avoid duplicates. Only generate a new key if you intentionally want a fresh payload.
+          </p>
         </div>
       </form>
 
