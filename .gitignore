@@ -5,3 +5,4 @@ dist/
 apps/dapp/.turbo
 apps/dapp/.turbo/turbo-build.log
 protocol/target/
+.vercel
