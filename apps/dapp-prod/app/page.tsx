@@ -23,7 +23,7 @@ interface DashboardData {
 }
 
 const LANDING_GUIDE_STORAGE_KEY = 'attn.landingGuidePrompt';
-const CREATOR_TOUR_STORAGE_KEY = 'attn.liveCreatorTour';
+const SPONSOR_TOUR_STORAGE_KEY = 'attn.liveSponsorTour';
 
 export default function Dashboard(): React.JSX.Element {
   const router = useRouter();
@@ -83,7 +83,7 @@ export default function Dashboard(): React.JSX.Element {
   const handleSponsorGuide = useCallback(() => {
     persistGuideChoice('sponsor');
     if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(CREATOR_TOUR_STORAGE_KEY);
+      window.localStorage.removeItem(SPONSOR_TOUR_STORAGE_KEY);
     }
     setShowWelcomeGuide(false);
     router.push('/sponsor?startTour=1');
@@ -163,7 +163,7 @@ Active borrowers: ${activeCreators.length}`;
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary/80">
-          <span>Not sure where to start? Launch the guided tour for creators and LPs.</span>
+          <span>Not sure where to start? Launch the guided tour for sponsors (Builders, DAOs, Creators) and LPs.</span>
           <button
             type="button"
             onClick={handleOpenGuide}
@@ -175,7 +175,7 @@ Active borrowers: ${activeCreators.length}`;
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-            <Tooltip content="Total funding available for creators to borrow against their future earnings">
+            <Tooltip content="Total funding available for sponsors (builders, DAOs, creators) to borrow against their on-chain revenue">
               <h3 className="text-sm text-text-secondary mb-2 cursor-help flex items-center">
                 Available Funding
                 <span className="ml-1 text-xs text-primary">ⓘ</span>
@@ -188,9 +188,9 @@ Active borrowers: ${activeCreators.length}`;
           </div>
 
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-            <Tooltip content="Interest rate for creators borrowing against their future earnings">
+            <Tooltip content="Borrowing rate for sponsors (builders, DAOs, creators) using their on-chain revenue">
               <h3 className="text-sm text-text-secondary mb-2 cursor-help flex items-center">
-                Creator Borrowing Rate
+                Sponsor Borrowing Rate (Builders, DAOs, Creators)
                 <span className="ml-1 text-xs text-primary">ⓘ</span>
               </h3>
             </Tooltip>
@@ -211,12 +211,12 @@ Active borrowers: ${activeCreators.length}`;
               {dashboardData ? dashboardData.projectedAPR.toFixed(1) : '0'}%
             </p>
             <p className="text-xs text-text-secondary mt-1">
-              {dashboardData ? `${dashboardData.utilization.toFixed(1)}% utilization` : 'From creator activity'}
+              {dashboardData ? `${dashboardData.utilization.toFixed(1)}% utilization` : 'From sponsor activity (builders, DAOs, creators)'}
             </p>
           </div>
 
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-            <Tooltip content="Percentage of the pool currently being borrowed by creators. Higher utilization increases LP returns.">
+            <Tooltip content="Percentage of the pool currently being borrowed by sponsors (builders, DAOs, creators). Higher utilization increases LP returns.">
               <h3 className="text-sm text-text-secondary mb-2 cursor-help flex items-center">
                 Pool Utilization
                 <span className="ml-1 text-xs text-primary">ⓘ</span>
@@ -234,7 +234,7 @@ Active borrowers: ${activeCreators.length}`;
         {/* REMOVED: Pool Utilization Section - moved to top cards */}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Creator Section - NOW ON LEFT */}
+          {/* Sponsor Section - NOW ON LEFT */}
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6 flex flex-col">
             <h2 className="text-xl font-bold mb-4">Sponsor Portal</h2>
             <p className="text-text-secondary mb-6">
@@ -254,7 +254,7 @@ Active borrowers: ${activeCreators.length}`;
             {/* Current User Status Display */}
             {currentUserCreator && (
               <div className="bg-gray-800/50 rounded-lg p-4 mb-4">
-                <h3 className="font-semibold mb-2">Your Creator Status</h3>
+                <h3 className="font-semibold mb-2">Your Sponsor Status (Builder, DAO, Creator)</h3>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span>Status:</span>
@@ -352,7 +352,7 @@ Active borrowers: ${activeCreators.length}`;
                 href="/leaderboard" 
                 className="block w-full bg-gray-700 text-text-primary py-3 rounded-xl font-semibold text-center hover:bg-gray-600 transition-colors"
               >
-                View Creator Performance
+                View Sponsor Performance
               </a>
             </div>
           </div>
@@ -360,7 +360,7 @@ Active borrowers: ${activeCreators.length}`;
 
         <div className="bg-dark-card border border-gray-700 rounded-xl p-6 mb-8">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold">Top Earning Creators This Week</h2>
+            <h2 className="text-xl font-bold">Top Earning Sponsors This Week (Builders, DAOs, Creators)</h2>
             <a 
               href="/leaderboard" 
               className="text-primary hover:text-primary/80 text-sm font-medium"
