@@ -741,13 +741,6 @@ const SquadsSafeOnboarding: React.FC = () => {
             submissions.
           </p>
         </div>
-        <button
-          type="button"
-          className="rounded-md border border-primary/40 px-3 py-1 text-sm text-primary hover:bg-primary/10"
-          onClick={() => copyToClipboard(runtimeEnv.attnSquadsMember, 'attnWallet')}
-        >
-          Copy attn co-signer wallet ({formatAddress(runtimeEnv.attnSquadsMember)})
-        </button>
       </header>
 
       {mode === 'live' && (
