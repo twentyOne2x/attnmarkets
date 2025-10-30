@@ -318,7 +318,7 @@ pub struct SafeStatusResult {
 }
 
 impl SquadsService {
-    pub fn new(config: SquadsConfig) -> Result<Self> {
+    pub async fn new(config: SquadsConfig) -> Result<Self> {
         let base_url = config
             .base_url
             .as_deref()
@@ -353,24 +353,24 @@ impl SquadsService {
         } else {
             None
         };
-        let kms_signer = config
-            .kms_signer_resource
-            .as_ref()
-            .map(|resource| {
+        let kms_signer = if let Some(resource) = config.kms_signer_resource.as_ref() {
+            Some(Arc::new(
                 KmsSigner::google_cloud(resource.clone())
-                    .context("initialize kms signer")
-                    .map(Arc::new)
-            })
-            .transpose()?;
-        let kms_payer = config
-            .kms_payer_resource
-            .as_ref()
-            .map(|resource| {
+                    .await
+                    .context("initialize kms signer")?,
+            ))
+        } else {
+            None
+        };
+        let kms_payer = if let Some(resource) = config.kms_payer_resource.as_ref() {
+            Some(Arc::new(
                 KmsSigner::google_cloud(resource.clone())
-                    .context("initialize kms payer signer")
-                    .map(Arc::new)
-            })
-            .transpose()?;
+                    .await
+                    .context("initialize kms payer signer")?,
+            ))
+        } else {
+            None
+        };
         let inner = SquadsInner {
             mode,
             default_attn_wallet: config.default_attn_wallet,
@@ -1595,7 +1595,7 @@ mod tests {
             kms_signer_resource: None,
             kms_payer_resource: None,
         };
-        let service = SquadsService::new(config).unwrap();
+        let service = SquadsService::new(config).await.unwrap();
 
         let input = CreateSafeInput {
             creator_wallet: "Creator1111111111111111111111111111111111111".to_string(),

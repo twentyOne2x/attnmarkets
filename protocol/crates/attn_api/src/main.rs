@@ -1069,10 +1069,15 @@ async fn main() -> Result<()> {
         quote_ttl,
         rfq_lp_wallet.clone(),
     );
-    let squads_service = squads
-        .map(SquadsService::new)
-        .transpose()
-        .context("construct squads service")?;
+    let squads_service = if let Some(config) = squads {
+        Some(
+            SquadsService::new(config)
+                .await
+                .context("construct squads service")?,
+        )
+    } else {
+        None
+    };
     let security_state = SecurityState::new(security);
     let metrics_handle = match PrometheusBuilder::new().install_recorder() {
         Ok(handle) => Some(handle),
