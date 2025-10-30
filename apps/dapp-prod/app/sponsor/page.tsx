@@ -1,4 +1,4 @@
-// apps/dapp/app/creator/page.tsx
+// apps/dapp/app/sponsor/page.tsx
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -13,7 +13,7 @@ import { calculateBorrowingTerms } from '../utils/borrowingCalculations';
 import { runtimeEnv } from '../config/runtime';
 import CreatorTourOverlay from './components/CreatorTourOverlay';
 
-const LIVE_TOUR_STORAGE_KEY = 'attn.liveCreatorTour';
+const LIVE_TOUR_STORAGE_KEY = 'attn.liveSponsorTour';
 
 const squadsFeatureEnabled = runtimeEnv.squadsEnabled;
 
@@ -56,7 +56,7 @@ interface Notification {
   position: number; // Fixed position in the stack
 }
 
-export default function CreatorPage(): React.JSX.Element {
+export default function SponsorPage(): React.JSX.Element {
   const {
     creators,
     loading,
@@ -161,7 +161,7 @@ export default function CreatorPage(): React.JSX.Element {
       window.localStorage.removeItem(LIVE_TOUR_STORAGE_KEY);
     }
     setShowLiveTour(true);
-    router.replace('/creator', { scroll: false });
+    router.replace('/sponsor', { scroll: false });
   }, [hasMounted, router, searchParams]);
 
   // Don't auto-generate wallet - let user connect manually

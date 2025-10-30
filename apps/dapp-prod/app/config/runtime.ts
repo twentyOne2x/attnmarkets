@@ -76,7 +76,9 @@ export const runtimeEnv: RuntimeEnv = (() => {
   const rawApiBase = envApiBase !== undefined ? envApiBase.trim() || null : fallbackApiBase;
   const cluster = process.env.NEXT_PUBLIC_CLUSTER?.trim() || 'devnet';
   const programIds = parseProgramIds(process.env.NEXT_PUBLIC_PROGRAM_IDS);
-  const squadsEnabled = parseBoolean(process.env.NEXT_PUBLIC_SQUADS_ENABLED);
+  const squadsEnabled = parseBoolean(
+    process.env.NEXT_PUBLIC_SQUADS_ENABLED ?? 'true'
+  );
   const attnSquadsMember =
     process.env.NEXT_PUBLIC_SQUADS_ATTN_MEMBER?.trim() || 'Attn111111111111111111111111111111111111111';
   const apiKey = process.env.NEXT_PUBLIC_ATTN_API_KEY?.trim() || null;
