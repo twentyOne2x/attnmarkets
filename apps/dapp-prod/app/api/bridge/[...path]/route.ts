@@ -3,7 +3,17 @@ import { NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 
 const LOCALHOST_REGEX = /https?:\/\/(localhost|127\.0\.0\.1)(:\\d+)?/i;
-const FORWARDED_HEADERS = ['accept', 'accept-language', 'content-type', 'if-none-match', 'user-agent'];
+const FORWARDED_HEADERS = [
+  'accept',
+  'accept-language',
+  'authorization',
+  'content-type',
+  'idempotency-key',
+  'if-none-match',
+  'user-agent',
+  'x-api-key',
+  'x-attn-client',
+];
 
 type RouteParams = {
   params: { path?: string[] };
