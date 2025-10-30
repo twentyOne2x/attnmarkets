@@ -378,7 +378,7 @@ export default function Home(): React.JSX.Element {
       {/* Problem Section */}
       <section id="problem" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl sm:text-4xl font-bold text-center mb-12">The Builder/DAO/Creator Funding Gap</h2>
+          <h2 className="text-3xl sm:text-4xl font-bold text-center mb-12">The Funding Gap</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 mb-12">
             <div className="bg-dark-card border border-red-500/20 rounded-xl p-6 sm:p-8">
               <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center mb-4">
@@ -393,9 +393,9 @@ export default function Home(): React.JSX.Element {
               <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center mb-4">
                 <span className="text-red-400 text-2xl">🏦</span>
               </div>
-              <h3 className="text-lg sm:text-xl font-semibold mb-4 text-red-400">Banks don't get builder/DAO/creator income</h3>
+              <h3 className="text-lg sm:text-xl font-semibold mb-4 text-red-400">Banks don't get onchain income</h3>
               <p className="text-text-secondary text-sm sm:text-base">
-                Traditional finance requires extensive paperwork, credit checks, and collateral. They don't understand irregular builder/DAO/creator revenues or future potential.
+                Traditional finance requires extensive paperwork, credit checks, and collateral. They don't understand irregular onchain revenues or future potential.
               </p>
             </div>
           </div>
@@ -562,7 +562,7 @@ export default function Home(): React.JSX.Element {
           
           {/* Sponsor FAQs */}
           <div className="mb-12">
-            <h3 className="text-xl sm:text-2xl font-semibold mb-8 text-primary">For Sponsors (Builders, DAOs, Creators)</h3>
+            <h3 className="text-xl sm:text-2xl font-semibold mb-8 text-primary">For Sponsors</h3>
             <div className="space-y-4">
               <div className="bg-dark-card border border-gray-700 rounded-xl">
                 <button

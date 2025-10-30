@@ -57,6 +57,12 @@ const proxyRequest = async (request: Request, context: RouteParams) => {
       headers.set(key, value);
     }
   });
+  if (process.env.NEXT_PUBLIC_ATTN_API_KEY) {
+    headers.set('x-api-key', process.env.NEXT_PUBLIC_ATTN_API_KEY);
+  }
+  if (process.env.NEXT_PUBLIC_CSRF_TOKEN) {
+    headers.set('x-attn-client', process.env.NEXT_PUBLIC_CSRF_TOKEN);
+  }
 
   const init: RequestInit = {
     method,
