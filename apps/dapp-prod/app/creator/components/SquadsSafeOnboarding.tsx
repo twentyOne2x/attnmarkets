@@ -773,7 +773,7 @@ const SquadsSafeOnboarding: React.FC = () => {
               payouts; builders and DAOs can enter any signer that will co-own the Squads safe.
             </span>
             <span className="mt-1 text-xs text-gray-400">
-              Already operating through an existing Squads safe? Enter the signer that administers it—you can link the
+              Already operating through an existing Squads safe? Enter the signer that administers it, you can link the
               safe after this request.
             </span>
             {autoFilledFromWallet ? (
