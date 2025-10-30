@@ -86,7 +86,7 @@ export default function Dashboard(): React.JSX.Element {
       window.localStorage.removeItem(CREATOR_TOUR_STORAGE_KEY);
     }
     setShowWelcomeGuide(false);
-    router.push('/creator?startTour=1');
+    router.push('/sponsor?startTour=1');
   }, [persistGuideChoice, router]);
 
   const handleLpGuide = useCallback(() => {
@@ -286,7 +286,7 @@ Active borrowers: ${activeCreators.length}`;
 
             <div className="space-y-3">
               <a 
-                href="/creator" 
+                href="/sponsor" 
                 className="block w-full bg-secondary text-white py-3 rounded-xl font-semibold text-center hover:bg-secondary/90 transition-colors"
               >
                 {currentUserCreator 

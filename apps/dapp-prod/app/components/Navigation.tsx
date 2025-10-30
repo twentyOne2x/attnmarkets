@@ -391,9 +391,9 @@ export default function Navigation(): React.JSX.Element {
               Leaderboard
             </a>
             <a
-              href="/creator"
+              href="/sponsor"
               className={`transition-colors ${
-                isActive('/creator')
+                isActive('/sponsor')
                   ? 'text-primary font-semibold'
                   : 'text-text-secondary hover:text-primary'
               }`}
@@ -485,9 +485,9 @@ export default function Navigation(): React.JSX.Element {
                 Leaderboard
               </a>
               <a 
-                href="/creator" 
+                href="/sponsor" 
                 className={`px-3 py-2 transition-colors ${
-                  isActive('/creator') 
+                  isActive('/sponsor') 
                     ? 'text-primary font-semibold bg-primary/10 rounded' 
                     : 'text-text-secondary'
                 }`}
