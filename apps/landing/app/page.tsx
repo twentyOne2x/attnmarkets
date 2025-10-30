@@ -415,13 +415,13 @@ export default function Home(): React.JSX.Element {
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl sm:text-4xl font-bold text-center mb-4">Our Solution</h2>
           <p className="text-lg sm:text-xl text-text-secondary text-center mb-16 max-w-3xl mx-auto">
-            No forced commitments. Sponsors (builders, DAOs, creators) list first, borrow only when needed. While borrowed, chosen earnings percentage auto-repays.
+            No forced commitments. Sponsors list first, borrow only when needed. While borrowed, chosen earnings percentage auto-repays.
           </p>
           
           <div className="space-y-8 sm:space-y-12">
             {/* For Sponsors */}
             <div className="bg-dark-card border border-primary/20 rounded-2xl p-6 sm:p-8">
-              <h3 className="text-xl sm:text-2xl font-semibold mb-6 text-primary text-center">For Sponsors (Builders, DAOs, Creators): No Lock, Just Options</h3>
+              <h3 className="text-xl sm:text-2xl font-semibold mb-6 text-primary text-center">For Sponsors: No Lock, Just Options</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="text-center">
                   <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center mx-auto mb-4">
