@@ -42,7 +42,7 @@ Safe requests persist in Postgres (`squads_safe_requests`) with:
 - Status reconciliation fields (`status_url`, `status_last_checked_at`, `status_last_response_hash`, `status_sync_error`) that
   feed the background poller described below.
 
-`/v1/squads/safes/:id/governance` is idempotent—submitting the same CreatorVault + signatures updates the record in place.
+`/v1/squads/safes/:id/governance` is idempotent, submitting the same CreatorVault + signatures updates the record in place.
 
 ### Status synchronization
 

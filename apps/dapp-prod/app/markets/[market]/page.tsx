@@ -345,7 +345,7 @@ export default function MarketAdvancePage({ params }: PageProps): React.JSX.Elem
           <p className="text-sm uppercase tracking-wide text-text-secondary">Market Detail</p>
           <h1 className="text-3xl font-bold">{marketDetail.summary.market}</h1>
           <p className="text-text-secondary">
-            Get a <strong>15-day advance</strong> on your upcoming yield. We sell your next 15 days of YT for upfront USDC — no loan, buy back anytime.
+            Get a <strong>15-day advance</strong> on your upcoming yield. We sell your next 15 days of YT for upfront USDC, no loan, buy back anytime.
           </p>
         </header>
 

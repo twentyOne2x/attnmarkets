@@ -826,7 +826,7 @@ const SquadsSafeOnboarding: React.FC = () => {
               placeholder="Optional"
             />
             <span className="mt-1 text-xs text-gray-400">
-              Optional — lets the attn team reach you if the safe creation needs follow-up.
+              Optional, lets the attn team reach you if the safe creation needs follow-up.
             </span>
           </label>
           <label className="md:col-span-2 flex flex-col text-sm text-gray-200">
