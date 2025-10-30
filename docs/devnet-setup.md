@@ -98,7 +98,7 @@ cargo run -p attn_cli -- --url https://api.devnet.solana.com rewards claim --cre
   allows **2 requests per 8 hours per wallet**. Keep an auxiliary keypair handy if we
   need to shuttle SOL into the deployer quickly.
 - If the faucet quota is exhausted, browser-driven services (QuickNode, Ankr, Helius)
-  can top up the deployer—complete their CAPTCHA flow with
+  can top up the deployer, —complete their CAPTCHA flow with
   `J4PNQ4BgbM5pJs8gkvfoDufaKQe8QdWZ9afTJLAGPZns` as the address.
 - Closing unused token accounts and demo mints returns rent (~0.002 SOL each). That’s
   helpful for cleanup but not a substitute for buffer funding.

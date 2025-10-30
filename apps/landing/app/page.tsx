@@ -267,7 +267,7 @@ export default function Home(): React.JSX.Element {
                 <span className="text-secondary text-2xl">💰</span>
               </div>
               <h3 className="text-xl sm:text-2xl font-semibold mb-4 text-secondary">For LPs</h3>
-              <p className="text-base sm:text-lg font-medium mb-6">Yield paid first from sponsor earnings (Builders, DAOs, Creators)</p>
+              <p className="text-base sm:text-lg font-medium mb-6">Yield paid first from sponsor earnings</p>
               <p className="text-text-secondary mb-8 text-sm sm:text-base">
                 Earn returns uncorrelated to crypto markets. First-priority claims on active sponsor repayments across builders, DAOs, and creators.
               </p>
@@ -329,7 +329,7 @@ export default function Home(): React.JSX.Element {
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl sm:text-4xl font-bold text-center mb-4">How It Works</h2>
           <p className="text-lg sm:text-xl text-text-secondary text-center mb-16 max-w-3xl mx-auto">
-            Simple, sponsor-friendly flow for builders, DAOs, and creators—no upfront commitments
+            Simple, sponsor-friendly flow for builders, DAOs, and creators, no upfront commitments
           </p>
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 mb-16">

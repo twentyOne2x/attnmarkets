@@ -1102,7 +1102,7 @@ export default function SponsorPage(): React.JSX.Element {
                   </div>
                   <p className="mt-2 text-xs text-text-secondary">
                     {isPreviewOnly
-                      ? 'Preview created — sign once your Squads safe is live to activate borrowing.'
+                      ? 'Preview created, sign once your Squads safe is live to activate borrowing.'
                       : 'Sign the attn sponsor agreement to appear on the leaderboard and enable loan quotes.'}
                   </p>
                   {creatorMetrics ? (
@@ -1216,7 +1216,7 @@ export default function SponsorPage(): React.JSX.Element {
                       {!currentUserWallet
                         ? 'Connect wallet first to adjust earnings'
                         : isPreviewOnly
-                        ? 'Leaderboard preview saved — finish Squads to unlock borrowing'
+                        ? 'Leaderboard preview saved, finish Squads to unlock borrowing'
                         : 'List yourself first to start borrowing'}
                     </div>
                   </div>

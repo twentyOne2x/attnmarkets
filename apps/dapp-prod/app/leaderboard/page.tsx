@@ -200,7 +200,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
                   </div>
                   <p className="mt-2 text-xs text-text-secondary">
                     {isPreviewOnly
-                      ? 'Preview created — sign once your Squads safe is live to activate borrowing.'
+                      ? 'Preview created, sign once your Squads safe is live to activate borrowing.'
                       : 'Authorize attn.markets to publish your vault metrics and show up on the leaderboard.'}
                   </p>
                   {creatorMetrics ? (

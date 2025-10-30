@@ -24,8 +24,8 @@
 
 ## Information Architecture
 - Two Next.js targets now live in the repo:
-  - `apps/dapp` — legacy, demo-only experience kept stable for existing flows.
-  - `apps/dapp-prod` — experimental build with Demo↔Live toggle, health checks, and API-backed providers intended for prod.attn once validated.
+  - `apps/dapp`: legacy, demo-only experience kept stable for existing flows.
+  - `apps/dapp-prod`: experimental build with Demo↔Live toggle, health checks, and API-backed providers intended for prod.attn once validated.
 
 - **App Shell** (shared navigation):
   - Logo + “attn” brand.
