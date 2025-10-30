@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'attn.markets - Builders, DAOs, Creators to Liquidity',
-  description: 'Lock builder, DAO, and creator earnings, mint liquidity, earn uncorrelated yields on Solana.',
+  description: 'Lock builder, DAO, and creator revenues, mint liquidity, earn uncorrelated yields on Solana.',
   icons: {
     icon: '/favicon.svg',
     shortcut: '/favicon.ico',

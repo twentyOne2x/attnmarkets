@@ -81,7 +81,7 @@ export default function TradePage(): React.JSX.Element {
               </div>
               <div className="flex justify-between">
                 <span className="text-text-secondary">Underlying</span>
-                <span>Creator Earnings Yield</span>
+                <span>Sponsor Revenues Yield</span>
               </div>
             </div>
             

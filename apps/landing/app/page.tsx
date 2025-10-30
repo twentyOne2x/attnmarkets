@@ -395,7 +395,7 @@ export default function Home(): React.JSX.Element {
               </div>
               <h3 className="text-lg sm:text-xl font-semibold mb-4 text-red-400">Banks don't get builder/DAO/creator income</h3>
               <p className="text-text-secondary text-sm sm:text-base">
-                Traditional finance requires extensive paperwork, credit checks, and collateral. They don't understand irregular builder/DAO/creator earnings or future potential.
+                Traditional finance requires extensive paperwork, credit checks, and collateral. They don't understand irregular builder/DAO/creator revenues or future potential.
               </p>
             </div>
           </div>
@@ -463,7 +463,7 @@ export default function Home(): React.JSX.Element {
                     <span className="text-secondary">📊</span>
                   </div>
                   <h4 className="font-semibold mb-2">Uncorrelated Returns</h4>
-                  <p className="text-text-secondary text-sm sm:text-base">Earn from builder/DAO/creator economics, not crypto or money market movements.</p>
+                  <p className="text-text-secondary text-sm sm:text-base">Earn from sponsor economics, not crypto or money market movements.</p>
                 </div>
                 <div className="text-center">
                   <div className="w-12 h-12 bg-secondary/20 rounded-xl flex items-center justify-center mx-auto mb-4">
@@ -486,7 +486,7 @@ export default function Home(): React.JSX.Element {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12">
           {/* Sponsor Benefits */}
             <div>
-              <h3 className="text-xl sm:text-2xl font-semibold mb-6 text-primary">Sponsor (Builders, DAOs, Creators) Advantages</h3>
+              <h3 className="text-xl sm:text-2xl font-semibold mb-6 text-primary">Sponsor Advantages</h3>
               <div className="space-y-6">
                 <div className="flex items-start space-x-4">
                   <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
@@ -528,7 +528,7 @@ export default function Home(): React.JSX.Element {
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">True Diversification</h4>
-                    <p className="text-text-secondary text-sm sm:text-base">Returns based on builder/DAO/creator economy growth, completely separate from crypto and traditional markets.</p>
+                    <p className="text-text-secondary text-sm sm:text-base">Returns based on sponsor economy growth, completely separate from crypto and traditional markets.</p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-4">
@@ -537,7 +537,7 @@ export default function Home(): React.JSX.Element {
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Priority Claims</h4>
-                    <p className="text-text-secondary text-sm sm:text-base">First-in-line for all active sponsor repayments. Built-in risk management through diversified builder/DAO/creator pools.</p>
+                    <p className="text-text-secondary text-sm sm:text-base">First-in-line for all active sponsor repayments. Built-in risk management through diversified sponsor pools.</p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-4">
@@ -654,7 +654,7 @@ export default function Home(): React.JSX.Element {
                 {openFAQs.has('creator-5') && (
                   <div className="px-4 sm:px-6 pb-4 sm:pb-6">
                     <p className="text-text-secondary text-sm sm:text-base">
-                      Currently focused on Solana-based platforms like Pump.fun, but expanding to support any platform where builder, DAO, and creator earnings can be tracked and verified on-chain.
+                      Currently focused on Solana-based platforms like Pump.fun, but expanding to support any platform where builder, DAO, and creator revenues can be tracked and verified on-chain.
                     </p>
                   </div>
                 )}
@@ -671,7 +671,7 @@ export default function Home(): React.JSX.Element {
                   onClick={() => toggleFAQ('lp-1')}
                   className="w-full text-left p-4 sm:p-6 flex justify-between items-center hover:bg-gray-800/30 transition-colors"
                 >
-                  <h4 className="text-base sm:text-lg font-semibold pr-4">How do I earn from sponsor earnings (Builders, DAOs, Creators)?</h4>
+                  <h4 className="text-base sm:text-lg font-semibold pr-4">How do I earn from sponsor earnings?</h4>
                   <svg 
                     className={`w-5 h-5 transform transition-transform flex-shrink-0 ${openFAQs.has('lp-1') ? 'rotate-180' : ''}`}
                     fill="none" 
@@ -695,7 +695,7 @@ export default function Home(): React.JSX.Element {
                   onClick={() => toggleFAQ('lp-2')}
                   className="w-full text-left p-4 sm:p-6 flex justify-between items-center hover:bg-gray-800/30 transition-colors"
                 >
-                  <h4 className="text-base sm:text-lg font-semibold pr-4">What if sponsors (builders, DAOs, creators) don't borrow much?</h4>
+                  <h4 className="text-base sm:text-lg font-semibold pr-4">What if sponsors don't borrow much?</h4>
                   <svg 
                     className={`w-5 h-5 transform transition-transform flex-shrink-0 ${openFAQs.has('lp-2') ? 'rotate-180' : ''}`}
                     fill="none" 
@@ -732,7 +732,7 @@ export default function Home(): React.JSX.Element {
                 {openFAQs.has('lp-3') && (
                   <div className="px-4 sm:px-6 pb-4 sm:pb-6">
                     <p className="text-text-secondary text-sm sm:text-base">
-                      Sponsor earnings volatility (builders/DAOs/creators), platform changes, smart contract bugs, and concentration risk if many participants underperform. You have priority claims and portfolio diversification across multiple sponsors.
+                      Sponsor earnings volatility, platform changes, smart contract bugs, and concentration risk if many participants underperform. You have priority claims and portfolio diversification across multiple sponsors.
                     </p>
                   </div>
                 )}

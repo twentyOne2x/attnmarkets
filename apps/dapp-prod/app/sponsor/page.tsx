@@ -382,13 +382,13 @@ export default function SponsorPage(): React.JSX.Element {
     }
   }, [weeklyEarnings]); // Only depend on weeklyEarnings, not availableLiquidity or borrowPercentage
 
-  // Update creator earnings when weekly earnings change - SIMPLIFIED AND DEBOUNCED
+  // Update sponsor revenues when weekly earnings change - SIMPLIFIED AND DEBOUNCED
   useEffect(() => {
     if (!currentUserWallet || isUserEditing) return;
     
     const existingCreator = currentUserCreator;
     if (existingCreator && Math.abs(existingCreator.fees7d_usd - weeklyEarnings) > 0.01) {
-      console.log('Updating creator earnings in context:', weeklyEarnings);
+      console.log('Updating sponsor revenues in context:', weeklyEarnings);
       
       // Debounce the update to prevent rapid updates
       const timeoutId = setTimeout(() => {
