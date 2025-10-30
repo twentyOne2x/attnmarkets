@@ -915,7 +915,7 @@ export default function CreatorPage(): React.JSX.Element {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Creator Portal</h1>
+            <h1 className="text-3xl font-bold">Sponsor (Builder, DAO, Creator) Portal</h1>
             {currentUserWallet && (
               <div className="text-sm text-text-secondary mt-1">
                 Wallet: <span className="font-mono">{currentUserWallet?.slice(0, 8)}...{currentUserWallet?.slice(-4)}</span>
@@ -934,7 +934,7 @@ export default function CreatorPage(): React.JSX.Element {
               {/* COMPACT HEADER with Pool Liquidity */}
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h2 className="text-xl font-bold">Creator Portal</h2>
+                  <h2 className="text-xl font-bold">Sponsor Portal</h2>
                 </div>
                 <div className="text-right">
                   <div className="text-sm text-blue-400 font-medium">Pool Liquidity</div>
@@ -1251,9 +1251,9 @@ export default function CreatorPage(): React.JSX.Element {
 
           {/* Side Panel */}
           <div className="space-y-6">
-            {/* Creator Leaderboard Preview - Smart Display */}
+            {/* Sponsor Leaderboard Preview - Smart Display */}
             <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-              <h3 className="text-lg font-bold mb-4">Creator Leaderboard Preview</h3>
+              <h3 className="text-lg font-bold mb-4">Sponsor Leaderboard Preview</h3>
               <div className="space-y-3">
                 {previewCreators.map((creator, index) => {
                   // Find this creator's actual rank in the full sorted list
