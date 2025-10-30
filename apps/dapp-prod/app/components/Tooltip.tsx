@@ -8,12 +8,50 @@ interface TooltipProps {
   children: React.ReactNode;
   content: string;
   className?: string;
+  autoHideOnClickMs?: number;
 }
 
-export default function Tooltip({ children, content, className = '' }: TooltipProps) {
+export default function Tooltip({
+  children,
+  content,
+  className = '',
+  autoHideOnClickMs = 3200,
+}: TooltipProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLDivElement>(null);
+  const hideTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (hideTimerRef.current) {
+        window.clearTimeout(hideTimerRef.current);
+      }
+    };
+  }, []);
+
+  const clearHideTimer = () => {
+    if (hideTimerRef.current) {
+      window.clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  };
+
+  const showTooltip = (withAutoHide = false) => {
+    clearHideTimer();
+    setIsVisible(true);
+    if (withAutoHide && autoHideOnClickMs > 0) {
+      hideTimerRef.current = window.setTimeout(() => {
+        setIsVisible(false);
+        hideTimerRef.current = null;
+      }, autoHideOnClickMs);
+    }
+  };
+
+  const hideTooltip = () => {
+    clearHideTimer();
+    setIsVisible(false);
+  };
 
   useEffect(() => {
     if (isVisible && triggerRef.current) {
@@ -60,8 +98,11 @@ export default function Tooltip({ children, content, className = '' }: TooltipPr
       <div 
         ref={triggerRef}
         className={`relative inline-block ${className}`}
-        onMouseEnter={() => setIsVisible(true)}
-        onMouseLeave={() => setIsVisible(false)}
+        onMouseEnter={() => showTooltip(false)}
+        onMouseLeave={hideTooltip}
+        onFocus={() => showTooltip(false)}
+        onBlur={hideTooltip}
+        onClick={() => showTooltip(true)}
       >
         {children}
       </div>
