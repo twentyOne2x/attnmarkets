@@ -47,7 +47,7 @@ export default function RedeemPage(): React.JSX.Element {
             Withdrawal and yield claiming interface coming soon.
           </p>
           <button
-            onClick={() => alert('Redeem functionality coming soon!\n\nThis will allow LPs to withdraw their USDC deposits and claim accumulated yield from creator earnings.')}
+            onClick={() => alert('Redeem functionality coming soon!\n\nThis will allow LPs to withdraw their USDC deposits and claim accumulated yield from sponsor earnings (builders, DAOs, creators).')}
             className="bg-success text-dark px-6 py-3 rounded-xl font-semibold hover:bg-success/90 transition-colors"
           >
             Coming Soon

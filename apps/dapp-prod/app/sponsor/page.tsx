@@ -452,7 +452,7 @@ export default function SponsorPage(): React.JSX.Element {
       addNotification({
         type: 'processing',
         title: 'Setting Up Account',
-        message: 'Adding to creator leaderboard...',
+        message: 'Adding to sponsor leaderboard...',
         duration: 800
       });
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -924,7 +924,7 @@ export default function SponsorPage(): React.JSX.Element {
       <div className="min-h-screen bg-dark text-text-primary flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 bg-gradient-to-r from-primary to-secondary rounded-lg mx-auto mb-4"></div>
-          <p>Loading creator interface...</p>
+          <p>Loading sponsor interface (Builders, DAOs, Creators)...</p>
         </div>
       </div>
     );
@@ -1019,7 +1019,7 @@ export default function SponsorPage(): React.JSX.Element {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold" title="Sponsors include creators, builders, and DAOs with recurring on-chain revenue.">
+            <h1 className="text-3xl font-bold" title="Sponsors include builders, DAOs, and creators with recurring on-chain revenue.">
               Sponsor Console (Builders, DAOs, Creators)
             </h1>
             {currentUserWallet && (
@@ -1478,9 +1478,9 @@ export default function SponsorPage(): React.JSX.Element {
 
           {/* Side Panel */}
           <div className="space-y-6">
-            {/* Creator Leaderboard Preview - Smart Display */}
+            {/* Sponsor Leaderboard Preview - Smart Display */}
             <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-              <h3 className="text-lg font-bold mb-4">Creator Leaderboard Preview</h3>
+              <h3 className="text-lg font-bold mb-4">Sponsor Leaderboard Preview (Builders, DAOs, Creators)</h3>
               <div className="space-y-3">
                 {previewCreators.map((creator, index) => {
                   // Find this creator's actual rank in the full sorted list
