@@ -71,7 +71,9 @@ const parseBoolean = (raw?: string | null): boolean => {
 
 export const runtimeEnv: RuntimeEnv = (() => {
   const defaultMode = parseMode(process.env.NEXT_PUBLIC_DATA_MODE ?? 'demo');
-  const rawApiBase = process.env.NEXT_PUBLIC_API_BASE?.trim() || null;
+  const fallbackApiBase = process.env.NEXT_PUBLIC_DEFAULT_API_BASE?.trim() || 'https://attn-api-406386298457.us-central1.run.app';
+  const envApiBase = process.env.NEXT_PUBLIC_API_BASE;
+  const rawApiBase = envApiBase !== undefined ? envApiBase.trim() || null : fallbackApiBase;
   const cluster = process.env.NEXT_PUBLIC_CLUSTER?.trim() || 'devnet';
   const programIds = parseProgramIds(process.env.NEXT_PUBLIC_PROGRAM_IDS);
   const squadsEnabled = parseBoolean(process.env.NEXT_PUBLIC_SQUADS_ENABLED);
