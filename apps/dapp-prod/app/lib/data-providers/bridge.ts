@@ -240,17 +240,36 @@ export class BridgeDataProvider implements DataProvider {
   }
 
   async getPoolOverview(): Promise<PoolOverview> {
-    const [overview, attnusd] = await Promise.all([
-      this.fetchJson<OverviewResponse>('/v1/overview', undefined, '/v1/overview', 30_000),
-      this.fetchJson<AttnUsdResponse>('/v1/attnusd', undefined, '/v1/attnusd', 30_000),
-    ]);
+    const attnusdPromise = this.fetchJson<AttnUsdResponse>(
+      '/v1/attnusd',
+      undefined,
+      '/v1/attnusd',
+      30_000,
+    );
+    let overview: OverviewResponse | null = null;
+    try {
+      overview = await this.fetchJson<OverviewResponse>(
+        '/v1/overview',
+        undefined,
+        '/v1/overview',
+        30_000,
+      );
+    } catch (error) {
+      console.warn('[bridge] failed to load /v1/overview, falling back to attnUSD data only', error);
+    }
+    const attnusd = await attnusdPromise;
+
+    const tvlUsdc = Number(toDisplayAmount(attnusd.nav_sol).toFixed(6));
+    const epochEnd =
+      overview?.updated_at ?? attnusd.updated_at ?? new Date().toISOString();
+    const creatorEarnings = overview
+      ? Number((toDisplayAmount(overview.total_fees_collected_sol) / 12).toFixed(6))
+      : 0;
 
     return {
-      tvl_usdc: Number(toDisplayAmount(attnusd.nav_sol).toFixed(6)),
-      epoch_end: overview.updated_at,
-      creator_earnings_next30d: Number(
-        (toDisplayAmount(overview.total_fees_collected_sol) / 12).toFixed(6),
-      ),
+      tvl_usdc: tvlUsdc,
+      epoch_end: epochEnd,
+      creator_earnings_next30d: creatorEarnings,
     };
   }
 
