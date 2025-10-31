@@ -240,7 +240,7 @@ export default function Home(): React.JSX.Element {
               <h3 className="text-xl sm:text-2xl font-semibold mb-4 text-primary">For Sponsors (Builders, DAOs, Creators)</h3>
               <p className="text-base sm:text-lg font-medium mb-6">Unlock cash, keep your upside</p>
               <p className="text-text-secondary mb-8 text-sm sm:text-base">
-                Get a funding limit instantly. Only when you borrow do earnings auto-repay. No upfront commitment required for builders, DAOs, or creators.
+                Get a funding limit instantly. Only when you borrow do earnings auto-repay. No upfront commitment required for sponsors.
               </p>
               <div className="space-y-3 mb-8">
                 <div className="flex items-center space-x-3">
