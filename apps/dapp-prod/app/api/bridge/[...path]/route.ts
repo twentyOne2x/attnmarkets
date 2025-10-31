@@ -34,6 +34,26 @@ export async function HEAD(request: Request, context: RouteParams) {
   return proxyRequest(request, context);
 }
 
+export async function POST(request: Request, context: RouteParams) {
+  return proxyRequest(request, context);
+}
+
+export async function PUT(request: Request, context: RouteParams) {
+  return proxyRequest(request, context);
+}
+
+export async function PATCH(request: Request, context: RouteParams) {
+  return proxyRequest(request, context);
+}
+
+export async function DELETE(request: Request, context: RouteParams) {
+  return proxyRequest(request, context);
+}
+
+export async function OPTIONS(request: Request, context: RouteParams) {
+  return proxyRequest(request, context);
+}
+
 const proxyRequest = async (request: Request, context: RouteParams) => {
   const apiBase = process.env.NEXT_PUBLIC_API_BASE?.trim();
   if (!apiBase) {
