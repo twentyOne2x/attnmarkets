@@ -84,15 +84,19 @@ const proxyRequest = async (request: Request, context: RouteParams) => {
     headers.set('x-attn-client', process.env.NEXT_PUBLIC_CSRF_TOKEN);
   }
 
-  const init: RequestInit = {
+  const init: RequestInit & { duplex?: 'half' } = {
     method,
     headers,
     redirect: 'manual',
     cache: 'no-store',
   };
 
-  if (method !== 'GET' && method !== 'HEAD' && request.body) {
-    init.body = request.body;
+  if (method !== 'GET' && method !== 'HEAD') {
+    const body = request.body;
+    if (body) {
+      init.body = body;
+      init.duplex = 'half';
+    }
   }
 
   try {
