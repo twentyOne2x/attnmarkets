@@ -30,7 +30,7 @@ export default function MintPage(): React.JSX.Element {
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Mint cYT-30d</h1>
+            <h1 className="text-3xl font-bold">Mint YT-30d</h1>
             <p className="text-text-secondary mt-2">Coming soon - Advanced yield token minting</p>
           </div>
           <a href="/" className="text-text-secondary hover:text-primary transition-colors">
@@ -42,7 +42,7 @@ export default function MintPage(): React.JSX.Element {
           <div className="w-16 h-16 bg-secondary/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-secondary text-2xl">🪙</span>
           </div>
-          <h2 className="text-xl font-bold mb-4">Mint cYT-30d Tokens</h2>
+          <h2 className="text-xl font-bold mb-4">Mint YT-30d Tokens</h2>
           <p className="text-text-secondary mb-6">
             Advanced minting interface for yield tokens coming in Phase 2.
           </p>

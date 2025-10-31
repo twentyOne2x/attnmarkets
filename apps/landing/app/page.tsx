@@ -403,7 +403,7 @@ export default function Home(): React.JSX.Element {
             <div className="bg-primary/10 border border-primary/20 rounded-xl p-6 sm:p-8 inline-block max-w-lg">
               <h3 className="text-lg sm:text-xl font-semibold mb-4 text-primary">We bridge both sides</h3>
               <p className="text-text-secondary text-sm sm:text-base">
-                LPs want uncorrelated yield. Builders, DAOs, and creators need flexible funding. We connect those earnings to internet capital markets without the traditional banking overhead.
+                LPs want uncorrelated yield. Sponsors need flexible funding. We connect those earnings to internet capital markets without the traditional banking overhead.
               </p>
             </div>
           </div>
@@ -470,7 +470,7 @@ export default function Home(): React.JSX.Element {
                     <span className="text-secondary">🔄</span>
                   </div>
                   <h4 className="font-semibold mb-2">Flexible Strategies</h4>
-                  <p className="text-text-secondary text-sm sm:text-base">Carry trades, curve plays, and collateral usage with cYT tokens across DeFi.</p>
+                  <p className="text-text-secondary text-sm sm:text-base">Carry trades, curve plays, and collateral usage with YT tokens across DeFi.</p>
                 </div>
               </div>
             </div>
@@ -546,7 +546,7 @@ export default function Home(): React.JSX.Element {
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">DeFi Integration</h4>
-                    <p className="text-text-secondary text-sm sm:text-base">Use cYT tokens across Solana DeFi for carry trades, collateral, and yield strategies.</p>
+                    <p className="text-text-secondary text-sm sm:text-base">Use YT tokens across Solana DeFi for carry trades, collateral, and yield strategies.</p>
                   </div>
                 </div>
               </div>
