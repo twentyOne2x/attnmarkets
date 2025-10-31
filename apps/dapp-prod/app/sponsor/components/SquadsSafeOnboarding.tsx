@@ -74,6 +74,8 @@ const generateIdempotencyKey = (): string => {
   return `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
 };
 
+const bridgePath = (path: string): string => `/api/bridge${path.startsWith('/') ? path : `/${path}`}`;
+
 const SquadsSafeOnboarding: React.FC = () => {
   const { mode, apiBaseUrl, cluster: configuredCluster, apiKey, csrfToken, isAdmin } = useDataMode();
   const { currentUserWallet } = useAppContext();
@@ -205,7 +207,7 @@ const SquadsSafeOnboarding: React.FC = () => {
 
     setRequestingNonce(true);
     try {
-      const response = await fetch(`${apiBaseUrl.replace(/\/$/, '')}/v1/squads/safes/nonce`, {
+      const response = await fetch(bridgePath('/v1/squads/safes/nonce'), {
         method: 'POST',
         headers: buildHeaders(),
         body: JSON.stringify({ creator_wallet: creatorWallet }),
@@ -284,8 +286,7 @@ const SquadsSafeOnboarding: React.FC = () => {
           setError('API base URL is not configured.');
           return;
         }
-        const normalizedApiBase = apiBaseUrl.replace(/\/$/, '');
-        const response = await fetch(`${normalizedApiBase}/v1/squads/safes`, {
+        const response = await fetch(bridgePath('/v1/squads/safes'), {
           method: 'POST',
           headers: {
             ...buildHeaders(),
@@ -337,13 +338,10 @@ const SquadsSafeOnboarding: React.FC = () => {
     if (!result || !apiBaseUrl || !canCallApi) return;
     setPolling(true);
     try {
-      const response = await fetch(
-        `${apiBaseUrl.replace(/\/$/, '')}/v1/squads/safes/${result.request_id}`,
-        {
-          method: 'GET',
-          headers: buildHeaders(),
-        }
-      );
+      const response = await fetch(bridgePath(`/v1/squads/safes/${result.request_id}`), {
+        method: 'GET',
+        headers: buildHeaders(),
+      });
       if (!response.ok) {
         throw new Error(response.statusText);
       }
@@ -385,18 +383,15 @@ const SquadsSafeOnboarding: React.FC = () => {
 
     setGovernanceForm((prev) => ({ ...prev, submitting: true, error: null, success: null }));
     try {
-      const response = await fetch(
-        `${apiBaseUrl.replace(/\/$/, '')}/v1/squads/safes/${result.request_id}/governance`,
-        {
-          method: 'POST',
-          headers: buildHeaders(),
-          body: JSON.stringify({
-            creator_vault: creatorVault,
-            creator_signature: creatorSignature,
-            attn_signature: attnSignature,
-          }),
-        }
-      );
+      const response = await fetch(bridgePath(`/v1/squads/safes/${result.request_id}/governance`), {
+        method: 'POST',
+        headers: buildHeaders(),
+        body: JSON.stringify({
+          creator_vault: creatorVault,
+          creator_signature: creatorSignature,
+          attn_signature: attnSignature,
+        }),
+      });
       if (!response.ok) {
         const message = await response
           .json()
@@ -443,13 +438,10 @@ const SquadsSafeOnboarding: React.FC = () => {
         const cluster = sanitize(adminFilters.cluster);
         if (cluster) params.set('cluster', cluster);
         const query = params.toString();
-        const response = await fetch(
-          `${apiBaseUrl.replace(/\/$/, '')}/v1/squads/safes${query ? `?${query}` : ''}`,
-          {
-            method: 'GET',
-            headers: buildHeaders(),
-          }
-        );
+        const response = await fetch(bridgePath(`/v1/squads/safes${query ? `?${query}` : ''}`), {
+          method: 'GET',
+          headers: buildHeaders(),
+        });
         if (!response.ok) {
           const message = await response
             .json()
@@ -477,14 +469,11 @@ const SquadsSafeOnboarding: React.FC = () => {
       }
       setAdminLoading(true);
       try {
-        const response = await fetch(
-          `${apiBaseUrl.replace(/\/$/, '')}/v1/squads/safes/${requestId}/resubmit`,
-          {
-            method: 'POST',
-            headers: buildHeaders(),
-            body: JSON.stringify({ force }),
-          }
-        );
+        const response = await fetch(bridgePath(`/v1/squads/safes/${requestId}/resubmit`), {
+          method: 'POST',
+          headers: buildHeaders(),
+          body: JSON.stringify({ force }),
+        });
         if (!response.ok) {
           const message = await response
             .json()
@@ -539,19 +528,16 @@ const SquadsSafeOnboarding: React.FC = () => {
 
       try {
         setAdminLoading(true);
-        const response = await fetch(
-          `${apiBaseUrl.replace(/\/$/, '')}/v1/squads/safes/${requestId}/status`,
-          {
-            method: 'POST',
-            headers: buildHeaders(),
-            body: JSON.stringify({
-              status: statusPrompt,
-              safe_address: safeAddress,
-              transaction_url: transactionUrl || undefined,
-              note: note && note.length > 0 ? note : undefined,
-            }),
-          }
-        );
+        const response = await fetch(bridgePath(`/v1/squads/safes/${requestId}/status`), {
+          method: 'POST',
+          headers: buildHeaders(),
+          body: JSON.stringify({
+            status: statusPrompt,
+            safe_address: safeAddress,
+            transaction_url: transactionUrl || undefined,
+            note: note && note.length > 0 ? note : undefined,
+          }),
+        });
         if (!response.ok) {
           const message = await response
             .json()
