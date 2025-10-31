@@ -30,7 +30,7 @@ export default function TradePage(): React.JSX.Element {
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Trade cYT-30d</h1>
+            <h1 className="text-3xl font-bold">Trade YT-30d</h1>
             <p className="text-text-secondary mt-2">Trade yield tokens on secondary markets</p>
           </div>
           <a href="/" className="text-text-secondary hover:text-primary transition-colors">
@@ -69,7 +69,7 @@ export default function TradePage(): React.JSX.Element {
             <div className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-text-secondary">Token</span>
-                <span className="font-mono">cYT-30d</span>
+                <span className="font-mono">YT-30d</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-text-secondary">Current Epoch</span>
