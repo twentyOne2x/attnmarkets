@@ -983,7 +983,7 @@ pub struct SafeRequestRecord {
     pub safe_name: Option<String>,
     pub contact_email: Option<String>,
     pub note: Option<String>,
-    pub status: String,
+    pub status: SafeStatus,
     pub safe_address: Option<String>,
     pub transaction_url: Option<String>,
     pub status_url: Option<String>,
@@ -1011,6 +1011,32 @@ pub struct SafeRequestRecord {
     pub governance_linked_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]
+#[sqlx(type_name = "squads_safe_status", rename_all = "lowercase")]
+pub enum SafeStatus {
+    Pending,
+    Submitted,
+    Ready,
+    Failed,
+}
+
+impl SafeStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            SafeStatus::Pending => "pending",
+            SafeStatus::Submitted => "submitted",
+            SafeStatus::Ready => "ready",
+            SafeStatus::Failed => "failed",
+        }
+    }
+}
+
+impl fmt::Display for SafeStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
 #[derive(Debug, Clone)]

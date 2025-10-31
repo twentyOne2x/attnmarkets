@@ -45,7 +45,7 @@ use sha2::{Digest, Sha256};
 use sqlx::Error as SqlxError;
 use squads::{
     is_valid_pubkey, sanitize_wallet, CreateSafeInput, NewSafeRequest, SafeRequestRecord,
-    SquadsConfig, SquadsSafeRepository, SquadsService, StatusSyncUpdate,
+    SafeStatus, SquadsConfig, SquadsSafeRepository, SquadsService, StatusSyncUpdate,
 };
 use tokio::time::Duration as TokioDuration;
 use tokio::{net::TcpListener, time::sleep};
@@ -221,7 +221,7 @@ fn record_to_response(
     let threshold = record.threshold.max(0).min(u8::MAX as i16) as u8;
     CreateSquadsSafeResponse {
         request_id: record.id.to_string(),
-        status: record.status.clone(),
+        status: record.status.as_str().to_string(),
         safe_address: record.safe_address.clone(),
         transaction_url: record.transaction_url.clone(),
         status_url: record.status_url.clone(),
@@ -1728,8 +1728,8 @@ async fn create_squads_safe(
             _ => {}
         }
     }
-    let status_label = stored.status.clone();
-    if status_label == "ready" {
+    let status_label = stored.status;
+    if status_label == SafeStatus::Ready {
         metrics::counter!(
             "squads_safe_requests_total",
             "event" => "success",
@@ -1747,7 +1747,7 @@ async fn create_squads_safe(
     metrics::histogram!(
         "squads_safe_request_latency_seconds",
         "cluster" => cluster.clone(),
-        "outcome" => status_label.clone()
+        "outcome" => status_label.as_str()
     )
     .record(request_timer.elapsed().as_secs_f64());
     info!(
@@ -1936,7 +1936,7 @@ async fn resubmit_squads_safe(
         .await
         .map_err(ApiError::from)?
         .ok_or_else(|| ApiError::not_found("squads_safe", id.clone()))?;
-    if record.status != "failed" && record.status != "submitted" {
+    if record.status != SafeStatus::Failed && record.status != SafeStatus::Submitted {
         return Err(ApiError::bad_request(
             "invalid_status",
             "Only failed or submitted safes may be retried",
@@ -2572,7 +2572,7 @@ mod tests {
             let mut matches: Vec<_> = inner
                 .iter()
                 .filter(|record| {
-                    record.status == "submitted"
+                    record.status == SafeStatus::Submitted
                         && record
                             .next_retry_at
                             .map(|ts| ts <= Utc::now())
@@ -2595,7 +2595,7 @@ mod tests {
                 .iter_mut()
                 .find(|record| record.id == request_id)
                 .ok_or_else(|| anyhow!("missing record"))?;
-            record.status = "ready".to_string();
+            record.status = SafeStatus::Ready;
             if let Some(address) = update.safe_address.clone() {
                 record.safe_address = Some(address);
             }
@@ -2622,7 +2622,7 @@ mod tests {
                 .iter_mut()
                 .find(|record| record.id == request_id)
                 .ok_or_else(|| anyhow!("missing record"))?;
-            record.status = "submitted".to_string();
+            record.status = SafeStatus::Submitted;
             if let Some(address) = update.safe_address.clone() {
                 record.safe_address = Some(address);
             }
@@ -2657,7 +2657,7 @@ mod tests {
         }
     }
 
-    fn sample_record(status: &str, status_url: Option<String>) -> SafeRequestRecord {
+    fn sample_record(status: SafeStatus, status_url: Option<String>) -> SafeRequestRecord {
         SafeRequestRecord {
             id: Uuid::new_v4(),
             idempotency_key: None,
@@ -2668,7 +2668,7 @@ mod tests {
             safe_name: None,
             contact_email: None,
             note: None,
-            status: status.to_string(),
+            status,
             safe_address: Some("Safe111111111111111111111111111111111111111".to_string()),
             transaction_url: None,
             status_url,
@@ -2704,13 +2704,16 @@ mod tests {
         std::env::set_var("ATTN_API_SQUADS_BASE_URL", "local");
         let config = SquadsConfig::from_env().unwrap().unwrap();
         let service = SquadsService::new(config).unwrap();
-        let record = sample_record("submitted", Some("https://status.local/1".to_string()));
+        let record = sample_record(
+            SafeStatus::Submitted,
+            Some("https://status.local/1".to_string()),
+        );
         let request_id = record.id;
         let repo = MockStatusRepo::new(vec![record]);
 
         status_sync_iteration(&service, &repo).await.unwrap();
         let updated = repo.get(request_id).await.unwrap();
-        assert_eq!(updated.status, "ready");
+        assert_eq!(updated.status, SafeStatus::Ready);
         assert!(updated.status_last_response_hash.is_some());
         assert!(updated.status_sync_error.is_none());
 
@@ -2723,7 +2726,7 @@ mod tests {
         let config = SquadsConfig::from_env().unwrap().unwrap();
         let service = SquadsService::new(config).unwrap();
         let repo = MockStatusRepo::new(vec![sample_record(
-            "ready",
+            SafeStatus::Ready,
             Some("https://status.local/1".to_string()),
         )]);
 
