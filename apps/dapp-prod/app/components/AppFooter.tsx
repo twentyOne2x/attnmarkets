@@ -11,7 +11,7 @@ type VersionPayload = {
 };
 
 const AppFooter: React.FC = () => {
-  const { mode, apiBaseUrl } = useDataMode();
+  const { apiBaseUrl } = useDataMode();
   const { data } = useETag<VersionPayload>('/version', {
     enabled: mode === 'live' && !!apiBaseUrl,
     deps: [mode, apiBaseUrl],
@@ -33,46 +33,38 @@ const AppFooter: React.FC = () => {
   return (
     <footer className="w-full border-t border-gray-800 bg-dark-card text-xs text-text-secondary px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-col gap-1">
-        <span>attn.markets — Live data {mode === 'live' ? 'enabled' : 'disabled'}</span>
-        <span className="text-[11px] text-warning">
-          This is a sale of future yield, not a loan. Quotes available on devnet only.
-        </span>
-        <div className="flex items-center gap-3 text-[11px]">
-          <a
-            href="https://x.com/attndotmarkets"
-            target="_blank"
-            rel="noreferrer"
-            className="text-text-secondary hover:text-primary transition-colors"
-          >
-            Twitter/X
-          </a>
-          <a
-            href={repoUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-text-secondary hover:text-primary transition-colors"
-          >
-            GitHub
-          </a>
-        </div>
+        <span>attn.markets</span>
       </div>
-      <span className="flex items-center gap-2">
-        build
-        {commitUrl ? (
-          <a
-            href={commitUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-primary hover:underline"
-            title={data?.git_sha}
-          >
-            {shortSha}
-          </a>
-        ) : (
-          <span>{shortSha}</span>
-        )}
-        · {buildLabel}
-      </span>
+      <div className="flex items-center gap-3 text-[11px]">
+        <a
+          href="https://x.com/attndotmarkets"
+          target="_blank"
+          rel="noreferrer"
+          className="text-text-secondary hover:text-primary transition-colors"
+        >
+          Twitter/X
+        </a>
+        <a
+          href={repoUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="text-text-secondary hover:text-primary transition-colors"
+        >
+          GitHub
+        </a>
+      </div>
+      <div className="flex items-center gap-2 text-[11px]">
+        <a
+          href={commitUrl ?? repoUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="text-text-secondary hover:text-primary transition-colors"
+          title={data?.git_sha ?? 'latest build'}
+        >
+          {shortSha}
+        </a>
+        <span>· {buildLabel}</span>
+      </div>
     </footer>
   );
 };
