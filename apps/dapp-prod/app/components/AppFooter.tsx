@@ -11,10 +11,11 @@ type VersionPayload = {
 };
 
 const AppFooter: React.FC = () => {
-  const { apiBaseUrl } = useDataMode();
+  const { mode, apiBaseUrl } = useDataMode();
+  const fetchEnabled = mode === 'live' && !!apiBaseUrl;
   const { data } = useETag<VersionPayload>('/version', {
-    enabled: mode === 'live' && !!apiBaseUrl,
-    deps: [mode, apiBaseUrl],
+    enabled: fetchEnabled,
+    deps: [fetchEnabled, apiBaseUrl],
     ttlMs: 60_000,
     maxRetries: 1,
   });
@@ -26,7 +27,7 @@ const AppFooter: React.FC = () => {
       : 'n/a';
   const repoUrl = 'https://github.com/twentyOne2x/attnmarket';
   const commitUrl =
-    mode === 'live' && data?.git_sha && data.git_sha !== 'unknown'
+    fetchEnabled && data?.git_sha && data.git_sha !== 'unknown'
       ? `${repoUrl}/commit/${data.git_sha}`
       : null;
 
