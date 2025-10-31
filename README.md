@@ -292,3 +292,4 @@ curl -s -H 'If-None-Match: W/"demo"' http://localhost:8787/v1/rewards?limit=5
 
 ## License & Status
 - MVP quality, **devnet only**. Audits + mainnet guardrails TBD.
+ 
