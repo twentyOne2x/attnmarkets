@@ -1123,6 +1123,25 @@ impl SquadsSafeRepository {
         Ok(row.map(row_to_request))
     }
 
+    pub async fn find_latest_by_creator_and_cluster(
+        &self,
+        creator_wallet: &str,
+        cluster: &str,
+    ) -> Result<Option<SafeRequestRecord>> {
+        let row = sqlx::query(
+            "select * from squads_safe_requests
+             where creator_wallet = $1 and cluster = $2
+             order by created_at desc
+             limit 1",
+        )
+        .bind(creator_wallet)
+        .bind(cluster)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        Ok(row.map(row_to_request))
+    }
+
     pub async fn create_pending(
         &self,
         input: NewSafeRequest,

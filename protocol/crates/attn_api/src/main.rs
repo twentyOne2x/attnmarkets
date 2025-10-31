@@ -1564,6 +1564,17 @@ async fn create_squads_safe(
         }
     }
 
+    if let Some(existing) = repo
+        .find_latest_by_creator_and_cluster(&creator_wallet, &cluster)
+        .await
+        .map_err(ApiError::from)?
+    {
+        if existing.status != SafeStatus::Failed {
+            let response = record_to_response(&existing, Some(service));
+            return Ok((StatusCode::OK, Json(response)));
+        }
+    }
+
     let consumed_nonce = repo
         .consume_nonce(&creator_wallet, &nonce)
         .await
