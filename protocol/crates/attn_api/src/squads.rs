@@ -1120,7 +1120,7 @@ impl SquadsSafeRepository {
                 created_at, updated_at
             ) values (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9,
-                'pending', $10, $11, $12, $13, $14, $15, $16,
+                'pending', $10, $11, $12, $13, $14::inet, $15, $16,
                 null, null, null, null, null,
                 1, now(), $17,
                 now(), now()
