@@ -116,7 +116,7 @@ const SquadsSafeOnboarding: React.FC = () => {
   const [adminRequests, setAdminRequests] = useState<CreatedSafe[]>([]);
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminError, setAdminError] = useState<string | null>(null);
-  const [apiHealth, setApiHealth] = useState<'unknown' | 'healthy' | 'error'>('unknown');
+  const [apiHealth, setApiHealth] = useState<'unknown' | 'checking' | 'healthy' | 'error'>('unknown');
   const [healthTick, setHealthTick] = useState(0);
   const [signing, setSigning] = useState(false);
   const [autoSigning, setAutoSigning] = useState(false);
@@ -700,9 +700,14 @@ const SquadsSafeOnboarding: React.FC = () => {
         }
         return;
       }
+
+      if (!cancelled) {
+        setApiHealth('checking');
+      }
       try {
-        const response = await fetch(`${apiBaseUrl.replace(/\/$/, '')}/readyz`, {
+        const response = await fetch('/api/bridge/readyz', {
           headers: buildHeaders(),
+          cache: 'no-store',
         });
         if (!cancelled) {
           setApiHealth(response.ok ? 'healthy' : 'error');
@@ -714,8 +719,10 @@ const SquadsSafeOnboarding: React.FC = () => {
         }
       }
     };
-    checkHealth();
-    const interval = setInterval(checkHealth, 30000);
+    void checkHealth();
+    const interval = setInterval(() => {
+      void checkHealth();
+    }, 30000);
     return () => {
       cancelled = true;
       clearInterval(interval);
@@ -763,6 +770,7 @@ const SquadsSafeOnboarding: React.FC = () => {
           aria-hidden
           className={clsx('inline-flex h-2 w-2 rounded-full', {
             'bg-green-400': apiHealth === 'healthy',
+            'bg-yellow-400': apiHealth === 'checking',
             'bg-red-400': apiHealth === 'error',
             'bg-gray-600': apiHealth === 'unknown',
           })}
@@ -772,15 +780,21 @@ const SquadsSafeOnboarding: React.FC = () => {
             ? 'attn API ready for live submissions.'
             : apiHealth === 'error'
             ? 'attn API readiness check failed. Verify your devnet API base, key, and CSRF token.'
+            : apiHealth === 'checking'
+            ? 'Checking attn API readiness…'
             : 'API readiness unavailable in demo mode.'}
         </span>
         {mode === 'live' && canCallApi && (
           <button
             type="button"
-            onClick={() => setHealthTick((tick) => tick + 1)}
-            className="rounded-md border border-primary/40 px-2 py-1 text-xs text-primary hover:bg-primary/10"
+            onClick={() => {
+              setApiHealth('checking');
+              setHealthTick((tick) => tick + 1);
+            }}
+            disabled={apiHealth === 'checking'}
+            className="rounded-md border border-primary/40 px-2 py-1 text-xs text-primary hover:bg-primary/10 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Recheck
+            {apiHealth === 'checking' ? 'Rechecking…' : 'Recheck'}
           </button>
         )}
       </div>
