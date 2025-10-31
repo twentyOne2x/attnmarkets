@@ -124,6 +124,17 @@ const SquadsSafeOnboarding: React.FC = () => {
   const [autoSigning, setAutoSigning] = useState(false);
   const [signError, setSignError] = useState<string | null>(null);
 
+  const signatureComplete = useMemo(
+    () =>
+      Boolean(
+        !signError &&
+          nonce &&
+          form.creatorSignature &&
+          BASE58_SIGNATURE_REGEX.test(form.creatorSignature)
+      ),
+    [form.creatorSignature, nonce, signError]
+  );
+
   const canCallApi =
     mode === 'live' && Boolean(apiBaseUrl && apiKey && csrfToken && runtimeEnv.attnSquadsMember);
 
@@ -155,7 +166,10 @@ const SquadsSafeOnboarding: React.FC = () => {
   }, []);
 
   const buildHeaders = useCallback((): HeadersInit => {
-    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    };
     if (apiKey) {
       headers['X-API-Key'] = apiKey;
     }
@@ -269,8 +283,8 @@ const SquadsSafeOnboarding: React.FC = () => {
       } else if (!BASE58_SIGNATURE_REGEX.test(signature)) {
         errors.push('Sponsor signature must be base58 encoded.');
       }
-      if (form.threshold < 1 || form.threshold > 10) {
-        errors.push('Threshold must be between 1 and 10.');
+      if (form.threshold !== 2) {
+        errors.push('Threshold must be 2 for a 2-of-2 Squads safe.');
       }
       if (!canCallApi) {
         errors.push('Switch to live mode with API credentials to submit.');
@@ -286,31 +300,46 @@ const SquadsSafeOnboarding: React.FC = () => {
           setError('API base URL is not configured.');
           return;
         }
+        const normalizedThreshold = 2;
+        if (form.threshold !== normalizedThreshold) {
+          updateForm({ threshold: normalizedThreshold });
+        }
+        const bodyPayload = {
+          creator_wallet: creatorWallet,
+          attn_wallet: attnWallet,
+          safe_name: sanitize(form.safeName) || undefined,
+          cluster: sanitize(form.cluster) || undefined,
+          threshold: normalizedThreshold,
+          contact_email: sanitize(form.contactEmail) || undefined,
+          note: sanitize(form.notes) || undefined,
+          nonce: nonce?.nonce,
+          creator_signature: signature,
+          idempotency_key: idempotencyKey,
+        };
+
         const response = await fetch(bridgePath('/v1/squads/safes'), {
           method: 'POST',
           headers: {
             ...buildHeaders(),
             'Idempotency-Key': idempotencyKey,
           },
-          body: JSON.stringify({
-            creator_wallet: creatorWallet,
-            attn_wallet: attnWallet,
-            safe_name: sanitize(form.safeName) || undefined,
-            cluster: sanitize(form.cluster) || undefined,
-            threshold: form.threshold,
-            contact_email: sanitize(form.contactEmail) || undefined,
-            note: sanitize(form.notes) || undefined,
-            nonce: nonce?.nonce,
-            creator_signature: signature,
-          }),
+          body: JSON.stringify(bodyPayload),
         });
 
         if (!response.ok) {
-          const message = await response
-            .json()
-            .then((body) => body?.message || body?.error || response.statusText)
-            .catch(() => response.statusText);
-          throw new Error(message || 'Failed to create Squads safe');
+          const raw = await response.text().catch(() => '');
+          let parsed: { message?: string; error?: string; code?: string } | null = null;
+          if (raw) {
+            try {
+              parsed = JSON.parse(raw);
+            } catch {
+              parsed = null;
+            }
+          }
+          const message = parsed?.message || parsed?.error || response.statusText;
+          const code = parsed?.code;
+          const combined = code ? `${message} (${code})` : message;
+          throw new Error(combined || 'Failed to create Squads safe');
         }
 
         const data = (await response.json()) as CreatedSafe;
@@ -326,12 +355,22 @@ const SquadsSafeOnboarding: React.FC = () => {
         setError(null);
       } catch (err) {
         console.error('Failed to create Squads safe', err);
-        setError(err instanceof Error ? err.message : 'Failed to create Squads safe.');
+        const baseMessage = err instanceof Error ? err.message : 'Failed to create Squads safe.';
+        const enhancedMessage = (() => {
+          if (/squads_create_failed/i.test(baseMessage)) {
+            return `${baseMessage} — Squads returned an error. Check attn-api logs or the admin console, then retry once resolved.`;
+          }
+          if (/unexpected server error/i.test(baseMessage)) {
+            return `${baseMessage} — inspect the attn-api Cloud Run revision logs for the corresponding request and retry after the upstream issue clears.`;
+          }
+          return baseMessage;
+        })();
+        setError(enhancedMessage);
       } finally {
         setSubmitting(false);
       }
     },
-    [apiBaseUrl, buildHeaders, canCallApi, form, idempotencyKey, nonce]
+    [apiBaseUrl, buildHeaders, canCallApi, form, idempotencyKey, nonce, updateForm]
   );
 
   const handleRefreshStatus = useCallback(async () => {
@@ -639,6 +678,11 @@ const SquadsSafeOnboarding: React.FC = () => {
     }
   }, [wallet, connectedWalletAddress, sanitizedCreatorWallet, canCallApi, ensureActiveNonce, updateForm]);
 
+  const handleResetSignature = useCallback(() => {
+    setSignError(null);
+    updateForm({ creatorSignature: '' });
+  }, [updateForm]);
+
   useEffect(() => {
     setSignError(null);
   }, [sanitizedCreatorWallet, nonce?.nonce]);
@@ -872,11 +916,20 @@ const SquadsSafeOnboarding: React.FC = () => {
           Network is set automatically based on the mode you chose ({configuredCluster}).
         </p>
 
-        <div className="rounded-lg border border-primary/30 bg-gray-900/60 p-4 text-sm text-gray-200 space-y-4">
+        <div
+          className={clsx(
+            'rounded-lg border p-4 text-sm transition-colors',
+            signatureComplete
+              ? 'border-emerald-500/50 bg-emerald-950/30 text-emerald-50'
+              : 'border-primary/30 bg-gray-900/60 text-gray-200'
+          )}
+        >
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h3 className="text-base font-medium text-white">Step 1. Verify and sign your wallet</h3>
-              <p className="text-xs text-gray-300">
+              <h3 className={clsx('text-base font-medium', signatureComplete ? 'text-emerald-100' : 'text-white')}>
+                Step 1. Verify and sign your wallet
+              </h3>
+              <p className={clsx('text-xs', signatureComplete ? 'text-emerald-200/80' : 'text-gray-300')}>
                 We&apos;ll request a one-time nonce from the attn devnet API and sign it with your connected sponsor wallet to prove ownership.
               </p>
             </div>
@@ -890,100 +943,115 @@ const SquadsSafeOnboarding: React.FC = () => {
             </a>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            {wallet?.signMessage ? (
+          {signatureComplete && (
+            <div className="mt-3 flex flex-col gap-2 rounded-md border border-emerald-500/40 bg-emerald-900/40 p-3 text-xs text-emerald-100 sm:flex-row sm:items-center sm:justify-between">
+              <div className="font-semibold">Signature captured — Step 1 complete.</div>
               <button
                 type="button"
-                onClick={handleSignWithWallet}
-                disabled={signButtonDisabled}
-                className={clsx(
-                  'rounded-xl border-2 px-4 py-3 text-sm sm:text-base font-semibold transition-all duration-200 shadow-lg focus:outline-none focus:ring-2 focus:ring-secondary/60 disabled:cursor-not-allowed disabled:opacity-60',
-                  signButtonDisabled
-                    ? 'border-gray-700 text-gray-500'
-                    : 'border-secondary bg-secondary/10 text-secondary hover:bg-secondary/20 hover:-translate-y-0.5'
-                )}
+                onClick={handleResetSignature}
+                className="inline-flex items-center justify-center rounded-md border border-emerald-400/60 px-3 py-1 text-[11px] font-medium text-emerald-50 transition hover:bg-emerald-800/60"
               >
-                {signingButtonLabel}
+                Update signature
               </button>
-            ) : (
-              <span className="text-xs text-gray-500">
-                Connect a wallet that supports message signing to autofill the signature automatically.
-              </span>
-            )}
-            <button
-              type="button"
-              className="rounded-md border border-primary/40 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
-              onClick={handleRequestNonce}
-              disabled={requestingNonce || !canCallApi}
-              title={
-                !canCallApi
-                  ? 'Switch the app to Live (devnet) mode and configure the attn API credentials to enable this.'
-                  : 'Generate a nonce if you need to sign manually or refresh an expired code.'
-              }
-            >
-              {requestingNonce ? 'Requesting…' : 'Generate nonce for manual signing'}
-            </button>
-          </div>
-
-          {!canCallApi && (
-            <p className="rounded-md bg-yellow-500/10 p-2 text-xs text-yellow-200">
-              Toggle Live mode (devnet) and provide NEXT_PUBLIC_API_BASE + attn API keys so this step can run.
-            </p>
-          )}
-
-          {nonce && (
-            <div className="grid gap-2 md:grid-cols-2">
-              <div className="flex items-center justify-between rounded-md bg-gray-950/60 p-2">
-                <span>Nonce</span>
-                <button
-                  type="button"
-                  className="text-xs text-primary hover:underline"
-                  onClick={() => copyToClipboard(nonce.nonce, 'nonce')}
-                >
-                  {copiedField === 'nonce' ? 'Copied' : 'Copy'}
-                </button>
-              </div>
-              <div className="rounded-md bg-gray-950/60 p-2 text-xs text-gray-300">
-                Expires at: {new Date(nonce.expires_at).toLocaleString()}
-              </div>
             </div>
           )}
-          {nonceError && <p className="text-xs text-red-400">{nonceError}</p>}
 
-          <pre
-            className={clsx(
-              'overflow-x-auto rounded-md bg-gray-950/60 p-3 text-xs',
-              nonce?.nonce && sanitizedCreatorWallet ? 'text-gray-100' : 'text-gray-500'
+          <div className={clsx('mt-4 space-y-4', signatureComplete && 'pointer-events-none opacity-40')}>
+            <div className="flex flex-wrap items-center gap-3">
+              {wallet?.signMessage ? (
+                <button
+                  type="button"
+                  onClick={handleSignWithWallet}
+                  disabled={signButtonDisabled}
+                  className={clsx(
+                    'rounded-xl border-2 px-4 py-3 text-sm sm:text-base font-semibold transition-all duration-200 shadow-lg focus:outline-none focus:ring-2 focus:ring-secondary/60 disabled:cursor-not-allowed disabled:opacity-60',
+                    signButtonDisabled
+                      ? 'border-gray-700 text-gray-500'
+                      : 'border-secondary bg-secondary/10 text-secondary hover:bg-secondary/20 hover:-translate-y-0.5'
+                  )}
+                >
+                  {signingButtonLabel}
+                </button>
+              ) : (
+                <span className="text-xs text-gray-500">
+                  Connect a wallet that supports message signing to autofill the signature automatically.
+                </span>
+              )}
+              <button
+                type="button"
+                className="rounded-md border border-primary/40 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
+                onClick={handleRequestNonce}
+                disabled={requestingNonce || !canCallApi}
+                title={
+                  !canCallApi
+                    ? 'Switch the app to Live (devnet) mode and configure the attn API credentials to enable this.'
+                    : 'Generate a nonce if you need to sign manually or refresh an expired code.'
+                }
+              >
+                {requestingNonce ? 'Requesting…' : 'Generate nonce for manual signing'}
+              </button>
+            </div>
+
+            {!canCallApi && (
+              <p className="rounded-md bg-yellow-500/10 p-2 text-xs text-yellow-200">
+                Toggle Live mode (devnet) and provide NEXT_PUBLIC_API_BASE + attn API keys so this step can run.
+              </p>
             )}
-          >
-            {signMessage}
-          </pre>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              className="rounded-md border border-primary/40 px-2 py-1 text-xs text-primary hover:bg-primary/10"
-              onClick={() => copyToClipboard(signMessage, 'signMessage')}
-            >
-              {copiedField === 'signMessage' ? 'Copied message' : 'Copy message'}
-            </button>
-          </div>
-          {signError && <span className="text-xs text-red-400">{signError}</span>}
-          {!signError && canUseWalletSigner && form.creatorSignature && (
-            <span className="text-xs text-green-400">Signature filled from the connected wallet.</span>
-          )}
 
-          <label className="flex flex-col text-sm text-gray-200">
-            Manual signature (optional)
-            <input
-              className="mt-1 rounded-md border border-primary/40 bg-gray-950/60 p-2 text-white focus:border-primary focus:outline-none"
-              value={form.creatorSignature}
-              onChange={(event) => updateForm({ creatorSignature: event.target.value })}
-              placeholder="Base58 signature"
-            />
-            <span className="mt-1 text-xs text-gray-400">
-              Only needed if your wallet cannot sign automatically. Wallets such as Phantom show this under “Copy signature” after you sign.
-            </span>
-          </label>
+            {nonce && (
+              <div className="grid gap-2 md:grid-cols-2">
+                <div className="flex items-center justify-between rounded-md bg-gray-950/60 p-2">
+                  <span>Nonce</span>
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => copyToClipboard(nonce.nonce, 'nonce')}
+                  >
+                    {copiedField === 'nonce' ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+                <div className="rounded-md bg-gray-950/60 p-2 text-xs text-gray-300">
+                  Expires at: {new Date(nonce.expires_at).toLocaleString()}
+                </div>
+              </div>
+            )}
+            {nonceError && <p className="text-xs text-red-400">{nonceError}</p>}
+
+            <pre
+              className={clsx(
+                'overflow-x-auto rounded-md bg-gray-950/60 p-3 text-xs',
+                nonce?.nonce && sanitizedCreatorWallet ? 'text-gray-100' : 'text-gray-500'
+              )}
+            >
+              {signMessage}
+            </pre>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="rounded-md border border-primary/40 px-2 py-1 text-xs text-primary hover:bg-primary/10"
+                onClick={() => copyToClipboard(signMessage, 'signMessage')}
+              >
+                {copiedField === 'signMessage' ? 'Copied message' : 'Copy message'}
+              </button>
+            </div>
+            {signError && <span className="text-xs text-red-400">{signError}</span>}
+            {!signError && canUseWalletSigner && form.creatorSignature && (
+              <span className="text-xs text-green-400">Signature filled from the connected wallet.</span>
+            )}
+
+            <label className="flex flex-col text-sm text-gray-200">
+              Manual signature (optional)
+              <input
+                className="mt-1 rounded-md border border-primary/40 bg-gray-950/60 p-2 text-white focus:border-primary focus:outline-none"
+                value={form.creatorSignature}
+                onChange={(event) => updateForm({ creatorSignature: event.target.value })}
+                placeholder="Base58 signature"
+              />
+              <span className="mt-1 text-xs text-gray-400">
+                Only needed if your wallet cannot sign automatically. Wallets such as Phantom show this under “Copy signature” after you sign.
+              </span>
+            </label>
+          </div>
         </div>
 
         <div className="rounded-lg border border-primary/30 bg-gray-900/60 p-4 text-sm text-gray-200">
