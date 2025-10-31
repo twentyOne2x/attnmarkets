@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ChangeEvent } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ChangeEvent, SVGProps } from 'react';
 import clsx from 'clsx';
 import bs58 from 'bs58';
 import { useWallet } from '@solana/wallet-adapter-react';
@@ -55,6 +55,133 @@ interface NonceResponse {
   ttl_seconds: number;
 }
 
+interface SuccessNotice {
+  type: 'new' | 'existing';
+  message: string;
+  cluster: string;
+  requestId: string;
+  safeAddress?: string | null;
+  squadsUrl?: string | null;
+  explorerUrl?: string | null;
+  statusUrl?: string | null;
+}
+
+const LIVE_TOUR_STORAGE_KEY = 'attn.liveSponsorTour';
+
+const CLUSTER_LABELS: Record<string, string> = {
+  'mainnet-beta': 'Mainnet',
+  mainnet: 'Mainnet',
+  devnet: 'Devnet',
+  testnet: 'Testnet',
+  localnet: 'Localnet',
+};
+
+const normalizeCluster = (cluster?: string | null): string => {
+  if (!cluster) {
+    return 'devnet';
+  }
+  const trimmed = cluster.trim().toLowerCase();
+  if (trimmed === 'mainnet-beta') return 'mainnet';
+  if (trimmed === 'mainnet') return 'mainnet';
+  if (trimmed === 'devnet') return 'devnet';
+  if (trimmed === 'testnet') return 'testnet';
+  if (trimmed === 'localnet') return 'devnet';
+  return trimmed;
+};
+
+const formatClusterLabel = (cluster?: string | null): string => {
+  const normalized = normalizeCluster(cluster);
+  return CLUSTER_LABELS[normalized] ?? normalized;
+};
+
+const buildSquadsUiUrl = (cluster: string | undefined, safeAddress: string): string => {
+  const normalizedCluster = normalizeCluster(cluster);
+  const clusterSuffix = normalizedCluster === 'mainnet' ? '' : `?cluster=${normalizedCluster}`;
+  return `https://app.squads.so/squad/${safeAddress}${clusterSuffix}`;
+};
+
+const buildSolanaExplorerUrl = (cluster: string | undefined, safeAddress: string): string => {
+  const normalizedCluster = normalizeCluster(cluster);
+  const clusterSuffix = normalizedCluster === 'mainnet' ? '' : `?cluster=${normalizedCluster}`;
+  return `https://explorer.solana.com/address/${safeAddress}${clusterSuffix}`;
+};
+
+const composeSuccessNotice = (record: CreatedSafe, type: 'new' | 'existing'): SuccessNotice => {
+  const rawCluster = record.cluster ?? 'devnet';
+  const clusterLabel = formatClusterLabel(rawCluster);
+  const safeAddress = record.safe_address ?? null;
+  const hasAddress = Boolean(safeAddress);
+  const message =
+    type === 'new'
+      ? hasAddress
+        ? `Squads safe is live on ${clusterLabel}.`
+        : `Safe request submitted on ${clusterLabel}. We'll surface the address once Squads finishes deployment.`
+      : hasAddress
+      ? `Existing Squads safe detected on ${clusterLabel}.`
+      : `A Squads safe request already exists on ${clusterLabel}.`;
+
+  return {
+    type,
+    message,
+    cluster: rawCluster,
+    requestId: record.request_id,
+    safeAddress,
+    squadsUrl: hasAddress ? buildSquadsUiUrl(rawCluster, safeAddress as string) : null,
+    explorerUrl: hasAddress ? buildSolanaExplorerUrl(rawCluster, safeAddress as string) : null,
+    statusUrl: record.status_url ?? null,
+  };
+};
+
+const ShieldIcon = ({ className, ...props }: SVGProps<SVGSVGElement>) => (
+  <svg
+    aria-hidden
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.6}
+    className={clsx('h-5 w-5', className)}
+    {...props}
+  >
+    <path
+      d="M12 3 5 6v5c0 4.8 3.1 8.8 7 9.5 3.9-.7 7-4.7 7-9.5V6l-7-3Z"
+      strokeLinejoin="round"
+    />
+    <path d="m9.5 12.5 1.8 1.8 3.7-3.8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const ChainIcon = ({ className, ...props }: SVGProps<SVGSVGElement>) => (
+  <svg
+    aria-hidden
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.6}
+    className={clsx('h-4 w-4', className)}
+    {...props}
+  >
+    <path d="M9 7H7a4 4 0 0 0 0 8h2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M15 17h2a4 4 0 1 0 0-8h-2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M9 12h6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const ExternalArrowIcon = ({ className, ...props }: SVGProps<SVGSVGElement>) => (
+  <svg
+    aria-hidden
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.6}
+    className={clsx('h-4 w-4', className)}
+    {...props}
+  >
+    <path d="M13 5h6v6" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="m11 13 8-8" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M19 13v6H5V5h6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 const sanitize = (value: string): string => value.trim();
 
 const formatAddress = (address: string): string => {
@@ -101,6 +228,7 @@ const SquadsSafeOnboarding: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [polling, setPolling] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successNotice, setSuccessNotice] = useState<SuccessNotice | null>(null);
   const [nonceError, setNonceError] = useState<string | null>(null);
   const [result, setResult] = useState<CreatedSafe | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -123,6 +251,7 @@ const SquadsSafeOnboarding: React.FC = () => {
   const [signing, setSigning] = useState(false);
   const [autoSigning, setAutoSigning] = useState(false);
   const [signError, setSignError] = useState<string | null>(null);
+  const tourDismissedRef = useRef(false);
 
   const signatureComplete = useMemo(
     () =>
@@ -134,6 +263,22 @@ const SquadsSafeOnboarding: React.FC = () => {
       ),
     [form.creatorSignature, nonce, signError]
   );
+
+  const markTourComplete = useCallback(() => {
+    if (tourDismissedRef.current) {
+      return;
+    }
+    tourDismissedRef.current = true;
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem(LIVE_TOUR_STORAGE_KEY, 'seen');
+      window.dispatchEvent(new CustomEvent('attn:squads-safe-created'));
+    } catch (err) {
+      console.warn('Failed to persist Squads tour dismissal', err);
+    }
+  }, []);
 
   const canCallApi =
     mode === 'live' && Boolean(apiBaseUrl && apiKey && csrfToken && runtimeEnv.attnSquadsMember);
@@ -187,6 +332,21 @@ const SquadsSafeOnboarding: React.FC = () => {
         : prev
     );
   }, []);
+
+  useEffect(() => {
+    if (!result) {
+      return;
+    }
+    setSuccessNotice((prev) => {
+      if (!prev || prev.requestId !== result.request_id) {
+        return prev;
+      }
+      return composeSuccessNotice(result, prev.type);
+    });
+    if (result.safe_address) {
+      markTourComplete();
+    }
+  }, [markTourComplete, result]);
 
   const isNonceExpired = useCallback((value: NonceResponse | null) => {
     if (!value) return true;
@@ -261,6 +421,7 @@ const SquadsSafeOnboarding: React.FC = () => {
     async (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
       setError(null);
+      setSuccessNotice(null);
 
       const creatorWallet = sanitize(form.creatorWallet);
       const attnWallet = sanitize(form.attnWallet) || runtimeEnv.attnSquadsMember;
@@ -344,6 +505,11 @@ const SquadsSafeOnboarding: React.FC = () => {
 
         const data = (await response.json()) as CreatedSafe;
         setResult(data);
+        const submissionType = response.status === 201 ? 'new' : 'existing';
+        setSuccessNotice(composeSuccessNotice(data, submissionType));
+        if (data.safe_address) {
+          markTourComplete();
+        }
         setGovernanceForm({
           creatorVault: '',
           creatorSignature: '',
@@ -370,7 +536,7 @@ const SquadsSafeOnboarding: React.FC = () => {
         setSubmitting(false);
       }
     },
-    [apiBaseUrl, buildHeaders, canCallApi, form, idempotencyKey, nonce, updateForm]
+    [apiBaseUrl, buildHeaders, canCallApi, form, idempotencyKey, markTourComplete, nonce, updateForm]
   );
 
   const handleRefreshStatus = useCallback(async () => {
@@ -605,6 +771,10 @@ const SquadsSafeOnboarding: React.FC = () => {
     setResult(null);
     setError(null);
     setNonce(null);
+    setSuccessNotice(null);
+    setCopiedField(null);
+    setNonceError(null);
+    setShowRaw(false);
     setIdempotencyKey(generateIdempotencyKey());
   }, [defaultFormState]);
 
@@ -828,6 +998,79 @@ const SquadsSafeOnboarding: React.FC = () => {
           </button>
         )}
       </div>
+
+      {successNotice && (
+        <div className="mb-6 rounded-xl border border-emerald-400/40 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+          <div className="flex items-start gap-3">
+            <ShieldIcon className="mt-1 flex-shrink-0 text-emerald-300" />
+            <div className="flex-1 space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-emerald-200">
+                  {successNotice.type === 'new'
+                    ? 'Squads safe request submitted'
+                    : 'Existing Squads safe found'}
+                </p>
+                <p className="mt-1 text-emerald-100/90">{successNotice.message}</p>
+                <p className="mt-1 text-xs text-emerald-200/80">
+                  Cluster: {formatClusterLabel(successNotice.cluster)}
+                </p>
+              </div>
+              {successNotice.safeAddress ? (
+                <div className="flex flex-wrap items-center gap-2 rounded-md border border-emerald-400/40 bg-emerald-400/10 px-3 py-2 text-xs text-emerald-100">
+                  <ChainIcon className="text-emerald-300" />
+                  <span className="font-mono">{formatAddress(successNotice.safeAddress)}</span>
+                  <button
+                    type="button"
+                    className="text-xs text-emerald-200 hover:underline"
+                    onClick={() =>
+                      copyToClipboard(successNotice.safeAddress ?? '', 'successSafeAddress')
+                    }
+                  >
+                    {copiedField === 'successSafeAddress' ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+              ) : null}
+              <div className="flex flex-wrap gap-2">
+                {successNotice.squadsUrl && (
+                  <a
+                    href={successNotice.squadsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 rounded-md border border-emerald-400/40 px-3 py-1.5 text-xs font-medium text-emerald-100 transition hover:bg-emerald-400/10"
+                  >
+                    <ShieldIcon className="h-4 w-4 text-emerald-300" />
+                    <span>Open in Squads</span>
+                    <ExternalArrowIcon className="h-3 w-3 text-emerald-300" />
+                  </a>
+                )}
+                {successNotice.explorerUrl && (
+                  <a
+                    href={successNotice.explorerUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 rounded-md border border-emerald-400/40 px-3 py-1.5 text-xs font-medium text-emerald-100 transition hover:bg-emerald-400/10"
+                  >
+                    <ChainIcon className="h-4 w-4 text-emerald-300" />
+                    <span>View on Solana explorer</span>
+                    <ExternalArrowIcon className="h-3 w-3 text-emerald-300" />
+                  </a>
+                )}
+                {successNotice.statusUrl && (
+                  <a
+                    href={successNotice.statusUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 rounded-md border border-emerald-400/40 px-3 py-1.5 text-xs font-medium text-emerald-100 transition hover:bg-emerald-400/10"
+                  >
+                    <ExternalArrowIcon className="h-4 w-4 text-emerald-300" />
+                    <span>Check attn status</span>
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <form className="space-y-6" onSubmit={handleSubmit}>
         <div className="grid gap-4 md:grid-cols-2">

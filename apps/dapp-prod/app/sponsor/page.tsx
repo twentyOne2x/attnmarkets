@@ -199,6 +199,19 @@ export default function SponsorPage(): React.JSX.Element {
     }
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const handleSafeCreated = () => {
+      handleDismissLiveTour();
+    };
+    window.addEventListener('attn:squads-safe-created', handleSafeCreated);
+    return () => {
+      window.removeEventListener('attn:squads-safe-created', handleSafeCreated);
+    };
+  }, [handleDismissLiveTour]);
+
   const handleFocusLiveTour = useCallback(() => {
     if (liveChecklistRef.current) {
       liveChecklistRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
