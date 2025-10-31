@@ -162,12 +162,12 @@ Active borrowers: ${activeCreators.length}`;
       />
 
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary/80">
-          <span>Not sure where to start? Launch the guided tour for sponsors and LPs.</span>
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-primary/30 bg-primary/10 px-6 py-5 text-base text-primary/80 shadow-lg">
+          <span className="font-medium">Not sure where to start? Launch the guided tour for sponsors and LPs.</span>
           <button
             type="button"
             onClick={handleOpenGuide}
-            className="rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-primary transition hover:bg-primary/20"
+            className="rounded-xl border border-primary/50 bg-primary/20 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-primary transition hover:bg-primary/30 shadow-sm"
           >
             Open welcome guide
           </button>

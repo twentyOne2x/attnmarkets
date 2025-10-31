@@ -873,11 +873,21 @@ const SquadsSafeOnboarding: React.FC = () => {
         </p>
 
         <div className="rounded-lg border border-primary/30 bg-gray-900/60 p-4 text-sm text-gray-200 space-y-4">
-          <div>
-            <h3 className="text-base font-medium text-white">Step 1. Verify and sign your wallet</h3>
-            <p className="text-xs text-gray-300">
-              We&apos;ll request a one-time nonce from the attn devnet API and sign it with your connected sponsor wallet to prove ownership.
-            </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="text-base font-medium text-white">Step 1. Verify and sign your wallet</h3>
+              <p className="text-xs text-gray-300">
+                We&apos;ll request a one-time nonce from the attn devnet API and sign it with your connected sponsor wallet to prove ownership.
+              </p>
+            </div>
+            <a
+              href="https://t.me/twentyOne2x"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+            >
+              Chat with the team
+            </a>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -900,14 +910,6 @@ const SquadsSafeOnboarding: React.FC = () => {
                 Connect a wallet that supports message signing to autofill the signature automatically.
               </span>
             )}
-            <a
-              href="https://t.me/twentyOne2x"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-center rounded-lg border border-primary/30 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
-            >
-              Chat with the team
-            </a>
             <button
               type="button"
               className="rounded-md border border-primary/40 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-40"
