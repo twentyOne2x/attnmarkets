@@ -303,6 +303,23 @@ pub struct CreateSafeResult {
 }
 
 #[derive(Debug, Clone)]
+pub struct ImportSafeInput {
+    pub creator_wallet: String,
+    pub attn_wallet: String,
+    pub cluster: String,
+    pub threshold: u8,
+    pub safe_address: String,
+    pub members: Vec<String>,
+    pub safe_name: Option<String>,
+    pub contact_email: Option<String>,
+    pub note: Option<String>,
+    pub transaction_url: Option<String>,
+    pub status_url: Option<String>,
+    pub import_source: String,
+    pub import_metadata: Option<Value>,
+}
+
+#[derive(Debug, Clone)]
 pub struct RpcSanityOutcome {
     pub missing_accounts: Vec<String>,
     pub strict: bool,
@@ -990,6 +1007,9 @@ pub struct SafeRequestRecord {
     pub members: Value,
     pub raw_response: Option<Value>,
     pub raw_response_hash: Option<String>,
+    pub import_source: String,
+    pub import_metadata: Option<Value>,
+    pub imported_at: Option<DateTime<Utc>>,
     pub status_last_checked_at: Option<DateTime<Utc>>,
     pub status_last_response: Option<Value>,
     pub status_last_response_hash: Option<String>,
@@ -1253,6 +1273,155 @@ impl SquadsSafeRepository {
         .bind(upstream.status_url.clone())
         .bind(raw_response)
         .bind(hash)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(row_to_request(row))
+    }
+
+    pub async fn upsert_imported_safe(&self, input: ImportSafeInput) -> Result<SafeRequestRecord> {
+        let members_value = Value::Array(
+            input
+                .members
+                .iter()
+                .map(|member| Value::String(member.clone()))
+                .collect(),
+        );
+        let metadata_for_payload = input.import_metadata.clone();
+        let payload = json!({
+            "imported": true,
+            "source": input.import_source,
+            "safe_address": input.safe_address,
+            "members": input.members,
+            "threshold": input.threshold,
+            "transaction_url": input.transaction_url,
+            "status_url": input.status_url,
+            "metadata": metadata_for_payload
+        });
+        let metadata_for_raw = input.import_metadata.clone();
+        let raw_response = json!({
+            "imported": true,
+            "source": input.import_source,
+            "safe_address": input.safe_address,
+            "members": input.members,
+            "threshold": input.threshold,
+            "metadata": metadata_for_raw
+        });
+        let hash = hash_json(&raw_response);
+        let now = Utc::now();
+        let threshold = input.threshold as i16;
+        let row = sqlx::query(
+            "insert into squads_safe_requests (
+                id,
+                creator_wallet,
+                attn_wallet,
+                cluster,
+                threshold,
+                safe_name,
+                contact_email,
+                note,
+                status,
+                safe_address,
+                transaction_url,
+                members,
+                raw_response,
+                raw_response_hash,
+                request_payload,
+                requester_wallet,
+                creator_signature,
+                nonce,
+                attempt_count,
+                last_attempt_at,
+                next_retry_at,
+                status_url,
+                status_last_checked_at,
+                status_last_response,
+                status_last_response_hash,
+                status_sync_error,
+                import_source,
+                import_metadata,
+                imported_at,
+                created_at,
+                updated_at
+            ) values (
+                $1,
+                $2,
+                $3,
+                $4,
+                $5,
+                $6,
+                $7,
+                $8,
+                'ready',
+                $9,
+                $10,
+                $11,
+                $12,
+                $13,
+                $14,
+                $2,
+                'imported',
+                'imported',
+                1,
+                $15,
+                null,
+                $16,
+                $15,
+                $12,
+                $13,
+                null,
+                $17,
+                $18,
+                $15,
+                $15,
+                $15
+            )
+            on conflict on constraint squads_safe_requests_uniqueness_idx
+            do update set
+                threshold = excluded.threshold,
+                safe_name = excluded.safe_name,
+                contact_email = excluded.contact_email,
+                note = excluded.note,
+                status = excluded.status,
+                safe_address = excluded.safe_address,
+                transaction_url = excluded.transaction_url,
+                members = excluded.members,
+                raw_response = excluded.raw_response,
+                raw_response_hash = excluded.raw_response_hash,
+                request_payload = excluded.request_payload,
+                creator_signature = excluded.creator_signature,
+                nonce = excluded.nonce,
+                last_attempt_at = excluded.last_attempt_at,
+                next_retry_at = excluded.next_retry_at,
+                status_url = excluded.status_url,
+                status_last_checked_at = excluded.status_last_checked_at,
+                status_last_response = excluded.status_last_response,
+                status_last_response_hash = excluded.status_last_response_hash,
+                status_sync_error = excluded.status_sync_error,
+                import_source = excluded.import_source,
+                import_metadata = excluded.import_metadata,
+                imported_at = excluded.imported_at,
+                updated_at = excluded.updated_at
+            returning *",
+        )
+        .bind(Uuid::new_v4())
+        .bind(&input.creator_wallet)
+        .bind(&input.attn_wallet)
+        .bind(&input.cluster)
+        .bind(threshold)
+        .bind(&input.safe_name)
+        .bind(&input.contact_email)
+        .bind(&input.note)
+        .bind(&input.safe_address)
+        .bind(&input.transaction_url)
+        .bind(members_value)
+        .bind(raw_response)
+        .bind(hash.clone())
+        .bind(payload)
+        .bind(now)
+        .bind(&input.status_url)
+        .bind(&input.import_source)
+        .bind(&input.import_metadata)
         .fetch_one(&self.pool)
         .await?;
 
@@ -1609,7 +1778,7 @@ mod tests {
             }));
         });
 
-        let base_url = server.uri();
+        let base_url = server.url("");
         let api_keys = vec!["token".to_string()];
         let digest = compute_config_digest(
             Some(base_url.as_str()),
@@ -1680,6 +1849,9 @@ fn row_to_request(row: sqlx::postgres::PgRow) -> SafeRequestRecord {
         members: row.get("members"),
         raw_response: row.get("raw_response"),
         raw_response_hash: row.get("raw_response_hash"),
+        import_source: row.get("import_source"),
+        import_metadata: row.get("import_metadata"),
+        imported_at: row.get("imported_at"),
         status_last_checked_at: row.get("status_last_checked_at"),
         status_last_response: row.get("status_last_response"),
         status_last_response_hash: row.get("status_last_response_hash"),
