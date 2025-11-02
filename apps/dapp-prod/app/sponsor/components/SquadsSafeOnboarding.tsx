@@ -306,8 +306,12 @@ const SquadsSafeOnboarding: React.FC = () => {
         setCreatorWalletManuallyEdited(true);
       }
       updateForm({ creatorWallet: value });
+      const trimmed = value.trim();
+      if (canCallApi && BASE58_WALLET_REGEX.test(trimmed)) {
+        void fetchExistingSafe(trimmed, { force: true });
+      }
     },
-    [connectedWalletAddress, updateForm]
+    [canCallApi, connectedWalletAddress, fetchExistingSafe, updateForm]
   );
 
   const copyToClipboard = useCallback(async (value: string, label: string) => {
@@ -359,41 +363,32 @@ const SquadsSafeOnboarding: React.FC = () => {
     }
   }, [markTourComplete, result]);
 
-  useEffect(() => {
-    if (!canCallApi) {
-      return;
-    }
-    if (!sanitizedCreatorWallet) {
-      if (prefetchState !== 'idle' || prefetchWallet !== null) {
-        setPrefetchState('idle');
-        setPrefetchWallet(null);
+  const fetchExistingSafe = useCallback(
+    async (walletAddress: string, { force }: { force?: boolean } = {}) => {
+      if (!canCallApi || !walletAddress) {
+        return false;
       }
-      return;
-    }
-    if (prefetchState === 'loading' && prefetchWallet === sanitizedCreatorWallet) {
-      return;
-    }
-    if (prefetchState === 'done' && prefetchWallet === sanitizedCreatorWallet) {
-      return;
-    }
-    if (result && result.creator_wallet === sanitizedCreatorWallet) {
-      return;
-    }
+      if (!force && prefetchState === 'loading' && prefetchWallet === walletAddress) {
+        return false;
+      }
 
-    let cancelled = false;
-    const controller = new AbortController();
-    setPrefetchState('loading');
-    setPrefetchWallet(sanitizedCreatorWallet);
-    fetch(bridgePath(`/v1/squads/safes/creator/${sanitizedCreatorWallet}`), {
-      method: 'GET',
-      headers: buildHeaders(),
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        if (cancelled) return;
+      const clusterQuery = runtimeEnv.cluster || configuredCluster || '';
+      const querySuffix = clusterQuery ? `?cluster=${encodeURIComponent(clusterQuery)}` : '';
+
+      setPrefetchState('loading');
+      setPrefetchWallet(walletAddress);
+      try {
+        const response = await fetch(
+          `${bridgePath(`/v1/squads/safes/creator/${walletAddress}`)}${querySuffix}`,
+          {
+            method: 'GET',
+            headers: buildHeaders(),
+            cache: 'no-store',
+          }
+        );
         if (response.status === 404) {
           setPrefetchState('done');
-          return;
+          return false;
         }
         if (!response.ok) {
           const message = await response.text().catch(() => response.statusText);
@@ -406,21 +401,35 @@ const SquadsSafeOnboarding: React.FC = () => {
           markTourComplete();
         }
         setPrefetchState('done');
-      })
-      .catch((err) => {
-        if (cancelled) return;
+        return true;
+      } catch (err) {
         console.warn('Failed to fetch existing safe metadata', err);
         setPrefetchState('error');
-      });
+        return false;
+      }
+    },
+    [buildHeaders, canCallApi, configuredCluster, markTourComplete, prefetchState, prefetchWallet]
+  );
 
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
+  useEffect(() => {
+    if (!canCallApi || !sanitizedCreatorWallet) {
+      if (prefetchState !== 'idle' || prefetchWallet !== null) {
+        setPrefetchState('idle');
+        setPrefetchWallet(null);
+      }
+      return;
+    }
+    if (prefetchState === 'done' && prefetchWallet === sanitizedCreatorWallet) {
+      return;
+    }
+    if (result && result.creator_wallet === sanitizedCreatorWallet) {
+      return;
+    }
+
+    void fetchExistingSafe(sanitizedCreatorWallet);
   }, [
-    buildHeaders,
     canCallApi,
-    markTourComplete,
+    fetchExistingSafe,
     prefetchState,
     prefetchWallet,
     result,
@@ -602,6 +611,14 @@ const SquadsSafeOnboarding: React.FC = () => {
         console.error('Failed to create Squads safe', err);
         const baseMessage = err instanceof Error ? err.message : 'Failed to create Squads safe.';
         const enhancedMessage = (() => {
+          if (/duplicate_request/i.test(baseMessage)) {
+            void fetchExistingSafe(creatorWallet, { force: true }).then((loaded) => {
+              if (loaded) {
+                setError('A Squads safe for this wallet already exists. Showing the latest request details below.');
+              }
+            });
+            return 'This wallet already has a Squads safe on this cluster. Loaded the existing request below.';
+          }
           if (/squads_create_failed/i.test(baseMessage)) {
             return `${baseMessage} — Squads returned an error. Check attn-api logs or the admin console, then retry once resolved.`;
           }
@@ -615,7 +632,17 @@ const SquadsSafeOnboarding: React.FC = () => {
         setSubmitting(false);
       }
     },
-    [apiBaseUrl, buildHeaders, canCallApi, form, idempotencyKey, markTourComplete, nonce, updateForm]
+    [
+      apiBaseUrl,
+      buildHeaders,
+      canCallApi,
+      fetchExistingSafe,
+      form,
+      idempotencyKey,
+      markTourComplete,
+      nonce,
+      updateForm,
+    ]
   );
 
   const handleRefreshStatus = useCallback(async () => {
