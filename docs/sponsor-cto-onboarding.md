@@ -38,13 +38,13 @@ This doc captures the incremental work required to:
 
 ### Backend
 
-- [ ] Add `GET /v1/squads/safes/creator/:wallet`
-  - [ ] Query persistent storage for latest safe per creator (include cluster filter inferred from request mode).
-  - [ ] Return 404 when no safe exists; 200 payload should align with the existing `CreatedSafe` response.
-  - [ ] Ensure the route is protected by the standard API-key + CSRF requirements (no admin flag).
-- [ ] Update repository to persist “externally created” safes
-  - [ ] Add method to upsert safe metadata when the frontend reports an existing safe (safe address, members, threshold).
-  - [ ] Flag manual imports so admin dashboards can distinguish them.
+- [x] Add `GET /v1/squads/safes/creator/:wallet`
+  - [x] Query persistent storage for latest safe per creator (include cluster filter inferred from request mode).
+  - [x] Return 404 when no safe exists; 200 payload should align with the existing `CreatedSafe` response.
+  - [x] Ensure the route is protected by the standard API-key + CSRF requirements (no admin flag).
+- [x] Update repository to persist “externally created” safes
+  - [x] Add method to upsert safe metadata when the frontend reports an existing safe (safe address, members, threshold).
+  - [x] Flag manual imports so admin dashboards can distinguish them.
 - [ ] Consider optional Squads RPC verification
   - [ ] If available, fetch safe config from Squads API to validate that attn signer is present.
 - [ ] Tests
@@ -53,20 +53,20 @@ This doc captures the incremental work required to:
 
 ### Frontend – Sponsor Console
 
-- [ ] Squads detection hook
-  - [ ] On mount (live mode only), call `/api/bridge/v1/squads/safes/creator/:wallet`.
-  - [ ] Update the live checklist status and gating logic based on the response.
-  - [ ] Cache result in context to avoid redundant fetches during the session.
-- [ ] Success banner enhancements
-  - [ ] If the safe pre-existed, show “Existing safe detected” state with safe address + explorer/Squads links.
-  - [ ] Gate the nonce/signature form when the safe is already ready.
-- [ ] Pump.fun CTO helper card
-  - [ ] Add prominent CTA button linking to `https://docs.google.com/forms/d/e/1FAIpQLScCMDx2x2ewqaWvQ4JHs-hahEscqFKsV1NPoCTCIomil88AGA/viewform`.
-  - [ ] Optional: Inline accordion with tips (wallet address, proof suggestions, attn contact email).
-  - [ ] Highlight prerequisites (e.g., safe detected, attn signer confirmed).
-- [ ] Tours / guidance
-  - [ ] Leverage existing tour infrastructure to show a short walkthrough of the Google Form fields.
-  - [ ] Store a localStorage key to prevent repeat tours once acknowledged.
+- [x] Squads detection hook
+  - [x] On mount (live mode only), call `/api/bridge/v1/squads/safes/creator/:wallet`.
+  - [x] Update the live checklist status and gating logic based on the response.
+  - [x] Cache result in context to avoid redundant fetches during the session.
+- [x] Success banner enhancements
+  - [x] If the safe pre-existed, show “Existing safe detected” state with safe address + explorer/Squads links.
+  - [x] Gate the nonce/signature form when the safe is already ready.
+- [x] Pump.fun CTO helper card
+  - [x] Add prominent CTA button linking to `https://docs.google.com/forms/d/e/1FAIpQLScCMDx2x2ewqaWvQ4JHs-hahEscqFKsV1NPoCTCIomil88AGA/viewform`.
+  - [x] Optional: Inline accordion with tips (wallet address, proof suggestions, attn contact email).
+  - [x] Highlight prerequisites (e.g., safe detected, attn signer confirmed).
+- [x] Tours / guidance
+  - [x] Leverage existing tour infrastructure to show a short walkthrough of the Google Form fields.
+  - [x] Store a localStorage key to prevent repeat tours once acknowledged.
 - [ ] Tests
   - [ ] Update unit and integration tests for the updated hook logic.
   - [ ] Playwright/Jest snapshot verifying the new CTA + helper content.

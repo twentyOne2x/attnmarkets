@@ -118,6 +118,7 @@ export default function SponsorPage(): React.JSX.Element {
   const [earlyRepayAmount, setEarlyRepayAmount] = useState<number>(50);
   const [openFaqItems, setOpenFaqItems] = useState<{ [key: number]: boolean }>({});
   const [isUserEditing, setIsUserEditing] = useState<boolean>(false);
+  const [safeDetected, setSafeDetected] = useState<boolean>(false);
   
   // Processing states
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
@@ -176,12 +177,13 @@ export default function SponsorPage(): React.JSX.Element {
   const creatorMetrics = currentUserCreator?.metrics;
   const hasCreatorVault = currentUserCreator?.hasCreatorVault ?? false;
   const userNeedsListing = isWalletConnected && !isUserListed;
-  const showLoanInterface = !isLive || (isLive && hasCreatorVault);
+  const hasSquadsSafe = hasCreatorVault || safeDetected;
+  const showLoanInterface = !isLive || (isLive && hasSquadsSafe);
   const squadsAdminAddress = currentUserCreator?.admin;
 
   useEffect(() => {
     if (!hasMounted) return;
-    if (!isLive || hasCreatorVault) {
+    if (!isLive || hasSquadsSafe) {
       setShowLiveTour(false);
       return;
     }
@@ -190,7 +192,7 @@ export default function SponsorPage(): React.JSX.Element {
     if (!seen) {
       setShowLiveTour(true);
     }
-  }, [hasMounted, isLive, hasCreatorVault]);
+  }, [hasMounted, isLive, hasSquadsSafe]);
 
   const handleDismissLiveTour = useCallback(() => {
     setShowLiveTour(false);
@@ -205,12 +207,19 @@ export default function SponsorPage(): React.JSX.Element {
     }
     const handleSafeCreated = () => {
       handleDismissLiveTour();
+      setSafeDetected(true);
     };
     window.addEventListener('attn:squads-safe-created', handleSafeCreated);
     return () => {
       window.removeEventListener('attn:squads-safe-created', handleSafeCreated);
     };
   }, [handleDismissLiveTour]);
+
+  useEffect(() => {
+    if (hasCreatorVault) {
+      setSafeDetected(true);
+    }
+  }, [hasCreatorVault]);
 
   const handleFocusLiveTour = useCallback(() => {
     if (liveChecklistRef.current) {
@@ -945,7 +954,7 @@ export default function SponsorPage(): React.JSX.Element {
 
   return (
     <div className="min-h-screen bg-dark text-text-primary">
-      {showLiveTour && isLive && !hasCreatorVault && (
+      {showLiveTour && isLive && !hasSquadsSafe && (
         <CreatorTourOverlay
           targetRef={liveChecklistRef}
           visible={showLiveTour}
@@ -1045,7 +1054,7 @@ export default function SponsorPage(): React.JSX.Element {
             ← Back to Dashboard
           </a>
         </div>
-        {isLive && !hasCreatorVault && (
+        {isLive && !hasSquadsSafe && (
           <div ref={liveChecklistRef} className="mb-8 space-y-4">
             <div className="bg-dark-card border border-secondary/30 rounded-xl p-6">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -1081,22 +1090,22 @@ export default function SponsorPage(): React.JSX.Element {
                   )}
                 </div>
 
-                <div className={`rounded-lg border ${hasCreatorVault ? 'border-green-400/40 bg-green-500/10' : 'border-gray-700 bg-gray-900/60'} p-4`}>
+                <div className={`rounded-lg border ${hasSquadsSafe ? 'border-green-400/40 bg-green-500/10' : 'border-gray-700 bg-gray-900/60'} p-4`}>
                   <div className="flex items-center justify-between text-sm font-semibold">
                     <span>2. Create Squads safe</span>
-                    <span className={`text-xs ${hasCreatorVault ? 'text-green-300' : 'text-text-secondary'}`}>
-                      {hasCreatorVault ? 'Linked' : 'Pending'}
+                    <span className={`text-xs ${hasSquadsSafe ? 'text-green-300' : 'text-text-secondary'}`}>
+                      {hasSquadsSafe ? 'Linked' : 'Pending'}
                     </span>
                   </div>
                   <p className="mt-2 text-xs text-text-secondary">
                     Set up a 2-of-2 sponsor safe so auto-sweeps and locks are co-signed.
                   </p>
-                  {hasCreatorVault && squadsAdminAddress && (
+                  {hasSquadsSafe && squadsAdminAddress && (
                     <div className="mt-3 rounded-md bg-black/40 px-3 py-2 text-[11px] font-mono text-text-secondary">
                       {squadsAdminAddress.slice(0, 8)}…{squadsAdminAddress.slice(-6)}
                     </div>
                   )}
-                  {!hasCreatorVault && (
+                  {!hasSquadsSafe && (
                     <a
                       href="#squads-setup"
                       className="mt-3 inline-flex items-center justify-center rounded-lg border border-secondary/50 px-3 py-1.5 text-sm font-medium text-secondary hover:border-secondary"
@@ -1106,11 +1115,11 @@ export default function SponsorPage(): React.JSX.Element {
                   )}
                 </div>
 
-                <div className={`rounded-lg border ${(isFullyConnected && hasCreatorVault) ? 'border-green-400/40 bg-green-500/10' : 'border-gray-700 bg-gray-900/60'} p-4`}>
+                <div className={`rounded-lg border ${(isFullyConnected && hasSquadsSafe) ? 'border-green-400/40 bg-green-500/10' : 'border-gray-700 bg-gray-900/60'} p-4`}>
                   <div className="flex items-center justify-between text-sm font-semibold">
                     <span>3. List + unlock financing</span>
-                    <span className={`text-xs ${(isFullyConnected && hasCreatorVault) ? 'text-green-300' : isPreviewOnly ? 'text-warning' : 'text-text-secondary'}`}>
-                      {(isFullyConnected && hasCreatorVault) ? 'Ready' : isPreviewOnly ? 'Preview saved' : 'Pending'}
+                    <span className={`text-xs ${(isFullyConnected && hasSquadsSafe) ? 'text-green-300' : isPreviewOnly ? 'text-warning' : 'text-text-secondary'}`}>
+                      {(isFullyConnected && hasSquadsSafe) ? 'Ready' : isPreviewOnly ? 'Preview saved' : 'Pending'}
                     </span>
                   </div>
                   <p className="mt-2 text-xs text-text-secondary">
@@ -1140,11 +1149,11 @@ export default function SponsorPage(): React.JSX.Element {
                       Connect your wallet to compute devnet fee stats.
                     </div>
                   )}
-                  {(!isFullyConnected || !hasCreatorVault) && (
+                  {(!isFullyConnected || !hasSquadsSafe) && (
                     <button
                       onClick={signAndListCreator}
                       className="mt-3 inline-flex items-center justify-center rounded-lg bg-secondary/30 px-3 py-1.5 text-sm font-medium text-secondary hover:bg-secondary/20 disabled:opacity-50"
-                      disabled={!isWalletConnected || (isFullyConnected && hasCreatorVault)}
+                      disabled={!isWalletConnected || (isFullyConnected && hasSquadsSafe)}
                     >
                       Sign &amp; list sponsor
                     </button>
@@ -1153,7 +1162,7 @@ export default function SponsorPage(): React.JSX.Element {
               </div>
             </div>
 
-            {!hasCreatorVault && squadsFeatureEnabled && SquadsSafeOnboarding && (
+            {!hasSquadsSafe && squadsFeatureEnabled && SquadsSafeOnboarding && (
               <div id="squads-setup" className="scroll-mt-24">
                 <SquadsSafeOnboarding />
               </div>

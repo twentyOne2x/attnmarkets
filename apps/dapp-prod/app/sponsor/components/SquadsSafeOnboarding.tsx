@@ -37,6 +37,11 @@ interface CreatedSafe {
   mode: string;
   raw_response?: unknown;
   idempotency_key?: string | null;
+  creator_wallet: string;
+  attn_wallet: string;
+  import_source?: string | null;
+  import_metadata?: unknown;
+  imported_at?: string | null;
   attempt_count: number;
   last_attempt_at: string;
   next_retry_at?: string | null;
@@ -67,6 +72,8 @@ interface SuccessNotice {
 }
 
 const LIVE_TOUR_STORAGE_KEY = 'attn.liveSponsorTour';
+const PUMPFUN_CTO_FORM_URL =
+  'https://docs.google.com/forms/d/e/1FAIpQLScCMDx2x2ewqaWvQ4JHs-hahEscqFKsV1NPoCTCIomil88AGA/viewform';
 
 const CLUSTER_LABELS: Record<string, string> = {
   'mainnet-beta': 'Mainnet',
@@ -205,7 +212,7 @@ const bridgePath = (path: string): string => `/api/bridge${path.startsWith('/') 
 
 const SquadsSafeOnboarding: React.FC = () => {
   const { mode, apiBaseUrl, cluster: configuredCluster, apiKey, csrfToken, isAdmin } = useDataMode();
-  const { currentUserWallet } = useAppContext();
+  const { currentUserWallet, currentUserCreator } = useAppContext();
   const wallet = useWallet();
   const connectedWalletAddress = useMemo(() => wallet.publicKey?.toBase58() ?? null, [wallet.publicKey]);
   const defaultFormState = useMemo<FormState>(
@@ -229,6 +236,9 @@ const SquadsSafeOnboarding: React.FC = () => {
   const [polling, setPolling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<SuccessNotice | null>(null);
+  const [prefetchState, setPrefetchState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
+  const [prefetchWallet, setPrefetchWallet] = useState<string | null>(null);
+  const [showFormGuide, setShowFormGuide] = useState(false);
   const [nonceError, setNonceError] = useState<string | null>(null);
   const [result, setResult] = useState<CreatedSafe | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -345,8 +355,77 @@ const SquadsSafeOnboarding: React.FC = () => {
     });
     if (result.safe_address) {
       markTourComplete();
+      setShowFormGuide(false);
     }
   }, [markTourComplete, result]);
+
+  useEffect(() => {
+    if (!canCallApi) {
+      return;
+    }
+    if (!sanitizedCreatorWallet) {
+      if (prefetchState !== 'idle' || prefetchWallet !== null) {
+        setPrefetchState('idle');
+        setPrefetchWallet(null);
+      }
+      return;
+    }
+    if (prefetchState === 'loading' && prefetchWallet === sanitizedCreatorWallet) {
+      return;
+    }
+    if (prefetchState === 'done' && prefetchWallet === sanitizedCreatorWallet) {
+      return;
+    }
+    if (result && result.creator_wallet === sanitizedCreatorWallet) {
+      return;
+    }
+
+    let cancelled = false;
+    const controller = new AbortController();
+    setPrefetchState('loading');
+    setPrefetchWallet(sanitizedCreatorWallet);
+    fetch(bridgePath(`/v1/squads/safes/creator/${sanitizedCreatorWallet}`), {
+      method: 'GET',
+      headers: buildHeaders(),
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (cancelled) return;
+        if (response.status === 404) {
+          setPrefetchState('done');
+          return;
+        }
+        if (!response.ok) {
+          const message = await response.text().catch(() => response.statusText);
+          throw new Error(message || 'Failed to load existing Squads safe');
+        }
+        const data = (await response.json()) as CreatedSafe;
+        setResult(data);
+        setSuccessNotice(composeSuccessNotice(data, 'existing'));
+        if (data.safe_address) {
+          markTourComplete();
+        }
+        setPrefetchState('done');
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.warn('Failed to fetch existing safe metadata', err);
+        setPrefetchState('error');
+      });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [
+    buildHeaders,
+    canCallApi,
+    markTourComplete,
+    prefetchState,
+    prefetchWallet,
+    result,
+    sanitizedCreatorWallet,
+  ]);
 
   const isNonceExpired = useCallback((value: NonceResponse | null) => {
     if (!value) return true;
@@ -794,6 +873,157 @@ const SquadsSafeOnboarding: React.FC = () => {
     return `${SIGNATURE_MESSAGE_PREFIX}:${currentNonce}:${creatorWallet}`;
   }, [sanitizedCreatorWallet, nonce]);
 
+  const safeIsReady = (result?.status ?? '').toLowerCase() === 'ready';
+  const pumpMint = currentUserCreator?.pump_mint ?? '';
+  const coinName = currentUserCreator?.name ?? '';
+  const defaultContactEmail = form.contactEmail || 'Use a reachable contact email';
+
+  const GuideOverlay = () => {
+    if (!result || !showFormGuide) {
+      return null;
+    }
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+        <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-primary/50 bg-gray-950/95 p-6 shadow-2xl">
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-xl font-semibold text-white">Pump.fun CTO Form Helper</h3>
+              <p className="mt-1 text-sm text-gray-300">
+                Keep this open while you fill the Google Form. Copy each answer into the matching prompt to avoid hunting
+                for details mid-application.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="rounded-md border border-primary/40 px-3 py-1 text-sm text-primary hover:bg-primary/10"
+              onClick={() => setShowFormGuide(false)}
+            >
+              Close
+            </button>
+          </div>
+
+          <ol className="space-y-4 text-sm text-gray-200">
+            <li className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+              <p className="text-xs uppercase tracking-wide text-primary/70">Provide your email</p>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <span className="break-all text-sm text-gray-100">{defaultContactEmail}</span>
+                {form.contactEmail && (
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => copyToClipboard(form.contactEmail, 'pumpfunEmail')}
+                  >
+                    {copiedField === 'pumpfunEmail' ? 'Copied' : 'Copy'}
+                  </button>
+                )}
+              </div>
+              <p className="mt-2 text-xs text-gray-400">
+                Use an inbox you check often—pump.fun&rsquo;s response will land there.
+              </p>
+            </li>
+
+            <li className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+              <p className="text-xs uppercase tracking-wide text-primary/70">X username</p>
+              <p className="mt-2 text-xs text-gray-400">
+                Paste the project&rsquo;s X handle (for example {coinName || '@yourcoin'}). The form expects the handle, not a
+                full URL.
+              </p>
+            </li>
+
+            <li className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+              <p className="text-xs uppercase tracking-wide text-primary/70">Coin contract address</p>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <span className="break-all font-mono text-sm text-gray-100">
+                  {pumpMint || 'Paste the SOL contract address from pump.fun'}
+                </span>
+                {pumpMint && (
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => copyToClipboard(pumpMint, 'pumpfunMint')}
+                  >
+                    {copiedField === 'pumpfunMint' ? 'Copied' : 'Copy'}
+                  </button>
+                )}
+              </div>
+            </li>
+
+            <li className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+              <p className="text-xs uppercase tracking-wide text-primary/70">Wallet to receive CTO fees</p>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <span className="break-all font-mono text-sm text-gray-100">{result.creator_wallet}</span>
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline"
+                  onClick={() => copyToClipboard(result.creator_wallet, 'pumpfunCreatorWallet')}
+                >
+                  {copiedField === 'pumpfunCreatorWallet' ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-gray-400">
+                Pump.fun currently supports single-signature payouts. This is the sponsor wallet that co-owns the Squads
+                safe.
+              </p>
+            </li>
+
+            <li className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs uppercase tracking-wide text-primary/70">attn co-signer</p>
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline"
+                  onClick={() => copyToClipboard(result.attn_wallet, 'pumpfunAttnWalletGuide')}
+                >
+                  {copiedField === 'pumpfunAttnWalletGuide' ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+              <p className="break-all font-mono text-sm text-gray-100">{result.attn_wallet}</p>
+              <p className="text-xs text-gray-400">
+                Mention this signer in the free-response section so reviewers understand attn co-signs every sweep.
+              </p>
+            </li>
+
+            {result.safe_address && (
+              <li className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs uppercase tracking-wide text-primary/70">Squads safe address</p>
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => copyToClipboard(result.safe_address ?? '', 'pumpfunSafeGuide')}
+                  >
+                    {copiedField === 'pumpfunSafeGuide' ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+                <p className="break-all font-mono text-sm text-gray-100">{result.safe_address}</p>
+                <p className="text-xs text-gray-400">
+                  Include this in the “Provide social proof” upload or description so pump.fun can verify the multisig on
+                  chain.
+                </p>
+              </li>
+            )}
+
+            <li className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+              <p className="text-xs uppercase tracking-wide text-primary/70">Verification tweet</p>
+              <p className="mt-2 text-xs text-gray-400">
+                Tweet “@pumpdotfun verify CTO” from the project&rsquo;s X account and paste the tweet URL. Keep it pinned
+                until support confirms the upgrade.
+              </p>
+            </li>
+
+            <li className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+              <p className="text-xs uppercase tracking-wide text-primary/70">Upload supporting evidence</p>
+              <p className="mt-2 text-xs text-gray-400">
+                Attach screenshots or links showing you operate the communities (Telegram admin panel, Discord roles, X
+                analytics, etc.). The more context, the faster pump.fun can approve the switch.
+              </p>
+            </li>
+          </ol>
+        </div>
+      </div>
+    );
+  };
+
   const governanceMessage = useMemo(() => {
     if (!result) return '';
     const vault = sanitize(governanceForm.creatorVault) || '<creator-vault>';
@@ -939,7 +1169,9 @@ const SquadsSafeOnboarding: React.FC = () => {
   }, [result?.creator_vault]);
 
   return (
-    <section className="mb-12 rounded-2xl border border-primary/20 bg-gray-900/40 p-6 shadow-lg">
+    <>
+      <GuideOverlay />
+      <section className="mb-12 rounded-2xl border border-primary/20 bg-gray-900/40 p-6 shadow-lg">
       <header className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold text-white">Squads Safe Onboarding</h2>
@@ -1072,7 +1304,101 @@ const SquadsSafeOnboarding: React.FC = () => {
         </div>
       )}
 
-      <form className="space-y-6" onSubmit={handleSubmit}>
+      {safeIsReady && result && (
+        <div className="mb-6 rounded-xl border border-primary/40 bg-primary/10 p-4 text-sm text-gray-100">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h3 className="text-base font-semibold text-white">Pump.fun CTO submission</h3>
+              <p className="text-sm text-primary/90">
+                Pump.fun will ask for proof that you co-own this safe. Copy the details below before opening the
+                verification form.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <a
+                href={PUMPFUN_CTO_FORM_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-black hover:bg-primary/90"
+              >
+                Open Pump.fun form
+                <ExternalArrowIcon className="h-3.5 w-3.5" />
+              </a>
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-md border border-primary/40 px-3 py-2 text-sm text-primary hover:bg-primary/10"
+                onClick={() => setShowFormGuide(true)}
+              >
+                View field-by-field guide
+              </button>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <div className="rounded-lg border border-primary/30 bg-gray-950/60 p-3">
+              <p className="text-xs uppercase tracking-wide text-primary/70">Creator wallet</p>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <span className="break-all font-mono text-sm text-white">{result.creator_wallet}</span>
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline"
+                  onClick={() => copyToClipboard(result.creator_wallet, 'pumpfunCreator')}
+                >
+                  {copiedField === 'pumpfunCreator' ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+            </div>
+            <div className="rounded-lg border border-primary/30 bg-gray-950/60 p-3">
+              <p className="text-xs uppercase tracking-wide text-primary/70">attn co-signer</p>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <span className="break-all font-mono text-sm text-white">{result.attn_wallet}</span>
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline"
+                  onClick={() => copyToClipboard(result.attn_wallet, 'pumpfunAttn')}
+                >
+                  {copiedField === 'pumpfunAttn' ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+            </div>
+            {result.safe_address && (
+              <div className="rounded-lg border border-primary/30 bg-gray-950/60 p-3">
+                <p className="text-xs uppercase tracking-wide text-primary/70">Squads safe address</p>
+                <div className="mt-1 flex items-center justify-between gap-2">
+                  <span className="break-all font-mono text-sm text-white">{result.safe_address}</span>
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => copyToClipboard(result.safe_address ?? '', 'pumpfunSafe')}
+                  >
+                    {copiedField === 'pumpfunSafe' ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+              </div>
+            )}
+            <div className="rounded-lg border border-primary/30 bg-gray-950/60 p-3">
+              <p className="text-xs uppercase tracking-wide text-primary/70">Squads request ID</p>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <span className="break-all font-mono text-sm text-white">{result.request_id}</span>
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline"
+                  onClick={() => copyToClipboard(result.request_id, 'pumpfunRequestId')}
+                >
+                  {copiedField === 'pumpfunRequestId' ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+            </div>
+          </div>
+          <ul className="mt-4 list-disc space-y-2 pl-5 text-xs text-primary/80">
+            <li>Tweet “@pumpdotfun verify CTO” from your project&rsquo;s X account before submitting.</li>
+            <li>Attach screenshots or links proving you administer the coin&rsquo;s community channels.</li>
+            <li>Paste the wallets above when the form asks for the CTO payout destination.</li>
+          </ul>
+        </div>
+      )}
+
+      {!safeIsReady && (
+        <form className="space-y-6" onSubmit={handleSubmit}>
         <div className="grid gap-4 md:grid-cols-2">
           <label className="flex flex-col text-sm text-gray-200">
             Your sponsor wallet (Builder, DAO, Creator)
@@ -1346,6 +1672,7 @@ const SquadsSafeOnboarding: React.FC = () => {
           </p>
         </div>
       </form>
+      )}
 
       {result && (
         <div className="mt-8 rounded-xl border border-primary/40 bg-gray-900/70 p-4 text-sm text-gray-200">
@@ -1745,7 +2072,8 @@ const SquadsSafeOnboarding: React.FC = () => {
           )}
         </div>
       )}
-    </section>
+      </section>
+    </>
   );
 };
 
