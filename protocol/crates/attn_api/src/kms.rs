@@ -155,7 +155,7 @@ mod tests {
 
     #[derive(Clone, Debug)]
     struct MockKmsClient {
-        response: Result<Vec<u8>>,
+        response: Result<Vec<u8>, String>,
     }
 
     #[async_trait]
@@ -198,7 +198,7 @@ mod tests {
         let signer = KmsSigner::new(
             "resource",
             MockKmsClient {
-                response: Err(anyhow!("boom")),
+                response: Err("boom".to_string()),
             },
         );
         let err = signer.sign(b"hello").await.unwrap_err();

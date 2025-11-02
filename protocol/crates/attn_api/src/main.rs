@@ -44,8 +44,9 @@ use serde_json::{json, Value as JsonValue};
 use sha2::{Digest, Sha256};
 use sqlx::Error as SqlxError;
 use squads::{
-    is_valid_pubkey, sanitize_wallet, CreateSafeInput, NewSafeRequest, SafeRequestRecord,
-    SafeStatus, SquadsConfig, SquadsSafeRepository, SquadsService, StatusSyncUpdate,
+    is_valid_pubkey, sanitize_wallet, CreateSafeInput, ImportSafeInput, NewSafeRequest,
+    SafeRequestRecord, SafeStatus, SquadsConfig, SquadsSafeRepository, SquadsService,
+    StatusSyncUpdate,
 };
 use tokio::time::Duration as TokioDuration;
 use tokio::{net::TcpListener, time::sleep};
@@ -228,6 +229,8 @@ fn record_to_response(
         cluster: record.cluster.clone(),
         threshold,
         members: members_from_value(&record.members),
+        creator_wallet: record.creator_wallet.clone(),
+        attn_wallet: record.attn_wallet.clone(),
         mode: mode
             .map(|service| service.current_mode().as_str().to_string())
             .unwrap_or_else(|| "unknown".to_string()),
@@ -241,6 +244,9 @@ fn record_to_response(
         status_last_response_hash: record.status_last_response_hash.clone(),
         creator_vault: record.creator_vault.clone(),
         governance_linked_at: format_option_timestamp(&record.governance_linked_at),
+        import_source: record.import_source.clone(),
+        import_metadata: record.import_metadata.clone(),
+        imported_at: format_option_timestamp(&record.imported_at),
         created_at: format_timestamp(&record.created_at),
         updated_at: format_timestamp(&record.updated_at),
     }
@@ -631,6 +637,24 @@ struct CreateSquadsSafeRequest {
     creator_signature: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct ImportSquadsSafeRequest {
+    creator_wallet: String,
+    safe_address: String,
+    #[serde(default)]
+    members: Option<Vec<String>>,
+    attn_wallet: Option<String>,
+    cluster: Option<String>,
+    threshold: Option<u8>,
+    safe_name: Option<String>,
+    contact_email: Option<String>,
+    note: Option<String>,
+    transaction_url: Option<String>,
+    status_url: Option<String>,
+    import_source: Option<String>,
+    import_metadata: Option<JsonValue>,
+}
+
 #[derive(Debug, Serialize)]
 struct CreateSquadsSafeResponse {
     request_id: String,
@@ -644,6 +668,8 @@ struct CreateSquadsSafeResponse {
     cluster: String,
     threshold: u8,
     members: Vec<String>,
+    creator_wallet: String,
+    attn_wallet: String,
     mode: String,
     raw_response: serde_json::Value,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -662,6 +688,11 @@ struct CreateSquadsSafeResponse {
     creator_vault: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     governance_linked_at: Option<String>,
+    import_source: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    import_metadata: Option<JsonValue>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    imported_at: Option<String>,
     created_at: String,
     updated_at: String,
 }
@@ -676,6 +707,11 @@ struct IssueNonceResponse {
     nonce: String,
     expires_at: String,
     ttl_seconds: u64,
+}
+
+#[derive(Debug, Deserialize)]
+struct SafeByCreatorQuery {
+    cluster: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -733,6 +769,11 @@ fn build_router(state: AppState) -> Router {
             "/v1/squads/safes",
             get(list_squads_safes).post(create_squads_safe),
         )
+        .route(
+            "/v1/squads/safes/creator/:wallet",
+            get(get_squads_safe_by_creator),
+        )
+        .route("/v1/squads/safes/import", post(import_squads_safe))
         .route("/v1/squads/safes/nonce", post(issue_squads_nonce))
         .route("/v1/squads/safes/:id", get(get_squads_safe))
         .route("/v1/squads/safes/:id/resubmit", post(resubmit_squads_safe))
@@ -1861,6 +1902,206 @@ async fn get_squads_safe(
     Ok(Json(response))
 }
 
+async fn get_squads_safe_by_creator(
+    State(state): State<AppState>,
+    ConnectInfo(remote_addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Path(wallet): Path<String>,
+    Query(query): Query<SafeByCreatorQuery>,
+) -> Result<impl IntoResponse, ApiError> {
+    let Some(repo) = state.squads_repo.as_ref() else {
+        return Err(ApiError::service_unavailable(
+            "squads_storage_unavailable",
+            "Persistence is required for Squads safe queries",
+        ));
+    };
+    let remote_ip: Option<IpAddr> = Some(remote_addr.ip());
+    state
+        .security
+        .authenticate(&headers, remote_ip)
+        .map_err(|err| ApiError::forbidden("auth_failed", err.to_string()))?;
+
+    let sanitized_wallet = sanitize_wallet(&wallet);
+    if sanitized_wallet.is_empty() {
+        return Err(ApiError::bad_request(
+            "creator_wallet_required",
+            "creator wallet is required",
+        ));
+    }
+    if !is_valid_pubkey(&sanitized_wallet) {
+        return Err(ApiError::bad_request(
+            "creator_wallet_invalid",
+            "creator wallet must be a valid Solana address",
+        ));
+    }
+
+    let cluster = query
+        .cluster
+        .as_ref()
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_string())
+        .or_else(|| {
+            state
+                .squads
+                .as_ref()
+                .map(|service| service.default_cluster().to_string())
+        })
+        .ok_or_else(|| {
+            ApiError::bad_request(
+                "cluster_required",
+                "cluster must be provided when Squads integration is disabled",
+            )
+        })?;
+
+    let record = repo
+        .find_latest_by_creator_and_cluster(&sanitized_wallet, &cluster)
+        .await
+        .map_err(ApiError::from)?
+        .ok_or_else(|| ApiError::not_found("squads_safe_creator", sanitized_wallet.clone()))?;
+
+    let response = record_to_response(&record, state.squads.as_ref());
+    Ok(Json(response))
+}
+
+async fn import_squads_safe(
+    State(state): State<AppState>,
+    ConnectInfo(remote_addr): ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+    Json(payload): Json<ImportSquadsSafeRequest>,
+) -> Result<impl IntoResponse, ApiError> {
+    let Some(repo) = state.squads_repo.as_ref() else {
+        return Err(ApiError::service_unavailable(
+            "squads_storage_unavailable",
+            "Persistence is required for Squads safe queries",
+        ));
+    };
+    let remote_ip: Option<IpAddr> = Some(remote_addr.ip());
+    state
+        .security
+        .authenticate(&headers, remote_ip)
+        .map_err(|err| ApiError::forbidden("auth_failed", err.to_string()))?;
+
+    let creator_wallet = sanitize_wallet(&payload.creator_wallet);
+    if creator_wallet.is_empty() {
+        return Err(ApiError::bad_request(
+            "creator_wallet_required",
+            "creator_wallet is required",
+        ));
+    }
+    if !is_valid_pubkey(&creator_wallet) {
+        return Err(ApiError::bad_request(
+            "creator_wallet_invalid",
+            "creator_wallet must be a valid Solana address",
+        ));
+    }
+
+    let safe_address = sanitize_wallet(&payload.safe_address);
+    if safe_address.is_empty() || !is_valid_pubkey(&safe_address) {
+        return Err(ApiError::bad_request(
+            "safe_address_invalid",
+            "safe_address must be a valid Solana address",
+        ));
+    }
+
+    let service = state.squads.as_ref();
+    let cluster = payload
+        .cluster
+        .as_ref()
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_string())
+        .or_else(|| service.map(|svc| svc.default_cluster().to_string()))
+        .ok_or_else(|| {
+            ApiError::bad_request(
+                "cluster_required",
+                "cluster must be provided when Squads integration is disabled",
+            )
+        })?;
+
+    let attn_wallet = payload
+        .attn_wallet
+        .as_ref()
+        .map(|value| sanitize_wallet(value))
+        .filter(|value| !value.is_empty())
+        .or_else(|| service.map(|svc| svc.default_attn_wallet().to_string()))
+        .ok_or_else(|| {
+            ApiError::bad_request(
+                "attn_wallet_required",
+                "attn_wallet must be provided when Squads integration is disabled",
+            )
+        })?;
+    if !is_valid_pubkey(&attn_wallet) {
+        return Err(ApiError::bad_request(
+            "attn_wallet_invalid",
+            "attn_wallet must be a valid Solana address",
+        ));
+    }
+
+    let threshold = payload
+        .threshold
+        .unwrap_or_else(|| service.map(|svc| svc.default_threshold()).unwrap_or(2));
+    if threshold == 0 || threshold > 10 {
+        return Err(ApiError::bad_request(
+            "threshold_invalid",
+            "threshold must be between 1 and 10",
+        ));
+    }
+
+    let mut seen = HashSet::new();
+    let mut members: Vec<String> = Vec::new();
+    let push_member = |member: String, seen: &mut HashSet<String>, members: &mut Vec<String>| {
+        let key = member.to_lowercase();
+        if seen.insert(key) {
+            members.push(member);
+        }
+    };
+
+    if let Some(list) = payload.members.as_ref() {
+        for entry in list {
+            let sanitized = sanitize_wallet(entry);
+            if sanitized.is_empty() {
+                continue;
+            }
+            if !is_valid_pubkey(&sanitized) {
+                return Err(ApiError::bad_request(
+                    "member_invalid",
+                    "All members must be valid Solana addresses",
+                ));
+            }
+            push_member(sanitized, &mut seen, &mut members);
+        }
+    }
+    push_member(creator_wallet.clone(), &mut seen, &mut members);
+    push_member(attn_wallet.clone(), &mut seen, &mut members);
+    let import_source = payload
+        .import_source
+        .clone()
+        .unwrap_or_else(|| "external".to_string());
+
+    let record = repo
+        .upsert_imported_safe(ImportSafeInput {
+            creator_wallet,
+            attn_wallet,
+            cluster,
+            threshold,
+            safe_address,
+            members,
+            safe_name: payload.safe_name.clone(),
+            contact_email: payload.contact_email.clone(),
+            note: payload.note.clone(),
+            transaction_url: payload.transaction_url.clone(),
+            status_url: payload.status_url.clone(),
+            import_source,
+            import_metadata: payload.import_metadata.clone(),
+        })
+        .await
+        .map_err(ApiError::from)?;
+
+    let response = record_to_response(&record, state.squads.as_ref());
+    Ok(Json(response))
+}
+
 async fn list_squads_safes(
     State(state): State<AppState>,
     ConnectInfo(remote_addr): ConnectInfo<SocketAddr>,
@@ -2666,6 +2907,35 @@ mod tests {
             record.updated_at = Utc::now();
             Ok(record.clone())
         }
+
+        async fn mark_failure(&self, request_id: Uuid, message: &str) -> Result<SafeRequestRecord> {
+            let mut inner = self.inner.lock().await;
+            let record = inner
+                .iter_mut()
+                .find(|record| record.id == request_id)
+                .ok_or_else(|| anyhow!("missing record"))?;
+            record.status = SafeStatus::Failed;
+            record.status_last_checked_at = Some(Utc::now());
+            record.status_sync_error = Some(message.to_string());
+            record.next_retry_at = None;
+            record.updated_at = Utc::now();
+            Ok(record.clone())
+        }
+
+        async fn schedule_retry(
+            &self,
+            request_id: Uuid,
+            backoff: Duration,
+        ) -> Result<SafeRequestRecord> {
+            let mut inner = self.inner.lock().await;
+            let record = inner
+                .iter_mut()
+                .find(|record| record.id == request_id)
+                .ok_or_else(|| anyhow!("missing record"))?;
+            record.next_retry_at = Some(Utc::now() + backoff);
+            record.updated_at = Utc::now();
+            Ok(record.clone())
+        }
     }
 
     fn sample_record(status: SafeStatus, status_url: Option<String>) -> SafeRequestRecord {
@@ -2686,6 +2956,9 @@ mod tests {
             members: json!(["Creator", "Attn"]),
             raw_response: None,
             raw_response_hash: None,
+            import_source: "attn-api".to_string(),
+            import_metadata: None,
+            imported_at: None,
             status_last_checked_at: None,
             status_last_response: None,
             status_last_response_hash: None,
@@ -2714,7 +2987,7 @@ mod tests {
     async fn status_sync_iteration_promotes_ready() {
         std::env::set_var("ATTN_API_SQUADS_BASE_URL", "local");
         let config = SquadsConfig::from_env().unwrap().unwrap();
-        let service = SquadsService::new(config).unwrap();
+        let service = SquadsService::new(config).await.unwrap();
         let record = sample_record(
             SafeStatus::Submitted,
             Some("https://status.local/1".to_string()),
@@ -2735,7 +3008,7 @@ mod tests {
     async fn status_sync_iteration_returns_false_without_jobs() {
         std::env::set_var("ATTN_API_SQUADS_BASE_URL", "local");
         let config = SquadsConfig::from_env().unwrap().unwrap();
-        let service = SquadsService::new(config).unwrap();
+        let service = SquadsService::new(config).await.unwrap();
         let repo = MockStatusRepo::new(vec![sample_record(
             SafeStatus::Ready,
             Some("https://status.local/1".to_string()),
