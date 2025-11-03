@@ -50,6 +50,24 @@ This doc captures the incremental work required to:
 - [ ] Tests
   - [ ] Unit coverage for repository lookup/upsert.
   - [ ] Integration test for new route (happy path + 404 + unauthorized).
+- [ ] **Background worker: stalled Squads requests**
+  - **Problem:** If Squads creation lags or fails silently, `/v1/squads/safes/creator/:wallet` returns 404 and the sponsor UI falls back to the nonce flow even though the request already exists. We currently rely on manual resubmits/imports.
+  - **Solution:** add a periodic worker (every 5 minutes) that:
+    1. Pulls `squads_safe_requests` where `status IN ('pending','submitted')` and `last_attempt_at < now() - 10 minutes`.
+    2. Calls Squads API for each record. If a safe exists, call `upsert_imported_safe` to mark it `ready` (no more 404s).
+    3. If Squads still has no safe and `attempt_count < 3`, resubmit the creation via the existing pipeline and push `next_retry_at = now() + backoff`.
+    4. If all retries fail (`attempt_count >= 3` or age > 1 hour), set `status = 'failed'`, attach `status_sync_error`, and raise an alert (Slack/email) so an operator can intervene.
+  - **Impact / expected UX once live:** 
+    - `/v1/squads/safes/creator/:wallet` now returns 200 as soon as Squads finishes deploying a safe—the worker imports it within a few minutes—so sponsors rarely see the creation tour after a successful request.
+    - If Squads stalls or fails, the request automatically retries up to the configured limit; the sponsor UI shows the existing-safe banner or an explicit “needs manual review” notice rather than looping on the nonce.
+    - Operations get immediate alerts for genuinely stuck safes, so the queue never silently grows and no sponsor remains blocked without visibility.
+  - **Testing requirements:** 
+    - Backend: add unit/integration coverage that seeds a pending record, stubs Squads API responses (success, retry, failure), runs the worker, and asserts the record transitions to `ready`, retries, or `failed` as designed.
+    - Frontend (Playwright): extend the sponsor suite to flip the mock from 404 to ready-safe payload, verifying the UI skips the creation tour and shows the success banner once the worker (simulated) updates the safe.
+    - Alert path: ensure the failure branch triggers the alert integration (mock Slack/email) so ops awareness is testable.
+- [ ] **Regression: existing safe still yields 404**
+  - **Problem:** Prod wallet `ehNPTG1BUYU8jxn5TxhSmjrVt826ipHZChMkfkYNc8D` still sees the creation tour because the bridge call `/v1/squads/safes/creator/:wallet?cluster=devnet` returns 404. Cloud Run logs show every lookup fails; Cloud SQL has the request (ID `3144a127-79da-462d-8fb9-45ba343cb53a`) stuck in `pending` with `safe_address` NULL.
+  - **Solution:** Import or update the record via `POST /v1/squads/safes/import` (or resubmit) so it moves to `ready` and carries `safe_address`, `status_url`, etc. Once the backend returns 200, the UI cache hides the tour automatically. Add an operational check to flag safes that remain `pending` beyond the expected window.
 
 ### Frontend – Sponsor Console
 
