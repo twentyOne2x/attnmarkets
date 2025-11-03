@@ -297,33 +297,6 @@ const SquadsSafeOnboarding: React.FC = () => {
     setForm((prev) => ({ ...prev, ...next }));
   }, []);
 
-  const handleCreatorWalletChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const value = event.target.value;
-      if (value === (connectedWalletAddress ?? '')) {
-        setCreatorWalletManuallyEdited(false);
-      } else {
-        setCreatorWalletManuallyEdited(true);
-      }
-      updateForm({ creatorWallet: value });
-      const trimmed = value.trim();
-      if (canCallApi && BASE58_WALLET_REGEX.test(trimmed)) {
-        void fetchExistingSafe(trimmed, { force: true });
-      }
-    },
-    [canCallApi, connectedWalletAddress, fetchExistingSafe, updateForm]
-  );
-
-  const copyToClipboard = useCallback(async (value: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopiedField(label);
-      setTimeout(() => setCopiedField(null), 1500);
-    } catch (err) {
-      console.warn('Failed to copy text', err);
-    }
-  }, []);
-
   const buildHeaders = useCallback((): HeadersInit => {
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
@@ -337,31 +310,6 @@ const SquadsSafeOnboarding: React.FC = () => {
     }
     return headers;
   }, [apiKey, csrfToken]);
-
-  const syncResult = useCallback((updated: CreatedSafe) => {
-    setResult((prev) => (prev && prev.request_id === updated.request_id ? updated : prev));
-    setAdminRequests((prev) =>
-      prev.length > 0
-        ? prev.map((entry) => (entry.request_id === updated.request_id ? updated : entry))
-        : prev
-    );
-  }, []);
-
-  useEffect(() => {
-    if (!result) {
-      return;
-    }
-    setSuccessNotice((prev) => {
-      if (!prev || prev.requestId !== result.request_id) {
-        return prev;
-      }
-      return composeSuccessNotice(result, prev.type);
-    });
-    if (result.safe_address) {
-      markTourComplete();
-      setShowFormGuide(false);
-    }
-  }, [markTourComplete, result]);
 
   const fetchExistingSafe = useCallback(
     async (walletAddress: string, { force }: { force?: boolean } = {}) => {
@@ -408,8 +356,69 @@ const SquadsSafeOnboarding: React.FC = () => {
         return false;
       }
     },
-    [buildHeaders, canCallApi, configuredCluster, markTourComplete, prefetchState, prefetchWallet]
+    [
+      buildHeaders,
+      canCallApi,
+      configuredCluster,
+      markTourComplete,
+      prefetchState,
+      prefetchWallet,
+    ]
   );
+
+  const handleCreatorWalletChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.value;
+      if (value === (connectedWalletAddress ?? '')) {
+        setCreatorWalletManuallyEdited(false);
+      } else {
+        setCreatorWalletManuallyEdited(true);
+      }
+      updateForm({ creatorWallet: value });
+      const trimmed = value.trim();
+      if (canCallApi && BASE58_WALLET_REGEX.test(trimmed)) {
+        void fetchExistingSafe(trimmed, { force: true });
+      }
+    },
+    [canCallApi, connectedWalletAddress, fetchExistingSafe, updateForm]
+  );
+
+  const copyToClipboard = useCallback(async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedField(label);
+      setTimeout(() => setCopiedField(null), 1500);
+    } catch (err) {
+      console.warn('Failed to copy text', err);
+    }
+  }, []);
+
+  const sanitizedCreatorWallet = sanitize(form.creatorWallet);
+
+  const syncResult = useCallback((updated: CreatedSafe) => {
+    setResult((prev) => (prev && prev.request_id === updated.request_id ? updated : prev));
+    setAdminRequests((prev) =>
+      prev.length > 0
+        ? prev.map((entry) => (entry.request_id === updated.request_id ? updated : entry))
+        : prev
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!result) {
+      return;
+    }
+    setSuccessNotice((prev) => {
+      if (!prev || prev.requestId !== result.request_id) {
+        return prev;
+      }
+      return composeSuccessNotice(result, prev.type);
+    });
+    if (result.safe_address) {
+      markTourComplete();
+      setShowFormGuide(false);
+    }
+  }, [markTourComplete, result]);
 
   useEffect(() => {
     if (!canCallApi || !sanitizedCreatorWallet) {
@@ -884,7 +893,6 @@ const SquadsSafeOnboarding: React.FC = () => {
     setIdempotencyKey(generateIdempotencyKey());
   }, [defaultFormState]);
 
-  const sanitizedCreatorWallet = sanitize(form.creatorWallet);
   const normalizedContextWallet = useMemo(
     () => (currentUserWallet ? sanitize(currentUserWallet) : ''),
     [currentUserWallet]
@@ -902,7 +910,7 @@ const SquadsSafeOnboarding: React.FC = () => {
 
   const safeIsReady = (result?.status ?? '').toLowerCase() === 'ready';
   const pumpMint = currentUserCreator?.pump_mint ?? '';
-  const coinName = currentUserCreator?.name ?? '';
+  const coinName = currentUserCreator?.market ?? currentUserCreator?.wallet ?? '';
   const defaultContactEmail = form.contactEmail || 'Use a reachable contact email';
 
   const GuideOverlay = () => {
