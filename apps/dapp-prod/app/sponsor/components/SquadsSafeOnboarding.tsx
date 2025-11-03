@@ -238,6 +238,8 @@ const generateIdempotencyKey = (): string => {
 
 const bridgePath = (path: string): string => `/api/bridge${path.startsWith('/') ? path : `/${path}`}`;
 
+const SUBMIT_COOLDOWN_MS = 1200;
+
 const SquadsSafeOnboarding: React.FC = () => {
   const { mode, apiBaseUrl, cluster: configuredCluster, apiKey, csrfToken, isAdmin } = useDataMode();
   const { currentUserWallet, currentUserCreator } = useAppContext();
@@ -290,6 +292,10 @@ const SquadsSafeOnboarding: React.FC = () => {
   const [autoSigning, setAutoSigning] = useState(false);
   const [signError, setSignError] = useState<string | null>(null);
   const tourDismissedRef = useRef(false);
+  const submitCooldownRef = useRef(0);
+  const submitCooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [submitCoolingDown, setSubmitCoolingDown] = useState(false);
+  const fetchingSafeKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -327,7 +333,7 @@ const SquadsSafeOnboarding: React.FC = () => {
     [form.creatorSignature, nonce, signError]
   );
 
-  const markTourComplete = useCallback(() => {
+const markTourComplete = useCallback(() => {
     if (tourDismissedRef.current) {
       return;
     }
@@ -382,9 +388,7 @@ const SquadsSafeOnboarding: React.FC = () => {
       const record = detail.record;
       setResult(record);
       setSuccessNotice(composeSuccessNotice(record, detail.type ?? 'existing'));
-      if (record.safe_address) {
-        markTourComplete();
-      }
+      markTourComplete();
       try {
         window.dispatchEvent(new CustomEvent('attn:squads-safe-created'));
       } catch (err) {
@@ -429,6 +433,9 @@ const SquadsSafeOnboarding: React.FC = () => {
       }
       const targetCluster = sanitizeClusterValue(cluster) || preferredCluster;
       const fetchKey = `${targetCluster || 'default'}::${walletAddress}`;
+      if (!force && fetchingSafeKeyRef.current === fetchKey) {
+        return false;
+      }
       if (!force && prefetchState === 'loading' && prefetchKey === fetchKey) {
         return false;
       }
@@ -438,6 +445,7 @@ const SquadsSafeOnboarding: React.FC = () => {
 
       const querySuffix = targetCluster ? `?cluster=${encodeURIComponent(targetCluster)}` : '';
 
+      fetchingSafeKeyRef.current = fetchKey;
       setPrefetchState('loading');
       setPrefetchKey(fetchKey);
       try {
@@ -461,9 +469,7 @@ const SquadsSafeOnboarding: React.FC = () => {
         const data = (await response.json()) as CreatedSafe;
         setResult(data);
         setSuccessNotice(composeSuccessNotice(data, 'existing'));
-        if (data.safe_address) {
-          markTourComplete();
-        }
+        markTourComplete();
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('attn:squads-safe-created'));
         }
@@ -475,6 +481,10 @@ const SquadsSafeOnboarding: React.FC = () => {
         setPrefetchState('error');
         setPrefetchKey(fetchKey);
         return false;
+      } finally {
+        if (fetchingSafeKeyRef.current === fetchKey) {
+          fetchingSafeKeyRef.current = null;
+        }
       }
     },
     [buildHeaders, canCallApi, markTourComplete, preferredCluster, prefetchKey, prefetchState]
@@ -526,10 +536,8 @@ const SquadsSafeOnboarding: React.FC = () => {
       }
       return composeSuccessNotice(result, prev.type);
     });
-    if (result.safe_address) {
-      markTourComplete();
-      setShowFormGuide(false);
-    }
+    markTourComplete();
+    setShowFormGuide(false);
   }, [markTourComplete, result]);
 
   useEffect(() => {
@@ -546,6 +554,11 @@ const SquadsSafeOnboarding: React.FC = () => {
 
     const targetCluster = preferredCluster;
     const fetchKey = `${targetCluster || 'default'}::${sanitizedCreatorWallet}`;
+    if (prefetchKey === fetchKey) {
+      if (prefetchState === 'loading' || prefetchState === 'done') {
+        return;
+      }
+    }
 
     if (
       result &&
@@ -639,6 +652,50 @@ const SquadsSafeOnboarding: React.FC = () => {
     return issueNonce();
   }, [nonce, isNonceExpired, issueNonce]);
 
+  const recoverFromExistingSafe = useCallback(
+    async (creatorWallet: string, options: { cluster?: string; message?: string } = {}) => {
+      const { cluster, message } = options;
+      const loaded = await fetchExistingSafe(creatorWallet, { force: true, cluster });
+      if (!loaded) {
+        console.warn('Recovery flow could not load existing safe metadata');
+      }
+      updateForm({ creatorSignature: '' });
+      setNonce(null);
+      const refreshed = await issueNonce();
+      if (!refreshed) {
+        setNonceError('Generated a fresh nonce, but it failed to load automatically. Request another one.');
+      }
+      if (message) {
+        setError(message);
+      } else {
+        setError(null);
+      }
+    },
+    [fetchExistingSafe, issueNonce, updateForm]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (submitCooldownTimerRef.current) {
+        clearTimeout(submitCooldownTimerRef.current);
+      }
+    };
+  }, []);
+
+  const startSubmitCooldown = useCallback(() => {
+    const expiresAt = Date.now() + SUBMIT_COOLDOWN_MS;
+    submitCooldownRef.current = expiresAt;
+    setSubmitCoolingDown(true);
+    if (submitCooldownTimerRef.current) {
+      clearTimeout(submitCooldownTimerRef.current);
+    }
+    submitCooldownTimerRef.current = setTimeout(() => {
+      submitCooldownRef.current = 0;
+      submitCooldownTimerRef.current = null;
+      setSubmitCoolingDown(false);
+    }, SUBMIT_COOLDOWN_MS);
+  }, []);
+
   const handleSubmit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -676,7 +733,12 @@ const SquadsSafeOnboarding: React.FC = () => {
         setError(errors.join(' '));
         return;
       }
+      if (submitCoolingDown) {
+        setError('Give attn a moment to respond before trying again.');
+        return;
+      }
 
+      startSubmitCooldown();
       setSubmitting(true);
       try {
         if (!apiBaseUrl) {
@@ -745,21 +807,19 @@ const SquadsSafeOnboarding: React.FC = () => {
         console.error('Failed to create Squads safe', err);
         if (err instanceof Error && /duplicate_request/i.test(err.message)) {
           const clusterOverride = sanitizeClusterValue(form.cluster) || preferredCluster;
-          const loaded = await fetchExistingSafe(creatorWallet, {
-            force: true,
+          setIdempotencyKey(generateIdempotencyKey());
+          await recoverFromExistingSafe(creatorWallet, {
             cluster: clusterOverride,
+            message: 'Existing Squads safe detected. Generated a fresh nonce so you can copy your safe details.',
           });
-          if (loaded) {
-            setNonce(null);
-            setIdempotencyKey(generateIdempotencyKey());
-            updateForm({ creatorSignature: '' });
-            const refreshed = await issueNonce();
-            if (!refreshed) {
-              setNonce(null);
-            }
-            setError(null);
-            return;
-          }
+          return;
+        }
+        if (err instanceof Error && /nonce_invalid/i.test(err.message)) {
+          await recoverFromExistingSafe(creatorWallet, {
+            cluster: sanitizeClusterValue(form.cluster) || preferredCluster,
+            message: 'Nonce expired or already used. Generated a new code—sign again to continue.',
+          });
+          return;
         }
         const baseMessage = err instanceof Error ? err.message : 'Failed to create Squads safe.';
         const enhancedMessage = (() => {
@@ -787,6 +847,9 @@ const SquadsSafeOnboarding: React.FC = () => {
       markTourComplete,
       nonce,
       preferredCluster,
+      recoverFromExistingSafe,
+      startSubmitCooldown,
+      submitCoolingDown,
       updateForm,
     ]
   );
@@ -1214,6 +1277,14 @@ const SquadsSafeOnboarding: React.FC = () => {
     ? 'Requesting nonce…'
     : 'Request & sign with connected wallet';
   const signButtonDisabled = !canUseWalletSigner || signing || autoSigning || requestingNonce;
+  const submitButtonDisabled = submitting || !canCallApi || submitCoolingDown || requestingNonce;
+  const submitButtonLabel = submitting
+    ? 'Submitting…'
+    : submitCoolingDown
+    ? 'Cooling down…'
+    : requestingNonce
+    ? 'Requesting nonce…'
+    : 'Submit safe request to attn';
 
   const handleSignWithWallet = useCallback(async () => {
     if (!wallet?.signMessage) {
@@ -1570,7 +1641,7 @@ const SquadsSafeOnboarding: React.FC = () => {
       )}
 
       {!safeIsReady && (
-        <form className="space-y-6" onSubmit={handleSubmit}>
+        <form className="space-y-6" data-testid="sponsor-safe-form" onSubmit={handleSubmit}>
         <div className="grid gap-4 md:grid-cols-2">
           <label className="flex flex-col text-sm text-gray-200">
             Your sponsor wallet (Builder, DAO, Creator)
@@ -1784,6 +1855,7 @@ const SquadsSafeOnboarding: React.FC = () => {
               Manual signature (optional)
               <input
                 className="mt-1 rounded-md border border-primary/40 bg-gray-950/60 p-2 text-white focus:border-primary focus:outline-none"
+                data-testid="manual-signature-input"
                 value={form.creatorSignature}
                 onChange={(event) => updateForm({ creatorSignature: event.target.value })}
                 placeholder="Base58 signature"
@@ -1825,11 +1897,12 @@ const SquadsSafeOnboarding: React.FC = () => {
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="submit"
-              disabled={submitting || !canCallApi}
+              disabled={submitButtonDisabled}
+              aria-label="Submit safe request to attn"
               className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
               title="Send this safe creation request to the attn devnet API."
             >
-              {submitting ? 'Submitting…' : 'Submit safe request to attn'}
+              {submitButtonLabel}
             </button>
             <button
               type="button"
@@ -1839,6 +1912,11 @@ const SquadsSafeOnboarding: React.FC = () => {
               Reset form
             </button>
           </div>
+          {submitCoolingDown && (
+            <p className="text-xs text-primary/70">
+              Hold tight—we&apos;re refreshing your Squads request state. Try again in a second.
+            </p>
+          )}
           <p className="mt-2 text-xs text-gray-400">
             Submissions are idempotent: reuse the same key to avoid duplicates. Only generate a new key if you intentionally want a fresh payload.
           </p>

@@ -45,7 +45,7 @@ const prepareWalletState = async (page: Page, wallet: string) => {
   await page.addInitScript(
     ([walletKey, value, tourKey]) => {
       window.localStorage.setItem(walletKey, JSON.stringify({ currentUserWallet: value }));
-      window.localStorage.setItem(tourKey, 'seen');
+      window.localStorage.setItem(tourKey, 'pending');
     },
     [STORAGE_KEY, wallet, TOUR_KEY]
   );
@@ -89,6 +89,14 @@ test.describe('Sponsor Squads detection', () => {
   });
 
   test('updates sign message when attn:test:set-nonce fires', async ({ page }) => {
+    await page.route('**/api/bridge/v1/squads/safes', async (route) => {
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify(pendingSafe),
+      });
+    });
+
     await prepareWalletState(page, EXISTING_WALLET);
     await page.goto('/sponsor');
     await expect(page.getByRole('heading', { name: 'Squads Safe Onboarding' })).toBeVisible();
@@ -137,7 +145,7 @@ test.describe('Sponsor Squads detection', () => {
 
     const signatureValue = '1111111111111111111111111111111111111111111111111111111111111111';
     await page.evaluate((value) => {
-      const input = document.querySelector('input[placeholder="Base58 signature"]') as HTMLInputElement | null;
+      const input = document.querySelector('[data-testid="manual-signature-input"]') as HTMLInputElement | null;
       if (input) {
         input.value = value;
         input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -155,14 +163,177 @@ test.describe('Sponsor Squads detection', () => {
 
     await expect
       .poll(() =>
-        page.evaluate(() => (window as unknown as { __attnSquadsDebug?: { creatorSignature?: string } }).__attnSquadsDebug?.creatorSignature ?? null)
+        page.evaluate(() => (window as unknown as { __attnSquadsDebug?: { hasNonce?: boolean } }).__attnSquadsDebug?.hasNonce ?? null)
       )
-      .toBe('');
+      .toBe(true);
+    await expect
+      .poll(() => page.evaluate((key) => window.localStorage.getItem(key), TOUR_KEY))
+      .toBe('seen');
+    await expect(page.getByText(safePayload.safe_address!)).toBeVisible();
+  });
+
+  test('recovers gracefully when backend returns nonce_invalid', async ({ page, request }) => {
+    const safePayload = buildSafeResponse(EXISTING_WALLET);
+    await configureMockApi(request, {
+      wallet: EXISTING_WALLET,
+      creatorSequence: ['not_found'],
+      safe: safePayload,
+    });
+
+    await prepareWalletState(page, EXISTING_WALLET);
+
+    await page.route('**/api/bridge/v1/squads/safes/nonce', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          nonce: `nonce-${Date.now()}`,
+          expires_at: new Date(Date.now() + 600_000).toISOString(),
+          ttl_seconds: 600,
+        }),
+      });
+    });
+
+    let postCount = 0;
+    await page.route('**/api/bridge/v1/squads/safes', async (route) => {
+      postCount += 1;
+      if (postCount === 1) {
+        await route.fulfill({
+          status: 400,
+          contentType: 'application/json',
+          body: JSON.stringify({ message: 'nonce is expired or has already been used (nonce_invalid)' }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify(safePayload),
+      });
+    });
+
+    await page.goto('/sponsor');
+    await expect(page.getByRole('heading', { name: 'Squads Safe Onboarding' })).toBeVisible();
+
+    const initialNonce: TestNonce = {
+      nonce: 'nonce-initial',
+      expires_at: new Date(Date.now() + 600_000).toISOString(),
+      ttl_seconds: 600,
+    };
+    await page.evaluate((detail) => {
+      window.dispatchEvent(new CustomEvent('attn:test:set-nonce', { detail }));
+    }, initialNonce);
+
+    const signatureValue = '1111111111111111111111111111111111111111111111111111111111111111';
+    const signatureInput = page.getByTestId('manual-signature-input');
+    await signatureInput.fill(signatureValue);
+    await expect(signatureInput).toHaveValue(signatureValue);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (window as unknown as { __attnSquadsDebug?: { hasNonce?: boolean } }).__attnSquadsDebug?.hasNonce ?? null
+        )
+      )
+      .toBe(true);
+
+    await page.getByRole('button', { name: 'Submit safe request to attn' }).click();
+
     await expect
       .poll(() =>
         page.evaluate(() => (window as unknown as { __attnSquadsDebug?: { hasNonce?: boolean } }).__attnSquadsDebug?.hasNonce ?? null)
       )
       .toBe(true);
-    await expect(page.getByText(safePayload.safe_address!)).toBeVisible();
+
+    const errorBanner = page.getByText(/Nonce expired or already used/i);
+    await expect(errorBanner).toBeVisible();
+
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (window as unknown as { __attnSquadsDebug?: { hasNonce?: boolean } }).__attnSquadsDebug?.hasNonce ?? null
+        )
+      )
+      .toBe(true);
+
+    await signatureInput.fill(signatureValue);
+    await expect(signatureInput).toHaveValue(signatureValue);
+
+    await page.getByRole('button', { name: 'Submit safe request to attn' }).click();
+
+    await page.evaluate((payload) => {
+      window.dispatchEvent(
+        new CustomEvent('attn:test:set-result', {
+          detail: { record: payload, type: 'existing' },
+        })
+      );
+    }, safePayload);
+
+    await expect(page.getByText('Existing Squads safe found')).toBeVisible();
+  });
+
+  test('throttles rapid submissions and surfaces cooldown messaging', async ({ page, request }) => {
+    const pendingSafe = {
+      ...buildSafeResponse(EXISTING_WALLET),
+      status: 'queued',
+      safe_address: null,
+    };
+    await configureMockApi(request, {
+      wallet: EXISTING_WALLET,
+      creatorSequence: ['not_found'],
+      safe: pendingSafe,
+    });
+
+    let requestTriggered = false;
+    await page.route('**/api/bridge/v1/squads/safes', async (route) => {
+      requestTriggered = true;
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify(pendingSafe),
+      });
+    });
+
+    await prepareWalletState(page, EXISTING_WALLET);
+    await page.goto('/sponsor');
+    await expect(page.getByRole('heading', { name: 'Squads Safe Onboarding' })).toBeVisible();
+
+    const nonceDetail: TestNonce = {
+      nonce: 'nonce-cooldown',
+      expires_at: new Date(Date.now() + 600_000).toISOString(),
+      ttl_seconds: 600,
+    };
+    await page.evaluate((detail) => {
+      window.dispatchEvent(new CustomEvent('attn:test:set-nonce', { detail }));
+    }, nonceDetail);
+
+    const signatureValue = '1111111111111111111111111111111111111111111111111111111111111111';
+    const signatureInput = page.getByTestId('manual-signature-input');
+    await signatureInput.fill(signatureValue);
+
+    const submitButton = page.getByRole('button', { name: 'Submit safe request to attn' });
+
+    await expect(signatureInput).toHaveValue(signatureValue);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (window as unknown as { __attnSquadsDebug?: { hasNonce?: boolean } }).__attnSquadsDebug?.hasNonce ?? null
+        )
+      )
+      .toBe(true);
+
+    await expect(submitButton).toBeEnabled();
+    await submitButton.click();
+    await expect.poll(() => requestTriggered).toBe(true);
+    await expect(submitButton).toBeDisabled();
+    await expect(submitButton).toHaveText('Cooling down…');
+    await expect(page.getByText(/Hold tight—we're refreshing your Squads request state/i)).toBeVisible();
+
+    await page.evaluate(() => {
+      const form = document.querySelector('[data-testid="sponsor-safe-form"]') as HTMLFormElement | null;
+      form?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
   });
 });
