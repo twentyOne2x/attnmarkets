@@ -5,6 +5,7 @@ const TOUR_KEY = 'attn.liveSponsorTour';
 const EXISTING_WALLET = 'ehNPTG1BUYU8jxn5TxhSmjrVt826ipHZChMkfkYNc8D';
 const SAFE_REQUEST_ID = 'req-existing-safe-123';
 const MOCK_API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://127.0.0.1:3999';
+const SAFE_STORAGE_PREFIX = 'attn.squads.safe';
 
 type TestNonce = {
   nonce: string;
@@ -51,6 +52,16 @@ const prepareWalletState = async (page: Page, wallet: string) => {
   );
 };
 
+const seedSafeCache = async (page: Page, wallet: string, record: ReturnType<typeof buildSafeResponse>) => {
+  const key = `${SAFE_STORAGE_PREFIX}.devnet.${wallet}`;
+  await page.addInitScript(
+    ([storageKey, safeRecord]) => {
+      window.localStorage.setItem(storageKey, JSON.stringify({ record: safeRecord, stored_at: Date.now() }));
+    },
+    [key, record]
+  );
+};
+
 const resetMockApi = async (request: APIRequestContext) => {
   await request.post(`${MOCK_API_BASE}/__reset`);
 };
@@ -65,6 +76,22 @@ const configureMockApi = async (
 test.describe('Sponsor Squads detection', () => {
   test.beforeEach(async ({ request }) => {
     await resetMockApi(request);
+  });
+
+  test('restores cached safe metadata on load without hitting the API', async ({ page, request }) => {
+    const safePayload = buildSafeResponse(EXISTING_WALLET);
+    await seedSafeCache(page, EXISTING_WALLET, safePayload);
+    await prepareWalletState(page, EXISTING_WALLET);
+
+    await page.route('**/api/bridge/v1/squads/safes/creator/**', async (route) => {
+      await route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ error: 'not_found' }) });
+    });
+
+    await page.goto('/sponsor');
+    await expect(page.getByRole('heading', { name: 'Squads Safe Onboarding' })).toBeVisible();
+    await expect(page.getByText('Existing Squads safe found')).toBeVisible();
+    await expect(page.getByText(safePayload.safe_address!)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Submit safe request to attn' })).toHaveCount(0);
   });
 
   test('auto-loads existing safe for stored wallet', async ({ page, request }) => {
