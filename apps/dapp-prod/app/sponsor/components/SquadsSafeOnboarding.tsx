@@ -8,6 +8,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { runtimeEnv } from '../../config/runtime';
 import { useDataMode } from '../../context/DataModeContext';
 import { useAppContext } from '../../context/AppContext';
+import type { Creator } from '../../utils/borrowingCalculations';
 
 const BASE58_WALLET_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const BASE58_SIGNATURE_REGEX = /^[1-9A-HJ-NP-Za-km-z]{64,120}$/;
@@ -239,6 +240,107 @@ const generateIdempotencyKey = (): string => {
 const bridgePath = (path: string): string => `/api/bridge${path.startsWith('/') ? path : `/${path}`}`;
 
 const SUBMIT_COOLDOWN_MS = 1200;
+const SAFE_STORAGE_PREFIX = 'attn.squads.safe';
+
+const getSafeStorageKey = (wallet: string, cluster: string) =>
+  `${SAFE_STORAGE_PREFIX}.${cluster || 'default'}.${wallet}`;
+
+const storeSafeRecord = (record: CreatedSafe) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    const wallet = sanitize(record.creator_wallet ?? '');
+    const cluster = sanitizeClusterValue(record.cluster) || 'devnet';
+    if (!wallet) {
+      return;
+    }
+    const key = getSafeStorageKey(wallet, cluster);
+    const payload = {
+      record,
+      stored_at: Date.now(),
+    };
+    window.localStorage.setItem(key, JSON.stringify(payload));
+  } catch (err) {
+    console.warn('Failed to cache Squads safe record', err);
+  }
+};
+
+const readSafeRecord = (wallet: string, cluster: string): CreatedSafe | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  try {
+    const key = getSafeStorageKey(wallet, cluster);
+    const raw = window.localStorage.getItem(key);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw) as { record?: CreatedSafe | null };
+    return parsed?.record ?? null;
+  } catch (err) {
+    console.warn('Failed to restore Squads safe record', err);
+    return null;
+  }
+};
+
+const clearSafeRecord = (wallet: string, cluster: string) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    window.localStorage.removeItem(getSafeStorageKey(wallet, cluster));
+  } catch (err) {
+    console.warn('Failed to clear Squads safe cache', err);
+  }
+};
+
+const buildCreatorDerivedSafe = (
+  creator: Creator | null,
+  cluster: string,
+  attnWallet: string
+): CreatedSafe | null => {
+  if (!creator) {
+    return null;
+  }
+  const wallet = sanitize(creator.wallet);
+  if (!wallet) {
+    return null;
+  }
+  const hasVault = Boolean(creator.hasCreatorVault || creator.creator_vault);
+  if (!hasVault) {
+    return null;
+  }
+  const nowIso = new Date().toISOString();
+  return {
+    request_id: `cached-${wallet}`,
+    status: 'ready',
+    safe_address: creator.creator_vault ?? null,
+    transaction_url: null,
+    status_url: null,
+    cluster,
+    threshold: 2,
+    members: [wallet, attnWallet].filter(Boolean) as string[],
+    mode: 'cache',
+    raw_response: null,
+    idempotency_key: null,
+    creator_wallet: wallet,
+    attn_wallet: attnWallet,
+    import_source: 'creator-cache',
+    import_metadata: null,
+    imported_at: nowIso,
+    attempt_count: 0,
+    last_attempt_at: nowIso,
+    next_retry_at: null,
+    status_last_checked_at: nowIso,
+    status_sync_error: null,
+    status_last_response_hash: null,
+    creator_vault: creator.creator_vault ?? null,
+    governance_linked_at: null,
+    created_at: nowIso,
+    updated_at: nowIso,
+  };
+};
 
 const SquadsSafeOnboarding: React.FC = () => {
   const { mode, apiBaseUrl, cluster: configuredCluster, apiKey, csrfToken, isAdmin } = useDataMode();
@@ -539,6 +641,33 @@ const markTourComplete = useCallback(() => {
     markTourComplete();
     setShowFormGuide(false);
   }, [markTourComplete, result]);
+
+  useEffect(() => {
+    if (!result) {
+      return;
+    }
+    storeSafeRecord(result);
+  }, [result]);
+
+  useEffect(() => {
+    if (result) {
+      return;
+    }
+    if (!sanitizedCreatorWallet) {
+      return;
+    }
+    const cacheCluster = sanitizeClusterValue(preferredCluster) || 'devnet';
+    const cached = readSafeRecord(sanitizedCreatorWallet, cacheCluster);
+    const derived = cached ?? buildCreatorDerivedSafe(currentUserCreator, cacheCluster, runtimeEnv.attnSquadsMember);
+    if (!derived) {
+      return;
+    }
+    setResult(derived);
+    setSuccessNotice(composeSuccessNotice(derived, 'existing'));
+    markTourComplete();
+    setPrefetchState('done');
+    setPrefetchKey(`${cacheCluster || 'default'}::${sanitizedCreatorWallet}`);
+  }, [currentUserCreator, markTourComplete, preferredCluster, result, sanitizedCreatorWallet]);
 
   useEffect(() => {
     if (!canCallApi || !sanitizedCreatorWallet) {
@@ -1091,7 +1220,10 @@ const markTourComplete = useCallback(() => {
     setNonceError(null);
     setShowRaw(false);
     setIdempotencyKey(generateIdempotencyKey());
-  }, [defaultFormState]);
+    if (sanitizedCreatorWallet) {
+      clearSafeRecord(sanitizedCreatorWallet, sanitizeClusterValue(preferredCluster) || 'devnet');
+    }
+  }, [defaultFormState, preferredCluster, sanitizedCreatorWallet]);
 
   const normalizedContextWallet = useMemo(
     () => (currentUserWallet ? sanitize(currentUserWallet) : ''),
