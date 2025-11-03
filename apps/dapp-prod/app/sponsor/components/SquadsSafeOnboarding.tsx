@@ -113,6 +113,34 @@ const buildSolanaExplorerUrl = (cluster: string | undefined, safeAddress: string
   return `https://explorer.solana.com/address/${safeAddress}${clusterSuffix}`;
 };
 
+const sanitizeClusterValue = (value?: string | null): string => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed.toLowerCase() : '';
+};
+
+const resolveCluster = (
+  formCluster?: string,
+  runtimeCluster?: string | null,
+  configuredCluster?: string | null
+): string => {
+  const fromForm = sanitizeClusterValue(formCluster);
+  if (fromForm) {
+    return fromForm;
+  }
+  const fromRuntime = sanitizeClusterValue(runtimeCluster);
+  if (fromRuntime) {
+    return fromRuntime;
+  }
+  const fromConfigured = sanitizeClusterValue(configuredCluster);
+  if (fromConfigured) {
+    return fromConfigured;
+  }
+  return 'devnet';
+};
+
 const composeSuccessNotice = (record: CreatedSafe, type: 'new' | 'existing'): SuccessNotice => {
   const rawCluster = record.cluster ?? 'devnet';
   const clusterLabel = formatClusterLabel(rawCluster);
@@ -237,7 +265,7 @@ const SquadsSafeOnboarding: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<SuccessNotice | null>(null);
   const [prefetchState, setPrefetchState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
-  const [prefetchWallet, setPrefetchWallet] = useState<string | null>(null);
+  const [prefetchKey, setPrefetchKey] = useState<string | null>(null);
   const [showFormGuide, setShowFormGuide] = useState(false);
   const [nonceError, setNonceError] = useState<string | null>(null);
   const [result, setResult] = useState<CreatedSafe | null>(null);
@@ -262,6 +290,31 @@ const SquadsSafeOnboarding: React.FC = () => {
   const [autoSigning, setAutoSigning] = useState(false);
   const [signError, setSignError] = useState<string | null>(null);
   const tourDismissedRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const handler = (event: Event) => {
+      const customEvent = event as CustomEvent<NonceResponse>;
+      const detail = customEvent.detail;
+      if (!detail || typeof detail.nonce !== 'string' || detail.nonce.length === 0) {
+        return;
+      }
+      setNonce(detail);
+      setNonceError(null);
+      try {
+        (window as typeof window & { __attnLastNonce?: NonceResponse }).__attnLastNonce = detail;
+      } catch (err) {
+        console.warn('Failed to cache test nonce detail', err);
+      }
+    };
+    window.addEventListener('attn:test:set-nonce', handler as EventListener);
+    return () => {
+      window.removeEventListener('attn:test:set-nonce', handler as EventListener);
+    };
+  }, []);
+
 
   const signatureComplete = useMemo(
     () =>
@@ -293,6 +346,55 @@ const SquadsSafeOnboarding: React.FC = () => {
   const canCallApi =
     mode === 'live' && Boolean(apiBaseUrl && apiKey && csrfToken && runtimeEnv.attnSquadsMember);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    (window as typeof window & {
+      __attnSquadsDebug?: {
+        canCallApi: boolean;
+        creatorWallet: string;
+        hasNonce: boolean;
+        submitting: boolean;
+        error: string | null;
+        creatorSignature: string;
+      };
+    }).__attnSquadsDebug = {
+      canCallApi,
+      creatorWallet: form.creatorWallet,
+      hasNonce: Boolean(nonce?.nonce),
+      submitting,
+      error,
+      creatorSignature: form.creatorSignature,
+    };
+  }, [canCallApi, form.creatorSignature, form.creatorWallet, nonce?.nonce, submitting, error]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const handler = (event: Event) => {
+      const customEvent = event as CustomEvent<{ record: CreatedSafe; type?: 'existing' | 'new' }>;
+      const detail = customEvent.detail;
+      if (!detail || !detail.record) {
+        return;
+      }
+      const record = detail.record;
+      setResult(record);
+      setSuccessNotice(composeSuccessNotice(record, detail.type ?? 'existing'));
+      if (record.safe_address) {
+        markTourComplete();
+      }
+      try {
+        window.dispatchEvent(new CustomEvent('attn:squads-safe-created'));
+      } catch (err) {
+        console.warn('Failed to emit Squads safe created test event', err);
+      }
+    };
+    window.addEventListener('attn:test:set-result', handler as EventListener);
+    return () => window.removeEventListener('attn:test:set-result', handler as EventListener);
+  }, [markTourComplete]);
+
   const updateForm = useCallback((next: Partial<FormState>) => {
     setForm((prev) => ({ ...prev, ...next }));
   }, []);
@@ -311,20 +413,33 @@ const SquadsSafeOnboarding: React.FC = () => {
     return headers;
   }, [apiKey, csrfToken]);
 
+  const sanitizedCreatorWallet = sanitize(form.creatorWallet);
+  const preferredCluster = useMemo(
+    () => resolveCluster(form.cluster, runtimeEnv.cluster, configuredCluster),
+    [configuredCluster, form.cluster]
+  );
+
   const fetchExistingSafe = useCallback(
-    async (walletAddress: string, { force }: { force?: boolean } = {}) => {
+    async (
+      walletAddress: string,
+      { force, cluster }: { force?: boolean; cluster?: string } = {}
+    ) => {
       if (!canCallApi || !walletAddress) {
         return false;
       }
-      if (!force && prefetchState === 'loading' && prefetchWallet === walletAddress) {
+      const targetCluster = sanitizeClusterValue(cluster) || preferredCluster;
+      const fetchKey = `${targetCluster || 'default'}::${walletAddress}`;
+      if (!force && prefetchState === 'loading' && prefetchKey === fetchKey) {
         return false;
       }
+      if (!force && prefetchState === 'done' && prefetchKey === fetchKey) {
+        return true;
+      }
 
-      const clusterQuery = runtimeEnv.cluster || configuredCluster || '';
-      const querySuffix = clusterQuery ? `?cluster=${encodeURIComponent(clusterQuery)}` : '';
+      const querySuffix = targetCluster ? `?cluster=${encodeURIComponent(targetCluster)}` : '';
 
       setPrefetchState('loading');
-      setPrefetchWallet(walletAddress);
+      setPrefetchKey(fetchKey);
       try {
         const response = await fetch(
           `${bridgePath(`/v1/squads/safes/creator/${walletAddress}`)}${querySuffix}`,
@@ -336,6 +451,7 @@ const SquadsSafeOnboarding: React.FC = () => {
         );
         if (response.status === 404) {
           setPrefetchState('done');
+          setPrefetchKey(fetchKey);
           return false;
         }
         if (!response.ok) {
@@ -352,21 +468,16 @@ const SquadsSafeOnboarding: React.FC = () => {
           window.dispatchEvent(new CustomEvent('attn:squads-safe-created'));
         }
         setPrefetchState('done');
+        setPrefetchKey(fetchKey);
         return true;
       } catch (err) {
         console.warn('Failed to fetch existing safe metadata', err);
         setPrefetchState('error');
+        setPrefetchKey(fetchKey);
         return false;
       }
     },
-    [
-      buildHeaders,
-      canCallApi,
-      configuredCluster,
-      markTourComplete,
-      prefetchState,
-      prefetchWallet,
-    ]
+    [buildHeaders, canCallApi, markTourComplete, preferredCluster, prefetchKey, prefetchState]
   );
 
   const handleCreatorWalletChange = useCallback(
@@ -380,10 +491,10 @@ const SquadsSafeOnboarding: React.FC = () => {
       updateForm({ creatorWallet: value });
       const trimmed = value.trim();
       if (canCallApi && BASE58_WALLET_REGEX.test(trimmed)) {
-        void fetchExistingSafe(trimmed, { force: true });
+        void fetchExistingSafe(trimmed, { force: true, cluster: preferredCluster });
       }
     },
-    [canCallApi, connectedWalletAddress, fetchExistingSafe, updateForm]
+    [canCallApi, connectedWalletAddress, fetchExistingSafe, preferredCluster, updateForm]
   );
 
   const copyToClipboard = useCallback(async (value: string, label: string) => {
@@ -395,8 +506,6 @@ const SquadsSafeOnboarding: React.FC = () => {
       console.warn('Failed to copy text', err);
     }
   }, []);
-
-  const sanitizedCreatorWallet = sanitize(form.creatorWallet);
 
   const syncResult = useCallback((updated: CreatedSafe) => {
     setResult((prev) => (prev && prev.request_id === updated.request_id ? updated : prev));
@@ -425,28 +534,38 @@ const SquadsSafeOnboarding: React.FC = () => {
 
   useEffect(() => {
     if (!canCallApi || !sanitizedCreatorWallet) {
-      if (prefetchState !== 'idle' || prefetchWallet !== null) {
+      if (prefetchState !== 'idle' || prefetchKey !== null) {
         setPrefetchState('idle');
-        setPrefetchWallet(null);
+        setPrefetchKey(null);
       }
       return;
     }
     if (!BASE58_WALLET_REGEX.test(sanitizedCreatorWallet)) {
       return;
     }
-    if (prefetchState === 'done' && prefetchWallet === sanitizedCreatorWallet) {
-      return;
-    }
-    if (result && result.creator_wallet === sanitizedCreatorWallet) {
+
+    const targetCluster = preferredCluster;
+    const fetchKey = `${targetCluster || 'default'}::${sanitizedCreatorWallet}`;
+
+    if (
+      result &&
+      result.creator_wallet === sanitizedCreatorWallet &&
+      sanitizeClusterValue(result.cluster) === sanitizeClusterValue(targetCluster)
+    ) {
+      if (prefetchKey !== fetchKey || prefetchState !== 'done') {
+        setPrefetchState('done');
+        setPrefetchKey(fetchKey);
+      }
       return;
     }
 
-    void fetchExistingSafe(sanitizedCreatorWallet);
+    void fetchExistingSafe(sanitizedCreatorWallet, { cluster: targetCluster });
   }, [
     canCallApi,
     fetchExistingSafe,
+    preferredCluster,
+    prefetchKey,
     prefetchState,
-    prefetchWallet,
     result,
     sanitizedCreatorWallet,
   ]);
@@ -625,11 +744,19 @@ const SquadsSafeOnboarding: React.FC = () => {
       } catch (err) {
         console.error('Failed to create Squads safe', err);
         if (err instanceof Error && /duplicate_request/i.test(err.message)) {
-          const loaded = await fetchExistingSafe(creatorWallet, { force: true });
+          const clusterOverride = sanitizeClusterValue(form.cluster) || preferredCluster;
+          const loaded = await fetchExistingSafe(creatorWallet, {
+            force: true,
+            cluster: clusterOverride,
+          });
           if (loaded) {
             setNonce(null);
             setIdempotencyKey(generateIdempotencyKey());
             updateForm({ creatorSignature: '' });
+            const refreshed = await issueNonce();
+            if (!refreshed) {
+              setNonce(null);
+            }
             setError(null);
             return;
           }
@@ -656,8 +783,10 @@ const SquadsSafeOnboarding: React.FC = () => {
       fetchExistingSafe,
       form,
       idempotencyKey,
+      issueNonce,
       markTourComplete,
       nonce,
+      preferredCluster,
       updateForm,
     ]
   );
@@ -1611,7 +1740,7 @@ const SquadsSafeOnboarding: React.FC = () => {
             )}
 
             {nonce && (
-              <div className="grid gap-2 md:grid-cols-2">
+              <div className="grid gap-2 md:grid-cols-2" data-attn-testid="nonce-block">
                 <div className="flex items-center justify-between rounded-md bg-gray-950/60 p-2">
                   <span>Nonce</span>
                   <button
