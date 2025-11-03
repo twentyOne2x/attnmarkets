@@ -1163,6 +1163,27 @@ impl SquadsSafeRepository {
         Ok(row.map(row_to_request))
     }
 
+    pub async fn find_stalled_requests(
+        &self,
+        stale_before: DateTime<Utc>,
+        limit: i64,
+    ) -> Result<Vec<SafeRequestRecord>> {
+        let rows = sqlx::query(
+            "select * from squads_safe_requests
+             where (status = 'pending' or (status = 'submitted' and status_url is null))
+               and (next_retry_at is null or next_retry_at <= now())
+               and last_attempt_at <= $1
+             order by last_attempt_at asc
+             limit $2",
+        )
+        .bind(stale_before)
+        .bind(limit.max(1))
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(rows.into_iter().map(row_to_request).collect())
+    }
+
     pub async fn create_pending(
         &self,
         input: NewSafeRequest,
@@ -1611,6 +1632,30 @@ impl SquadsSafeRepository {
         .bind(code)
         .bind(message)
         .bind(next_retry_at)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(row_to_request(row))
+    }
+
+    pub async fn record_attempt_error(
+        &self,
+        request_id: Uuid,
+        code: &str,
+        message: &str,
+    ) -> Result<SafeRequestRecord> {
+        let sanitized: String = message.chars().take(STATUS_ERROR_MAX_LEN).collect();
+        let row = sqlx::query(
+            "update squads_safe_requests set
+                error_code = $2,
+                error_message = $3,
+                updated_at = now()
+             where id = $1
+             returning *",
+        )
+        .bind(request_id)
+        .bind(code)
+        .bind(sanitized)
         .fetch_one(&self.pool)
         .await?;
 
