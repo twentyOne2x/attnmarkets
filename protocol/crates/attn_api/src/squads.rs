@@ -1150,7 +1150,8 @@ impl SquadsSafeRepository {
     ) -> Result<Option<SafeRequestRecord>> {
         let row = sqlx::query(
             "select * from squads_safe_requests
-             where creator_wallet = $1 and cluster = $2
+             where lower(creator_wallet) = lower($1)
+               and lower(cluster) = lower($2)
              order by created_at desc
              limit 1",
         )
@@ -1849,9 +1850,11 @@ fn row_to_request(row: sqlx::postgres::PgRow) -> SafeRequestRecord {
         members: row.get("members"),
         raw_response: row.get("raw_response"),
         raw_response_hash: row.get("raw_response_hash"),
-        import_source: row.get("import_source"),
-        import_metadata: row.get("import_metadata"),
-        imported_at: row.get("imported_at"),
+        import_source: row
+            .try_get("import_source")
+            .unwrap_or_else(|_| "attn_api".to_string()),
+        import_metadata: row.try_get("import_metadata").unwrap_or(None),
+        imported_at: row.try_get("imported_at").unwrap_or(None),
         status_last_checked_at: row.get("status_last_checked_at"),
         status_last_response: row.get("status_last_response"),
         status_last_response_hash: row.get("status_last_response_hash"),
