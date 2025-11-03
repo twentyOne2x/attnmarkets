@@ -61,9 +61,16 @@ const proxyRequest = async (request: Request, context: RouteParams) => {
     return NextResponse.json({ error: 'API base not configured' }, { status: 500 });
   }
 
-  if (process.env.NODE_ENV === 'production' && LOCALHOST_REGEX.test(apiBase)) {
+  const allowLocalApi = ['1', 'true', 'yes', 'on'].includes(
+    (process.env.NEXT_PUBLIC_ALLOW_LOCAL_API_BASE ?? '').trim().toLowerCase()
+  );
+
+  if (process.env.NODE_ENV === 'production' && LOCALHOST_REGEX.test(apiBase) && !allowLocalApi) {
     console.error('[bridge] Refusing to proxy to localhost API in production:', apiBase);
     return NextResponse.json({ error: 'API base misconfigured' }, { status: 500 });
+  }
+  if (process.env.NODE_ENV === 'production' && LOCALHOST_REGEX.test(apiBase) && allowLocalApi) {
+    console.info('[bridge] Local API base allowed for current environment.');
   }
 
   const requestId = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2);

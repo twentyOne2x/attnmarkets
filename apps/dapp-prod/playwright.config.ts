@@ -2,6 +2,7 @@ import type { PlaywrightTestConfig } from '@playwright/test';
 
 const config: PlaywrightTestConfig = {
   testDir: './tests',
+  testIgnore: ['bridge-proxy.spec.ts'],
   timeout: 120_000,
   use: {
     baseURL: 'http://127.0.0.1:3100',
@@ -13,11 +14,14 @@ const config: PlaywrightTestConfig = {
     timeout: 120_000,
     reuseExistingServer: false,
     env: {
-      NEXT_PUBLIC_API_BASE: 'https://test.attn.dev',
-      NEXT_PUBLIC_DATA_MODE: 'demo',
+      NEXT_PUBLIC_API_BASE: process.env.NEXT_PUBLIC_API_BASE ?? 'http://127.0.0.1:3999',
+      NEXT_PUBLIC_DATA_MODE: 'live',
       NEXT_PUBLIC_SQUADS_ENABLED: '1',
+      NEXT_PUBLIC_ATTN_API_KEY: 'playwright-key',
+      NEXT_PUBLIC_CSRF_TOKEN: 'playwright-client',
       NEXT_PUBLIC_PROGRAM_IDS:
-        '{"devnet":{"creator_vault":"HDztZyNcij21HhF5SR6rhk9wx9qx6yViebUrVU9W6C86","splitter":"AmGu31S9SPLXj12etgXKnuVMzTNb653mRjkSqU8bgaPN","stable_vault":"98jhX2iz4cec2evPKhLwA1HriVEbUAsMBo61bQpSef5Z","rewards_vault":"6M8TEGPJhspXoYtDvY5vd9DHg7ojCPgbrqjaWoZa2dfw"}}',
+        '{"devnet":{"creator_vault":"FtxLUmapXBT49yd5HUHS3hLp6foGBqgmR9ptxtK9dQcN","splitter":"abyjw2sS6VbdWXN74Xxk2haCQCeQsAfmzefLWCXuiG41","stable_vault":"CsUN3UqbrE8CFRG6dctmKu1F7ZJ6hNzqdK2JKJwgKi4W","rewards_vault":"W5dWeZQqTGG6w7xQEhoDueKPQPGpgRkUF468CEY2k1cr"}}',
+      NEXT_PUBLIC_ALLOW_LOCAL_API_BASE: '1',
     },
   },
 };

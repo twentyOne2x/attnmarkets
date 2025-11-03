@@ -88,15 +88,18 @@ export const runtimeEnv: RuntimeEnv = (() => {
 
   const isServer = typeof window === 'undefined';
   const isLocalApiBase = rawApiBase ? /https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(rawApiBase) : false;
+  const allowLocalApi = parseBoolean(process.env.NEXT_PUBLIC_ALLOW_LOCAL_API_BASE);
   let apiBaseUrl = rawApiBase;
 
-  if (rawApiBase && isLocalApiBase && process.env.NODE_ENV === 'production') {
+  if (rawApiBase && isLocalApiBase && process.env.NODE_ENV === 'production' && !allowLocalApi) {
     if (isServer) {
       console.error(
         `[attn] NEXT_PUBLIC_API_BASE is set to a localhost URL (${rawApiBase}) in production. Disabling Live mode fetches.`,
       );
     }
     apiBaseUrl = null;
+  } else if (rawApiBase && isLocalApiBase && allowLocalApi) {
+    console.info('[attn] Local API base allowed for current environment.');
   } else if (!rawApiBase && isServer) {
     console.warn('[attn] NEXT_PUBLIC_API_BASE is not configured. Live mode will remain disabled.');
   }
