@@ -1054,115 +1054,117 @@ export default function SponsorPage(): React.JSX.Element {
             ← Back to Dashboard
           </a>
         </div>
-        {isLive && !hasSquadsSafe && (
-          <div ref={liveChecklistRef} className="mb-8 space-y-4">
-            <div className="bg-dark-card border border-secondary/30 rounded-xl p-6">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-secondary">Live mode checklist</h2>
-                  <p className="text-sm text-text-secondary">
-                    You&apos;re connected to devnet. Complete the steps below to enable auto-sweeps and financing.
-                  </p>
+        {isLive && (
+          <div className="mb-8 space-y-4">
+            {!hasSquadsSafe && (
+              <div ref={liveChecklistRef} className="bg-dark-card border border-secondary/30 rounded-xl p-6">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-secondary">Live mode checklist</h2>
+                    <p className="text-sm text-text-secondary">
+                      You&apos;re connected to devnet. Complete the steps below to enable auto-sweeps and financing.
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center gap-2 rounded-full border border-secondary/40 bg-secondary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-secondary">
+                    Live — {cluster}
+                  </span>
                 </div>
-                <span className="inline-flex items-center gap-2 rounded-full border border-secondary/40 bg-secondary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-secondary">
-                  Live — {cluster}
-                </span>
+
+                <div className="mt-6 grid gap-4 md:grid-cols-3">
+                  <div className={`rounded-lg border ${isWalletConnected ? 'border-green-400/40 bg-green-500/10' : 'border-gray-700 bg-gray-900/60'} p-4`}>
+                    <div className="flex items-center justify-between text-sm font-semibold">
+                      <span>1. Connect wallet</span>
+                      <span className={`text-xs ${isWalletConnected ? 'text-green-300' : 'text-text-secondary'}`}>
+                        {isWalletConnected ? 'Connected' : 'Pending'}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs text-text-secondary">
+                      Use the wallet adapter to authorize sponsor actions in Live mode.
+                    </p>
+                    {!isWalletConnected && (
+                      <button
+                        onClick={connectWallet}
+                        className="mt-3 inline-flex items-center justify-center rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-dark hover:bg-primary/90"
+                      >
+                        Connect wallet
+                      </button>
+                    )}
+                  </div>
+
+                  <div className={`rounded-lg border ${hasSquadsSafe ? 'border-green-400/40 bg-green-500/10' : 'border-gray-700 bg-gray-900/60'} p-4`}>
+                    <div className="flex items-center justify-between text-sm font-semibold">
+                      <span>2. Create Squads safe</span>
+                      <span className={`text-xs ${hasSquadsSafe ? 'text-green-300' : 'text-text-secondary'}`}>
+                        {hasSquadsSafe ? 'Linked' : 'Pending'}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs text-text-secondary">
+                      Set up a 2-of-2 sponsor safe so auto-sweeps and locks are co-signed.
+                    </p>
+                    {hasSquadsSafe && squadsAdminAddress && (
+                      <div className="mt-3 rounded-md bg-black/40 px-3 py-2 text-[11px] font-mono text-text-secondary">
+                        {squadsAdminAddress.slice(0, 8)}…{squadsAdminAddress.slice(-6)}
+                      </div>
+                    )}
+                    {!hasSquadsSafe && (
+                      <a
+                        href="#squads-setup"
+                        className="mt-3 inline-flex items-center justify-center rounded-lg border border-secondary/50 px-3 py-1.5 text-sm font-medium text-secondary hover:border-secondary"
+                      >
+                        Open Squads setup
+                      </a>
+                    )}
+                  </div>
+
+                  <div className={`rounded-lg border ${(isFullyConnected && hasSquadsSafe) ? 'border-green-400/40 bg-green-500/10' : 'border-gray-700 bg-gray-900/60'} p-4`}>
+                    <div className="flex items-center justify-between text-sm font-semibold">
+                      <span>3. List + unlock financing</span>
+                      <span className={`text-xs ${(isFullyConnected && hasSquadsSafe) ? 'text-green-300' : isPreviewOnly ? 'text-warning' : 'text-text-secondary'}`}>
+                        {(isFullyConnected && hasSquadsSafe) ? 'Ready' : isPreviewOnly ? 'Preview saved' : 'Pending'}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs text-text-secondary">
+                      {isPreviewOnly
+                        ? 'Preview created, sign once your Squads safe is live to activate borrowing.'
+                        : 'Sign the attn sponsor agreement to appear on the leaderboard and enable loan quotes.'}
+                    </p>
+                    {creatorMetrics ? (
+                      <div className="mt-3 space-y-1 rounded-md border border-secondary/20 bg-black/30 px-3 py-2 text-[11px] text-text-secondary">
+                        <div className="flex justify-between">
+                          <span>Total fees (est.)</span>
+                          <span className="font-mono">${creatorMetrics.totalFeesUsd.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Avg. daily (14d)</span>
+                          <span className="font-mono">
+                            ${creatorMetrics.recent14dAverageUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-secondary">
+                          <span>Reward points</span>
+                          <span className="font-mono font-semibold">{creatorMetrics.leaderboardPoints.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-3 rounded-md bg-black/40 px-3 py-2 text-[11px] text-text-secondary">
+                        Connect your wallet to compute devnet fee stats.
+                      </div>
+                    )}
+                    {(!isFullyConnected || !hasSquadsSafe) && (
+                      <button
+                        onClick={signAndListCreator}
+                        className="mt-3 inline-flex items-center justify-center rounded-lg bg-secondary/30 px-3 py-1.5 text-sm font-medium text-secondary hover:bg-secondary/20 disabled:opacity-50"
+                        disabled={!isWalletConnected || (isFullyConnected && hasSquadsSafe)}
+                      >
+                        Sign &amp; list sponsor
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
+            )}
 
-              <div className="mt-6 grid gap-4 md:grid-cols-3">
-                <div className={`rounded-lg border ${isWalletConnected ? 'border-green-400/40 bg-green-500/10' : 'border-gray-700 bg-gray-900/60'} p-4`}>
-                  <div className="flex items-center justify-between text-sm font-semibold">
-                    <span>1. Connect wallet</span>
-                    <span className={`text-xs ${isWalletConnected ? 'text-green-300' : 'text-text-secondary'}`}>
-                      {isWalletConnected ? 'Connected' : 'Pending'}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-xs text-text-secondary">
-                    Use the wallet adapter to authorize sponsor actions in Live mode.
-                  </p>
-                  {!isWalletConnected && (
-                    <button
-                      onClick={connectWallet}
-                      className="mt-3 inline-flex items-center justify-center rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-dark hover:bg-primary/90"
-                    >
-                      Connect wallet
-                    </button>
-                  )}
-                </div>
-
-                <div className={`rounded-lg border ${hasSquadsSafe ? 'border-green-400/40 bg-green-500/10' : 'border-gray-700 bg-gray-900/60'} p-4`}>
-                  <div className="flex items-center justify-between text-sm font-semibold">
-                    <span>2. Create Squads safe</span>
-                    <span className={`text-xs ${hasSquadsSafe ? 'text-green-300' : 'text-text-secondary'}`}>
-                      {hasSquadsSafe ? 'Linked' : 'Pending'}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-xs text-text-secondary">
-                    Set up a 2-of-2 sponsor safe so auto-sweeps and locks are co-signed.
-                  </p>
-                  {hasSquadsSafe && squadsAdminAddress && (
-                    <div className="mt-3 rounded-md bg-black/40 px-3 py-2 text-[11px] font-mono text-text-secondary">
-                      {squadsAdminAddress.slice(0, 8)}…{squadsAdminAddress.slice(-6)}
-                    </div>
-                  )}
-                  {!hasSquadsSafe && (
-                    <a
-                      href="#squads-setup"
-                      className="mt-3 inline-flex items-center justify-center rounded-lg border border-secondary/50 px-3 py-1.5 text-sm font-medium text-secondary hover:border-secondary"
-                    >
-                      Open Squads setup
-                    </a>
-                  )}
-                </div>
-
-                <div className={`rounded-lg border ${(isFullyConnected && hasSquadsSafe) ? 'border-green-400/40 bg-green-500/10' : 'border-gray-700 bg-gray-900/60'} p-4`}>
-                  <div className="flex items-center justify-between text-sm font-semibold">
-                    <span>3. List + unlock financing</span>
-                    <span className={`text-xs ${(isFullyConnected && hasSquadsSafe) ? 'text-green-300' : isPreviewOnly ? 'text-warning' : 'text-text-secondary'}`}>
-                      {(isFullyConnected && hasSquadsSafe) ? 'Ready' : isPreviewOnly ? 'Preview saved' : 'Pending'}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-xs text-text-secondary">
-                    {isPreviewOnly
-                      ? 'Preview created, sign once your Squads safe is live to activate borrowing.'
-                      : 'Sign the attn sponsor agreement to appear on the leaderboard and enable loan quotes.'}
-                  </p>
-                  {creatorMetrics ? (
-                    <div className="mt-3 space-y-1 rounded-md border border-secondary/20 bg-black/30 px-3 py-2 text-[11px] text-text-secondary">
-                      <div className="flex justify-between">
-                        <span>Total fees (est.)</span>
-                        <span className="font-mono">${creatorMetrics.totalFeesUsd.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Avg. daily (14d)</span>
-                        <span className="font-mono">
-                          ${creatorMetrics.recent14dAverageUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-secondary">
-                        <span>Reward points</span>
-                        <span className="font-mono font-semibold">{creatorMetrics.leaderboardPoints.toLocaleString()}</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mt-3 rounded-md bg-black/40 px-3 py-2 text-[11px] text-text-secondary">
-                      Connect your wallet to compute devnet fee stats.
-                    </div>
-                  )}
-                  {(!isFullyConnected || !hasSquadsSafe) && (
-                    <button
-                      onClick={signAndListCreator}
-                      className="mt-3 inline-flex items-center justify-center rounded-lg bg-secondary/30 px-3 py-1.5 text-sm font-medium text-secondary hover:bg-secondary/20 disabled:opacity-50"
-                      disabled={!isWalletConnected || (isFullyConnected && hasSquadsSafe)}
-                    >
-                      Sign &amp; list sponsor
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {!hasSquadsSafe && squadsFeatureEnabled && SquadsSafeOnboarding && (
+            {squadsFeatureEnabled && SquadsSafeOnboarding && (
               <div id="squads-setup" className="scroll-mt-24">
                 <SquadsSafeOnboarding />
               </div>

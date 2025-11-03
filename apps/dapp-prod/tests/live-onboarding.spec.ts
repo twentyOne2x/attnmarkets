@@ -106,6 +106,19 @@ test.describe('Creator live onboarding', () => {
         body: JSON.stringify({ pools: [] }),
       });
     });
+    await page.route('**/api/bridge/v1/portfolio/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          wallet: 'demo-wallet',
+          deposits: [],
+          positions: [],
+          total_value_usdc: 0,
+          updated_at: new Date().toISOString(),
+        }),
+      });
+    });
     await page.route('**/api/bridge/readyz', async (route) => {
       await route.fulfill({
         status: 200,
@@ -130,7 +143,9 @@ test.describe('Creator live onboarding', () => {
       timeout: 60_000,
     });
 
-    const liveBadge = page.locator('nav [title*="Solana devnet active"]').first();
+    const liveBadge = page.getByLabel(
+      'Solana devnet active. Switch your wallet to Devnet (Phantom: Settings → Change Network → Devnet. Backpack: Avatar → Network → Devnet).'
+    );
     const connectButton = page.getByRole('button', { name: /Connect Wallet/i }).first();
     const gatingCallout = page.locator('text=Complete Squads setup to unlock financing');
 
