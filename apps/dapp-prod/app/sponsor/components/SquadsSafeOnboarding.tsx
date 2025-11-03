@@ -348,6 +348,9 @@ const SquadsSafeOnboarding: React.FC = () => {
         if (data.safe_address) {
           markTourComplete();
         }
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('attn:squads-safe-created'));
+        }
         setPrefetchState('done');
         return true;
       } catch (err) {
@@ -426,6 +429,9 @@ const SquadsSafeOnboarding: React.FC = () => {
         setPrefetchState('idle');
         setPrefetchWallet(null);
       }
+      return;
+    }
+    if (!BASE58_WALLET_REGEX.test(sanitizedCreatorWallet)) {
       return;
     }
     if (prefetchState === 'done' && prefetchWallet === sanitizedCreatorWallet) {
@@ -618,16 +624,18 @@ const SquadsSafeOnboarding: React.FC = () => {
         setError(null);
       } catch (err) {
         console.error('Failed to create Squads safe', err);
+        if (err instanceof Error && /duplicate_request/i.test(err.message)) {
+          const loaded = await fetchExistingSafe(creatorWallet, { force: true });
+          if (loaded) {
+            setNonce(null);
+            setIdempotencyKey(generateIdempotencyKey());
+            updateForm({ creatorSignature: '' });
+            setError(null);
+            return;
+          }
+        }
         const baseMessage = err instanceof Error ? err.message : 'Failed to create Squads safe.';
         const enhancedMessage = (() => {
-          if (/duplicate_request/i.test(baseMessage)) {
-            void fetchExistingSafe(creatorWallet, { force: true }).then((loaded) => {
-              if (loaded) {
-                setError('A Squads safe for this wallet already exists. Showing the latest request details below.');
-              }
-            });
-            return 'This wallet already has a Squads safe on this cluster. Loaded the existing request below.';
-          }
           if (/squads_create_failed/i.test(baseMessage)) {
             return `${baseMessage} — Squads returned an error. Check attn-api logs or the admin console, then retry once resolved.`;
           }
