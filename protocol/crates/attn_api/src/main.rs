@@ -194,6 +194,11 @@ const STATUS_SYNC_IDLE_SECS: u64 = 20;
 const STATUS_SYNC_BATCH_SIZE: i64 = 25;
 const STATUS_SYNC_PENDING_BACKOFF_SECS: i64 = 90;
 const STATUS_SYNC_ERROR_BACKOFF_SECS: i64 = 180;
+const STALLED_SWEEP_IDLE_SECS: u64 = 300;
+const STALLED_STALE_SECS: i64 = 600;
+const STALLED_BATCH_SIZE: i64 = 50;
+const STALLED_MAX_AUTO_ATTEMPTS: i32 = 3;
+const STALLED_RETRY_BACKOFF_SECS: i64 = 300;
 
 fn format_timestamp(dt: &DateTime<Utc>) -> String {
     dt.to_rfc3339_opts(SecondsFormat::Millis, true)
@@ -883,6 +888,14 @@ fn spawn_status_sync(service: SquadsService, repo: SquadsSafeRepository) {
     });
 }
 
+fn spawn_stalled_safe_worker(service: SquadsService, repo: SquadsSafeRepository) {
+    tokio::spawn(async move {
+        if let Err(err) = stalled_safe_loop(service, repo).await {
+            error!(error = ?err, "stalled safe worker exited");
+        }
+    });
+}
+
 async fn status_sync_loop<S>(service: SquadsService, repo: S) -> Result<()>
 where
     S: StatusSyncStore,
@@ -904,6 +917,21 @@ where
     Ok(())
 }
 
+async fn stalled_safe_loop(service: SquadsService, repo: SquadsSafeRepository) -> Result<()> {
+    loop {
+        match stalled_safe_iteration(&service, &repo).await {
+            Ok(true) => {}
+            Ok(false) => sleep(TokioDuration::from_secs(STALLED_SWEEP_IDLE_SECS)).await,
+            Err(err) => {
+                error!(error = ?err, "stalled safe iteration failed");
+                sleep(TokioDuration::from_secs(STALLED_SWEEP_IDLE_SECS)).await;
+            }
+        }
+    }
+    #[allow(unreachable_code)]
+    Ok(())
+}
+
 async fn status_sync_iteration<S>(service: &SquadsService, repo: &S) -> Result<bool>
 where
     S: StatusSyncStore,
@@ -915,6 +943,25 @@ where
     for job in jobs {
         if let Err(err) = process_status_job(service, repo, job).await {
             warn!(error = ?err, "status sync job failed");
+        }
+    }
+    Ok(true)
+}
+
+async fn stalled_safe_iteration(
+    service: &SquadsService,
+    repo: &SquadsSafeRepository,
+) -> Result<bool> {
+    let stale_before = Utc::now() - Duration::seconds(STALLED_STALE_SECS);
+    let jobs = repo
+        .find_stalled_requests(stale_before, STALLED_BATCH_SIZE)
+        .await?;
+    if jobs.is_empty() {
+        return Ok(false);
+    }
+    for job in jobs {
+        if let Err(err) = process_stalled_safe(service, repo, job).await {
+            warn!(error = ?err, "stalled safe job failed");
         }
     }
     Ok(true)
@@ -1071,6 +1118,93 @@ where
     Ok(())
 }
 
+async fn process_stalled_safe(
+    service: &SquadsService,
+    repo: &SquadsSafeRepository,
+    job: SafeRequestRecord,
+) -> Result<()> {
+    let cluster = job.cluster.clone();
+    if job.attempt_count >= STALLED_MAX_AUTO_ATTEMPTS {
+        repo.mark_failure(
+            job.id,
+            "auto_retry_exhausted",
+            "Safe creation did not complete after automatic retries",
+            Duration::seconds(STALLED_RETRY_BACKOFF_SECS),
+        )
+        .await?;
+        metrics::counter!(
+            "squads_safe_retry_total",
+            "result" => "failed",
+            "cluster" => cluster.clone()
+        )
+        .increment(1);
+        warn!(
+            request_id = %job.id,
+            cluster = %cluster,
+            "stalled safe request marked failed after automatic retries"
+        );
+        return Ok(());
+    }
+    let backoff = Duration::seconds(STALLED_RETRY_BACKOFF_SECS);
+    let prepared = repo.prepare_for_resubmit(job.id, backoff).await?;
+    info!(
+        request_id = %prepared.id,
+        attempt = prepared.attempt_count,
+        cluster = %prepared.cluster,
+        "retrying stalled safe request"
+    );
+    let input = CreateSafeInput {
+        creator_wallet: prepared.creator_wallet.clone(),
+        attn_wallet: prepared.attn_wallet.clone(),
+        safe_name: prepared.safe_name.clone(),
+        cluster: prepared.cluster.clone(),
+        threshold: prepared.threshold as u8,
+        contact_email: prepared.contact_email.clone(),
+        note: prepared.note.clone(),
+    };
+    match service.create_safe(input).await {
+        Ok(result) => {
+            let stored = repo
+                .update_submission(prepared.id, &result, backoff)
+                .await?;
+            let outcome = if stored.status == SafeStatus::Ready {
+                "ready"
+            } else {
+                "submitted"
+            };
+            metrics::counter!(
+                "squads_safe_retry_total",
+                "result" => outcome,
+                "cluster" => stored.cluster.clone()
+            )
+            .increment(1);
+            info!(
+                request_id = %stored.id,
+                status = %stored.status,
+                cluster = %stored.cluster,
+                "stalled safe request updated after retry"
+            );
+        }
+        Err(err) => {
+            repo.record_attempt_error(prepared.id, "squads_create_failed", &err.to_string())
+                .await?;
+            metrics::counter!(
+                "squads_safe_retry_total",
+                "result" => "error",
+                "cluster" => prepared.cluster.clone()
+            )
+            .increment(1);
+            warn!(
+                request_id = %prepared.id,
+                cluster = %prepared.cluster,
+                error = %err,
+                "automatic retry failed for stalled safe request"
+            );
+        }
+    }
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt().with_max_level(Level::INFO).init();
@@ -1147,11 +1281,14 @@ async fn main() -> Result<()> {
         );
     }
     if let (Some(service), Some(repo)) = (state.squads.clone(), state.squads_repo.clone()) {
-        if service.status_sync_enabled() {
-            spawn_status_sync(service, repo);
+        let status_service = service.clone();
+        let status_repo = repo.clone();
+        if status_service.status_sync_enabled() {
+            spawn_status_sync(status_service, status_repo);
         } else {
             info!("squads status sync worker disabled by configuration");
         }
+        spawn_stalled_safe_worker(service, repo);
     }
     let app = build_router(state.clone());
     let listener = TcpListener::bind(bind_addr).await?;
