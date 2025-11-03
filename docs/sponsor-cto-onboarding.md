@@ -69,7 +69,7 @@ This doc captures the incremental work required to:
   - [x] Store a localStorage key to prevent repeat tours once acknowledged.
 - [ ] Tests
   - [ ] Update unit and integration tests for the updated hook logic.
-  - [ ] Playwright/Jest snapshot verifying the new CTA + helper content.
+  - [x] Playwright coverage validating existing safe detection, CTA visibility, and duplicate submission handling.
 
 ### Frontend – Attn Signer Addition Flow
 
