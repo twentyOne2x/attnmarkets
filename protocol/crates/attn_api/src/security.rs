@@ -271,6 +271,7 @@ mod tests {
         let security = SecurityState::new(cfg);
         let mut headers = HeaderMap::new();
         headers.insert(API_KEY_HEADER, HeaderValue::from_static("secret"));
+        headers.insert(CSRF_HEADER, HeaderValue::from_static(DEFAULT_CSRF_TOKEN));
         let client = security.authenticate(&headers, None).unwrap();
         assert!(!client.is_admin);
         security.check_rate_limits("wallet", None).unwrap();
@@ -286,6 +287,7 @@ mod tests {
         let security = SecurityState::new(cfg);
         let mut headers = HeaderMap::new();
         headers.insert(API_KEY_HEADER, HeaderValue::from_static("secret"));
+        headers.insert(CSRF_HEADER, HeaderValue::from_static(DEFAULT_CSRF_TOKEN));
         let client = security.authenticate(&headers, None).unwrap();
         assert!(client.is_admin);
     }
