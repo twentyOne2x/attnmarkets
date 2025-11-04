@@ -44,9 +44,9 @@ use serde_json::{json, Value as JsonValue};
 use sha2::{Digest, Sha256};
 use sqlx::Error as SqlxError;
 use squads::{
-    is_valid_pubkey, sanitize_wallet, CreateSafeInput, ImportSafeInput, NewSafeRequest,
-    SafeRequestRecord, SafeStatus, SquadsConfig, SquadsSafeRepository, SquadsService,
-    StatusSyncUpdate,
+    is_valid_pubkey, sanitize_wallet, CreateSafeInput, CreateSafeResult, ImportSafeInput,
+    NewSafeRequest, SafeRequestRecord, SafeStatus, SquadsConfig, SquadsModeKind,
+    SquadsSafeRepository, SquadsService, StatusSyncUpdate,
 };
 use tokio::time::Duration as TokioDuration;
 use tokio::{net::TcpListener, time::sleep};
@@ -142,6 +142,98 @@ impl StatusSyncStore for SquadsSafeRepository {
         backoff: Duration,
     ) -> Result<SafeRequestRecord> {
         self.schedule_status_retry(request_id, backoff).await
+    }
+}
+
+#[async_trait]
+trait StalledSafeStore: Clone + Send + Sync + 'static {
+    async fn fetch_stalled_requests(
+        &self,
+        stale_before: DateTime<Utc>,
+        limit: i64,
+    ) -> Result<Vec<SafeRequestRecord>>;
+    async fn prepare_for_retry(
+        &self,
+        request_id: Uuid,
+        backoff: Duration,
+    ) -> Result<SafeRequestRecord>;
+    async fn store_retry_submission(
+        &self,
+        request_id: Uuid,
+        upstream: &CreateSafeResult,
+        backoff: Duration,
+    ) -> Result<SafeRequestRecord>;
+    async fn record_retry_error(
+        &self,
+        request_id: Uuid,
+        code: &str,
+        message: &str,
+    ) -> Result<SafeRequestRecord>;
+    async fn mark_retry_failure(
+        &self,
+        request_id: Uuid,
+        code: &str,
+        message: &str,
+        backoff: Duration,
+    ) -> Result<SafeRequestRecord>;
+}
+
+#[async_trait]
+impl StalledSafeStore for SquadsSafeRepository {
+    async fn fetch_stalled_requests(
+        &self,
+        stale_before: DateTime<Utc>,
+        limit: i64,
+    ) -> Result<Vec<SafeRequestRecord>> {
+        self.find_stalled_requests(stale_before, limit).await
+    }
+
+    async fn prepare_for_retry(
+        &self,
+        request_id: Uuid,
+        backoff: Duration,
+    ) -> Result<SafeRequestRecord> {
+        self.prepare_for_resubmit(request_id, backoff).await
+    }
+
+    async fn store_retry_submission(
+        &self,
+        request_id: Uuid,
+        upstream: &CreateSafeResult,
+        backoff: Duration,
+    ) -> Result<SafeRequestRecord> {
+        self.update_submission(request_id, upstream, backoff).await
+    }
+
+    async fn record_retry_error(
+        &self,
+        request_id: Uuid,
+        code: &str,
+        message: &str,
+    ) -> Result<SafeRequestRecord> {
+        self.record_attempt_error(request_id, code, message).await
+    }
+
+    async fn mark_retry_failure(
+        &self,
+        request_id: Uuid,
+        code: &str,
+        message: &str,
+        backoff: Duration,
+    ) -> Result<SafeRequestRecord> {
+        self.mark_failure(request_id, code, message, backoff).await
+    }
+}
+
+#[async_trait]
+trait SafeRetryClient: Clone + Send + Sync + 'static {
+    async fn retry_create_safe(&self, input: CreateSafeInput) -> Result<CreateSafeResult>;
+}
+
+#[async_trait]
+impl SafeRetryClient for SquadsService {
+    async fn retry_create_safe(&self, input: CreateSafeInput) -> Result<CreateSafeResult> {
+        self.create_safe(input).await
     }
 }
 
@@ -917,7 +1009,11 @@ where
     Ok(())
 }
 
-async fn stalled_safe_loop(service: SquadsService, repo: SquadsSafeRepository) -> Result<()> {
+async fn stalled_safe_loop<C, R>(service: C, repo: R) -> Result<()>
+where
+    C: SafeRetryClient,
+    R: StalledSafeStore,
+{
     loop {
         match stalled_safe_iteration(&service, &repo).await {
             Ok(true) => {}
@@ -948,13 +1044,14 @@ where
     Ok(true)
 }
 
-async fn stalled_safe_iteration(
-    service: &SquadsService,
-    repo: &SquadsSafeRepository,
-) -> Result<bool> {
+async fn stalled_safe_iteration<C, R>(service: &C, repo: &R) -> Result<bool>
+where
+    C: SafeRetryClient,
+    R: StalledSafeStore,
+{
     let stale_before = Utc::now() - Duration::seconds(STALLED_STALE_SECS);
     let jobs = repo
-        .find_stalled_requests(stale_before, STALLED_BATCH_SIZE)
+        .fetch_stalled_requests(stale_before, STALLED_BATCH_SIZE)
         .await?;
     if jobs.is_empty() {
         return Ok(false);
@@ -1118,14 +1215,14 @@ where
     Ok(())
 }
 
-async fn process_stalled_safe(
-    service: &SquadsService,
-    repo: &SquadsSafeRepository,
-    job: SafeRequestRecord,
-) -> Result<()> {
+async fn process_stalled_safe<C, R>(service: &C, repo: &R, job: SafeRequestRecord) -> Result<()>
+where
+    C: SafeRetryClient,
+    R: StalledSafeStore,
+{
     let cluster = job.cluster.clone();
     if job.attempt_count >= STALLED_MAX_AUTO_ATTEMPTS {
-        repo.mark_failure(
+        repo.mark_retry_failure(
             job.id,
             "auto_retry_exhausted",
             "Safe creation did not complete after automatic retries",
@@ -1146,7 +1243,7 @@ async fn process_stalled_safe(
         return Ok(());
     }
     let backoff = Duration::seconds(STALLED_RETRY_BACKOFF_SECS);
-    let prepared = repo.prepare_for_resubmit(job.id, backoff).await?;
+    let prepared = repo.prepare_for_retry(job.id, backoff).await?;
     info!(
         request_id = %prepared.id,
         attempt = prepared.attempt_count,
@@ -1162,10 +1259,10 @@ async fn process_stalled_safe(
         contact_email: prepared.contact_email.clone(),
         note: prepared.note.clone(),
     };
-    match service.create_safe(input).await {
+    match service.retry_create_safe(input).await {
         Ok(result) => {
             let stored = repo
-                .update_submission(prepared.id, &result, backoff)
+                .store_retry_submission(prepared.id, &result, backoff)
                 .await?;
             let outcome = if stored.status == SafeStatus::Ready {
                 "ready"
@@ -1186,7 +1283,7 @@ async fn process_stalled_safe(
             );
         }
         Err(err) => {
-            repo.record_attempt_error(prepared.id, "squads_create_failed", &err.to_string())
+            repo.record_retry_error(prepared.id, "squads_create_failed", &err.to_string())
                 .await?;
             metrics::counter!(
                 "squads_safe_retry_total",
@@ -2548,7 +2645,9 @@ mod tests {
     use axum::http::{Method, Request};
     use chrono::Duration;
     use http_body_util::BodyExt;
+    use std::collections::VecDeque;
     use serde_json::{json, Value};
+    use reqwest::Client;
     use tower::ServiceExt;
 
     use std::sync::Arc;
@@ -3120,10 +3219,342 @@ mod tests {
         }
     }
 
+    fn local_squads_config() -> SquadsConfig {
+        SquadsConfig {
+            base_url: Some("local".to_string()),
+            api_keys: vec![],
+            default_attn_wallet: "Attn111111111111111111111111111111111111111".to_string(),
+            default_cluster: "devnet".to_string(),
+            default_threshold: 2,
+            default_name_prefix: "CreatorVault-".to_string(),
+            payer_wallet: None,
+            rpc_url: None,
+            rpc_strict: false,
+            expected_config_digest: None,
+            config_digest: "test-config".to_string(),
+            status_sync_enabled: true,
+            kms_signer_resource: None,
+            kms_payer_resource: None,
+        }
+    }
+
+    #[derive(Clone)]
+    struct MockStalledRepo {
+        inner: Arc<Mutex<Vec<SafeRequestRecord>>>,
+    }
+
+    impl MockStalledRepo {
+        fn new(records: Vec<SafeRequestRecord>) -> Self {
+            Self {
+                inner: Arc::new(Mutex::new(records)),
+            }
+        }
+
+        async fn get(&self, id: Uuid) -> Option<SafeRequestRecord> {
+            let inner = self.inner.lock().await;
+            inner.iter().find(|record| record.id == id).cloned()
+        }
+    }
+
+    #[async_trait]
+    impl StalledSafeStore for MockStalledRepo {
+        async fn fetch_stalled_requests(
+            &self,
+            stale_before: DateTime<Utc>,
+            limit: i64,
+        ) -> Result<Vec<SafeRequestRecord>> {
+            let inner = self.inner.lock().await;
+            let now = Utc::now();
+            let mut matches: Vec<_> = inner
+                .iter()
+                .filter(|record| {
+                    let eligible = record.status == SafeStatus::Pending
+                        || (record.status == SafeStatus::Submitted && record.status_url.is_none());
+                    let due = record
+                        .next_retry_at
+                        .map(|ts| ts <= now)
+                        .unwrap_or(true);
+                    eligible && due && record.last_attempt_at <= stale_before
+                })
+                .cloned()
+                .collect();
+            matches.truncate(limit.max(1) as usize);
+            Ok(matches)
+        }
+
+        async fn prepare_for_retry(
+            &self,
+            request_id: Uuid,
+            backoff: Duration,
+        ) -> Result<SafeRequestRecord> {
+            let mut inner = self.inner.lock().await;
+            let record = inner
+                .iter_mut()
+                .find(|record| record.id == request_id)
+                .ok_or_else(|| anyhow!("missing record"))?;
+            record.status = SafeStatus::Pending;
+            record.attempt_count += 1;
+            record.last_attempt_at = Utc::now();
+            record.next_retry_at = Some(Utc::now() + backoff);
+            record.error_code = None;
+            record.error_message = None;
+            record.updated_at = Utc::now();
+            Ok(record.clone())
+        }
+
+        async fn store_retry_submission(
+            &self,
+            request_id: Uuid,
+            upstream: &CreateSafeResult,
+            backoff: Duration,
+        ) -> Result<SafeRequestRecord> {
+            let mut inner = self.inner.lock().await;
+            let record = inner
+                .iter_mut()
+                .find(|record| record.id == request_id)
+                .ok_or_else(|| anyhow!("missing record"))?;
+            let ready = !upstream.safe_address.is_empty();
+            record.status = if ready {
+                SafeStatus::Ready
+            } else {
+                SafeStatus::Submitted
+            };
+            record.safe_address = if ready {
+                Some(upstream.safe_address.clone())
+            } else {
+                None
+            };
+            record.transaction_url = upstream.transaction_url.clone();
+            record.members = json!(upstream.members.clone());
+            record.raw_response = Some(upstream.raw_response.clone());
+            record.raw_response_hash = Some("hash".to_string());
+            record.status_url = upstream.status_url.clone();
+            record.status_last_checked_at = Some(Utc::now());
+            record.status_last_response = Some(upstream.raw_response.clone());
+            record.status_last_response_hash = Some("hash".to_string());
+            record.status_sync_error = None;
+            record.last_attempt_at = Utc::now();
+            record.next_retry_at = if ready {
+                None
+            } else {
+                Some(Utc::now() + backoff)
+            };
+            record.updated_at = Utc::now();
+            Ok(record.clone())
+        }
+
+        async fn record_retry_error(
+            &self,
+            request_id: Uuid,
+            code: &str,
+            message: &str,
+        ) -> Result<SafeRequestRecord> {
+            let mut inner = self.inner.lock().await;
+            let record = inner
+                .iter_mut()
+                .find(|record| record.id == request_id)
+                .ok_or_else(|| anyhow!("missing record"))?;
+            record.error_code = Some(code.to_string());
+            record.error_message = Some(message.to_string());
+            record.updated_at = Utc::now();
+            Ok(record.clone())
+        }
+
+        async fn mark_retry_failure(
+            &self,
+            request_id: Uuid,
+            code: &str,
+            message: &str,
+            backoff: Duration,
+        ) -> Result<SafeRequestRecord> {
+            let mut inner = self.inner.lock().await;
+            let record = inner
+                .iter_mut()
+                .find(|record| record.id == request_id)
+                .ok_or_else(|| anyhow!("missing record"))?;
+            record.status = SafeStatus::Failed;
+            record.error_code = Some(code.to_string());
+            record.error_message = Some(message.to_string());
+            record.last_attempt_at = Utc::now();
+            record.next_retry_at = Some(Utc::now() + backoff);
+            record.updated_at = Utc::now();
+            Ok(record.clone())
+        }
+    }
+
+    #[derive(Clone)]
+    struct StubRetryService {
+        responses: Arc<Mutex<VecDeque<Result<CreateSafeResult>>>>,
+    }
+
+    impl StubRetryService {
+        fn new(responses: Vec<Result<CreateSafeResult>>) -> Self {
+            Self {
+                responses: Arc::new(Mutex::new(VecDeque::from(responses))),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl SafeRetryClient for StubRetryService {
+        async fn retry_create_safe(&self, _input: CreateSafeInput) -> Result<CreateSafeResult> {
+            let mut responses = self.responses.lock().await;
+            responses
+                .pop_front()
+                .unwrap_or_else(|| Err(anyhow!("no stub response configured")))
+        }
+    }
+
+    fn sample_ready_result(job: &SafeRequestRecord) -> CreateSafeResult {
+        CreateSafeResult {
+            request_id: Uuid::new_v4().to_string(),
+            safe_address: "SafeRetry1111111111111111111111111111111111111".to_string(),
+            transaction_url: Some("https://explorer.local/tx/123".to_string()),
+            cluster: job.cluster.clone(),
+            threshold: job.threshold as u8,
+            members: vec![job.creator_wallet.clone(), job.attn_wallet.clone()],
+            raw_response: json!({
+                "request_id": job.id.to_string(),
+                "safe_address": "SafeRetry1111111111111111111111111111111111111"
+            }),
+            mode: SquadsModeKind::Local,
+            status_url: Some("https://status.local/req/1".to_string()),
+        }
+    }
+
+    #[tokio::test]
+    async fn stalled_safe_iteration_returns_false_when_no_stale_requests() {
+        let mut record = sample_record(SafeStatus::Pending, None);
+        record.last_attempt_at = Utc::now();
+        record.next_retry_at = Some(Utc::now() + Duration::seconds(60));
+        let repo = MockStalledRepo::new(vec![record]);
+        let service = StubRetryService::new(vec![]);
+
+        let processed = stalled_safe_iteration(&service, &repo).await.unwrap();
+        assert!(!processed);
+    }
+
+    #[tokio::test]
+    async fn stalled_safe_iteration_retries_stale_pending_request() {
+        let mut record = sample_record(SafeStatus::Pending, None);
+        record.last_attempt_at = Utc::now() - Duration::seconds(STALLED_STALE_SECS + 10);
+        record.next_retry_at = Some(Utc::now() - Duration::seconds(30));
+        let repo = MockStalledRepo::new(vec![record.clone()]);
+        let service = StubRetryService::new(vec![Ok(sample_ready_result(&record))]);
+
+        let processed = stalled_safe_iteration(&service, &repo).await.unwrap();
+        assert!(processed);
+
+        let updated = repo.get(record.id).await.unwrap();
+        assert_eq!(updated.status, SafeStatus::Ready);
+        assert!(updated.safe_address.is_some());
+        assert_eq!(updated.attempt_count, record.attempt_count + 1);
+        assert!(updated.next_retry_at.is_none());
+        assert!(updated.error_code.is_none());
+    }
+
+    #[tokio::test]
+    async fn process_stalled_safe_marks_failure_after_max_attempts() {
+        let mut record = sample_record(SafeStatus::Pending, None);
+        record.attempt_count = STALLED_MAX_AUTO_ATTEMPTS;
+        record.last_attempt_at = Utc::now() - Duration::seconds(STALLED_STALE_SECS + 5);
+        record.next_retry_at = Some(Utc::now() - Duration::seconds(5));
+        let repo = MockStalledRepo::new(vec![record.clone()]);
+        let service = StubRetryService::new(vec![]);
+
+        process_stalled_safe(&service, &repo, record.clone())
+            .await
+            .unwrap();
+
+        let updated = repo.get(record.id).await.unwrap();
+        assert_eq!(updated.status, SafeStatus::Failed);
+        assert_eq!(
+            updated.error_code.as_deref(),
+            Some("auto_retry_exhausted")
+        );
+        assert!(updated
+            .next_retry_at
+            .expect("next retry set")
+            > Utc::now());
+    }
+
+    #[tokio::test]
+    async fn process_stalled_safe_records_error_on_retry_failure() {
+        let mut record = sample_record(SafeStatus::Pending, None);
+        record.last_attempt_at = Utc::now() - Duration::seconds(STALLED_STALE_SECS + 5);
+        record.next_retry_at = Some(Utc::now() - Duration::seconds(5));
+        let repo = MockStalledRepo::new(vec![record.clone()]);
+        let service = StubRetryService::new(vec![Err(anyhow!("upstream failed"))]);
+
+        process_stalled_safe(&service, &repo, record.clone())
+            .await
+            .unwrap();
+
+        let updated = repo.get(record.id).await.unwrap();
+        assert_eq!(updated.status, SafeStatus::Pending);
+        assert_eq!(
+            updated.error_code.as_deref(),
+            Some("squads_create_failed")
+        );
+        assert!(updated
+            .error_message
+            .as_ref()
+            .unwrap()
+            .contains("upstream failed"));
+        assert_eq!(updated.attempt_count, record.attempt_count + 1);
+    }
+
+    #[tokio::test]
+    async fn http_server_serves_overview_endpoint() {
+        let (app, _store) = test_app();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind test listener");
+        let addr = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            axum::serve(listener, app.into_make_service())
+                .await
+                .expect("server runs");
+        });
+        let client = Client::new();
+        let url = format!("http://{}/v1/overview", addr);
+        let response = loop {
+            match client.get(&url).send().await {
+                Ok(resp) => break resp,
+                Err(_) => tokio::time::sleep(std::time::Duration::from_millis(25)).await,
+            }
+        };
+        assert_eq!(response.status(), reqwest::StatusCode::OK);
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn http_server_serves_readyz_endpoint() {
+        let (app, _store) = test_app();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind test listener");
+        let addr = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            axum::serve(listener, app.into_make_service())
+                .await
+                .expect("server runs");
+        });
+        let client = Client::new();
+        let url = format!("http://{}/readyz", addr);
+        let response = loop {
+            match client.get(&url).send().await {
+                Ok(resp) => break resp,
+                Err(_) => tokio::time::sleep(std::time::Duration::from_millis(25)).await,
+            }
+        };
+        assert_eq!(response.status(), reqwest::StatusCode::OK);
+        server.abort();
+    }
+
     #[tokio::test]
     async fn status_sync_iteration_promotes_ready() {
-        std::env::set_var("ATTN_API_SQUADS_BASE_URL", "local");
-        let config = SquadsConfig::from_env().unwrap().unwrap();
+        let config = local_squads_config();
         let service = SquadsService::new(config).await.unwrap();
         let record = sample_record(
             SafeStatus::Submitted,
@@ -3137,14 +3568,11 @@ mod tests {
         assert_eq!(updated.status, SafeStatus::Ready);
         assert!(updated.status_last_response_hash.is_some());
         assert!(updated.status_sync_error.is_none());
-
-        std::env::remove_var("ATTN_API_SQUADS_BASE_URL");
     }
 
     #[tokio::test]
     async fn status_sync_iteration_returns_false_without_jobs() {
-        std::env::set_var("ATTN_API_SQUADS_BASE_URL", "local");
-        let config = SquadsConfig::from_env().unwrap().unwrap();
+        let config = local_squads_config();
         let service = SquadsService::new(config).await.unwrap();
         let repo = MockStatusRepo::new(vec![sample_record(
             SafeStatus::Ready,
@@ -3153,7 +3581,5 @@ mod tests {
 
         let processed = status_sync_iteration(&service, &repo).await.unwrap();
         assert!(!processed);
-
-        std::env::remove_var("ATTN_API_SQUADS_BASE_URL");
     }
 }
