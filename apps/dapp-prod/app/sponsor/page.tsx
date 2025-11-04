@@ -1,7 +1,7 @@
 // apps/dapp/app/sponsor/page.tsx
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Navigation from '../components/Navigation';
@@ -12,8 +12,8 @@ import { useAppContext } from '../context/AppContext';
 import { calculateBorrowingTerms } from '../utils/borrowingCalculations';
 import { runtimeEnv } from '../config/runtime';
 import CreatorTourOverlay from './components/CreatorTourOverlay';
-
-const LIVE_TOUR_STORAGE_KEY = 'attn.liveSponsorTour';
+import { buildLiveTourStorageKey, normalizeCluster } from './constants';
+import type { SafeDetectionEventDetail } from './types';
 
 const squadsFeatureEnabled = runtimeEnv.squadsEnabled;
 
@@ -150,21 +150,6 @@ export default function SponsorPage(): React.JSX.Element {
     setHasMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (!hasMounted) return;
-    const startTourParam = searchParams?.get('startTour');
-    if (!startTourParam) return;
-    const normalized = startTourParam.toLowerCase();
-    if (normalized === '0' || normalized === 'false' || normalized === 'no') {
-      return;
-    }
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(LIVE_TOUR_STORAGE_KEY);
-    }
-    setShowLiveTour(true);
-    router.replace('/sponsor', { scroll: false });
-  }, [hasMounted, router, searchParams]);
-
   // Don't auto-generate wallet - let user connect manually
   useEffect(() => {
     if (!currentUserWallet) {
@@ -180,6 +165,36 @@ export default function SponsorPage(): React.JSX.Element {
   const hasSquadsSafe = hasCreatorVault || safeDetected;
   const showLoanInterface = !isLive || (isLive && hasSquadsSafe);
   const squadsAdminAddress = currentUserCreator?.admin;
+  const normalizedRuntimeCluster = useMemo(() => normalizeCluster(runtimeEnv.cluster), []);
+  const currentCreatorCluster = useMemo(() => {
+    if (currentUserCreator && typeof (currentUserCreator as { cluster?: unknown }).cluster === 'string') {
+      return (currentUserCreator as { cluster?: string | null }).cluster ?? null;
+    }
+    return null;
+  }, [currentUserCreator]);
+  const resolveTourStorageKey = useCallback(
+    (record?: { cluster?: string | null; creator_wallet?: string | null }) => {
+      const clusterSource = record?.cluster ?? currentCreatorCluster ?? normalizedRuntimeCluster;
+      const walletSource = record?.creator_wallet ?? currentUserCreator?.wallet ?? currentUserWallet ?? null;
+      return buildLiveTourStorageKey(clusterSource, walletSource);
+    },
+    [currentCreatorCluster, currentUserCreator?.wallet, currentUserWallet, normalizedRuntimeCluster]
+  );
+
+  useEffect(() => {
+    if (!hasMounted) return;
+    const startTourParam = searchParams?.get('startTour');
+    if (!startTourParam) return;
+    const normalized = startTourParam.toLowerCase();
+    if (normalized === '0' || normalized === 'false' || normalized === 'no') {
+      return;
+    }
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(resolveTourStorageKey());
+    }
+    setShowLiveTour(true);
+    router.replace('/sponsor', { scroll: false });
+  }, [hasMounted, resolveTourStorageKey, router, searchParams]);
 
   useEffect(() => {
     if (!hasMounted) return;
@@ -188,38 +203,58 @@ export default function SponsorPage(): React.JSX.Element {
       return;
     }
     if (typeof window === 'undefined') return;
-    const seen = window.localStorage.getItem(LIVE_TOUR_STORAGE_KEY);
+    const seen = window.localStorage.getItem(resolveTourStorageKey());
     if (!seen) {
       setShowLiveTour(true);
     }
-  }, [hasMounted, isLive, hasSquadsSafe]);
+  }, [hasMounted, isLive, hasSquadsSafe, resolveTourStorageKey]);
 
-  const handleDismissLiveTour = useCallback(() => {
-    setShowLiveTour(false);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(LIVE_TOUR_STORAGE_KEY, 'seen');
-    }
-  }, []);
+  const handleDismissLiveTour = useCallback(
+    (record?: { cluster?: string | null; creator_wallet?: string | null }) => {
+      setShowLiveTour(false);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(resolveTourStorageKey(record), 'seen');
+      }
+    },
+    [resolveTourStorageKey]
+  );
+
+  const handleSafeDetected = useCallback(
+    (record: { request_id?: string | null; cluster?: string | null; creator_wallet?: string | null } | null | undefined) => {
+      setSafeDetected(true);
+      handleDismissLiveTour(record ?? undefined);
+    },
+    [handleDismissLiveTour]
+  );
 
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
     }
-    const handleSafeCreated = () => {
-      handleDismissLiveTour();
-      setSafeDetected(true);
+    const handleSafeCreated = (event: Event) => {
+      const detail = (event as CustomEvent<{ record?: { cluster?: string | null; creator_wallet?: string | null } }>).detail;
+      handleSafeDetected(detail?.record);
     };
-    window.addEventListener('attn:squads-safe-created', handleSafeCreated);
+    window.addEventListener('attn:squads-safe-created', handleSafeCreated as EventListener);
     return () => {
-      window.removeEventListener('attn:squads-safe-created', handleSafeCreated);
+      window.removeEventListener('attn:squads-safe-created', handleSafeCreated as EventListener);
     };
-  }, [handleDismissLiveTour]);
+  }, [handleSafeDetected]);
 
   useEffect(() => {
     if (hasCreatorVault) {
-      setSafeDetected(true);
+      handleSafeDetected({
+        creator_wallet: currentUserCreator?.wallet ?? null,
+        cluster: currentCreatorCluster ?? normalizedRuntimeCluster,
+      });
     }
-  }, [hasCreatorVault]);
+  }, [
+    currentCreatorCluster,
+    currentUserCreator?.wallet,
+    handleSafeDetected,
+    hasCreatorVault,
+    normalizedRuntimeCluster,
+  ]);
 
   const handleFocusLiveTour = useCallback(() => {
     if (liveChecklistRef.current) {
@@ -1166,7 +1201,7 @@ export default function SponsorPage(): React.JSX.Element {
 
             {squadsFeatureEnabled && SquadsSafeOnboarding && (
               <div id="squads-setup" className="scroll-mt-24">
-                <SquadsSafeOnboarding />
+                <SquadsSafeOnboarding onSafeDetected={handleSafeDetected} />
               </div>
             )}
           </div>

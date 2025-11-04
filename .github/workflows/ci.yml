@@ -60,6 +60,12 @@ jobs:
         working-directory: protocol
         run: sqlx migrate run
 
+      - name: Dapp lint/typecheck/test
+        run: |
+          pnpm --filter dapp-prod lint
+          pnpm --filter dapp-prod typecheck
+          pnpm --filter dapp-prod test
+
       - name: Backend tests
         working-directory: protocol
         run: cargo test -p attn_api

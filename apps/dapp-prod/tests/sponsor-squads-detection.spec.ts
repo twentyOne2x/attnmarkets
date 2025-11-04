@@ -1,11 +1,21 @@
 import { test, expect, Page, APIRequestContext } from '@playwright/test';
+import { buildLiveTourStorageKey } from '../app/sponsor/constants';
+import type { CreatedSafe } from '../app/sponsor/types';
+
+process.env.NEXT_PUBLIC_ATTN_TEST = '1';
 
 const STORAGE_KEY = 'attn-market-app-state';
-const TOUR_KEY = 'attn.liveSponsorTour';
 const EXISTING_WALLET = 'ehNPTG1BUYU8jxn5TxhSmjrVt826ipHZChMkfkYNc8D';
 const SAFE_REQUEST_ID = 'req-existing-safe-123';
 const MOCK_API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://127.0.0.1:3999';
 const SAFE_STORAGE_PREFIX = 'attn.squads.safe';
+const DEFAULT_CLUSTER = 'devnet';
+
+const tourKeyFor = (wallet: string, cluster = DEFAULT_CLUSTER) =>
+  buildLiveTourStorageKey(cluster, wallet);
+
+const safeStorageKeyFor = (wallet: string, cluster = DEFAULT_CLUSTER) =>
+  `${SAFE_STORAGE_PREFIX}::${cluster}::${wallet}`;
 
 type TestNonce = {
   nonce: string;
@@ -42,24 +52,35 @@ const buildSafeResponse = (wallet: string) => ({
   updated_at: new Date().toISOString(),
 });
 
+const pendingSafeResponse: CreatedSafe = {
+  ...buildSafeResponse(EXISTING_WALLET),
+  status: 'queued',
+  safe_address: null,
+};
+
+declare global {
+  interface Window {
+    __attnEmitSafeDetected?: (record: CreatedSafe, type?: 'existing' | 'new') => void;
+  }
+}
+
 const prepareWalletState = async (page: Page, wallet: string) => {
+  const tourKey = tourKeyFor(wallet);
   await page.addInitScript(
     ([walletKey, value, tourKey]) => {
       window.localStorage.setItem(walletKey, JSON.stringify({ currentUserWallet: value }));
       window.localStorage.setItem(tourKey, 'pending');
     },
-    [STORAGE_KEY, wallet, TOUR_KEY]
+    [STORAGE_KEY, wallet, tourKey]
   );
 };
 
 const seedSafeCache = async (page: Page, wallet: string, record: ReturnType<typeof buildSafeResponse>) => {
-  const key = `${SAFE_STORAGE_PREFIX}.devnet.${wallet}`;
-  await page.addInitScript(
-    ([storageKey, safeRecord]) => {
-      window.localStorage.setItem(storageKey, JSON.stringify({ record: safeRecord, stored_at: Date.now() }));
-    },
-    [key, record]
-  );
+  const key = safeStorageKeyFor(wallet);
+  await page.addInitScript((args) => {
+    const [storageKey, safeRecord] = args as [string, ReturnType<typeof buildSafeResponse>];
+    window.localStorage.setItem(storageKey, JSON.stringify({ record: safeRecord, stored_at: Date.now() }));
+  }, [key, record]);
 };
 
 const resetMockApi = async (request: APIRequestContext) => {
@@ -120,7 +141,7 @@ test.describe('Sponsor Squads detection', () => {
       await route.fulfill({
         status: 201,
         contentType: 'application/json',
-        body: JSON.stringify(pendingSafe),
+        body: JSON.stringify(pendingSafeResponse),
       });
     });
 
@@ -181,7 +202,7 @@ test.describe('Sponsor Squads detection', () => {
 
     const safePayload = buildSafeResponse(EXISTING_WALLET);
     await page.evaluate((payload) => {
-      window.dispatchEvent(new CustomEvent('attn:test:set-result', { detail: { record: payload, type: 'existing' } }));
+      window.__attnEmitSafeDetected?.(payload, 'existing');
     }, safePayload);
 
     await expect(page.getByText('Existing Squads safe found')).toBeVisible();
@@ -194,7 +215,7 @@ test.describe('Sponsor Squads detection', () => {
       )
       .toBe(true);
     await expect
-      .poll(() => page.evaluate((key) => window.localStorage.getItem(key), TOUR_KEY))
+      .poll(() => page.evaluate((key) => window.localStorage.getItem(key), tourKeyFor(EXISTING_WALLET)))
       .toBe('seen');
     await expect(page.getByText(safePayload.safe_address!)).toBeVisible();
   });
@@ -290,26 +311,17 @@ test.describe('Sponsor Squads detection', () => {
     await page.getByRole('button', { name: 'Submit safe request to attn' }).click();
 
     await page.evaluate((payload) => {
-      window.dispatchEvent(
-        new CustomEvent('attn:test:set-result', {
-          detail: { record: payload, type: 'existing' },
-        })
-      );
+      window.__attnEmitSafeDetected?.(payload, 'existing');
     }, safePayload);
 
     await expect(page.getByText('Existing Squads safe found')).toBeVisible();
   });
 
   test('throttles rapid submissions and surfaces cooldown messaging', async ({ page, request }) => {
-    const pendingSafe = {
-      ...buildSafeResponse(EXISTING_WALLET),
-      status: 'queued',
-      safe_address: null,
-    };
     await configureMockApi(request, {
       wallet: EXISTING_WALLET,
       creatorSequence: ['not_found'],
-      safe: pendingSafe,
+      safe: pendingSafeResponse,
     });
 
     let requestTriggered = false;
@@ -318,7 +330,7 @@ test.describe('Sponsor Squads detection', () => {
       await route.fulfill({
         status: 201,
         contentType: 'application/json',
-        body: JSON.stringify(pendingSafe),
+        body: JSON.stringify(pendingSafeResponse),
       });
     });
 
