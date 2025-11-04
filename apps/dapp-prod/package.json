@@ -41,6 +41,7 @@
     "@types/react-dom": "^18",
     "autoprefixer": "^10",
     "cypress": "^13.10.0",
+    "dotenv": "^16.4.5",
     "eslint": "^8",
     "eslint-config-next": "14.0.0",
     "postcss": "^8",

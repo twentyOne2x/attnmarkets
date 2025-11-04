@@ -2082,9 +2082,11 @@ const markTourComplete = useCallback(() => {
             </div>
           </header>
           <dl className="grid gap-3 md:grid-cols-2">
-            <div>
+            <div data-testid="safe-status-card">
               <dt className="text-xs uppercase tracking-wide text-gray-400">Status</dt>
-              <dd className="text-sm font-medium text-white">{result.status}</dd>
+              <dd className="text-sm font-medium text-white" data-testid="safe-status-value">
+                {result.status}
+              </dd>
             </div>
             <div>
               <dt className="text-xs uppercase tracking-wide text-gray-400">Mode</dt>
@@ -2125,9 +2127,9 @@ const markTourComplete = useCallback(() => {
                 )}
               </dd>
             </div>
-            <div>
+            <div data-testid="safe-address-card">
               <dt className="text-xs uppercase tracking-wide text-gray-400">Safe address</dt>
-              <dd className="flex items-center gap-2 text-sm text-gray-100">
+              <dd className="flex items-center gap-2 text-sm text-gray-100" data-testid="safe-address-value">
                 {result.safe_address ? formatAddress(result.safe_address) : 'Pending'}
                 {result.safe_address && (
                   <button
