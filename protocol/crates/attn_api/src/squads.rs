@@ -11,7 +11,7 @@ use reqwest::Client;
 use serde::Serialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use sqlx::{PgPool, QueryBuilder, Row};
+use sqlx::{types::ipnetwork::IpNetwork, PgPool, QueryBuilder, Row};
 use uuid::Uuid;
 
 use crate::kms::{HttpKmsClient, KmsSigner};
@@ -1017,7 +1017,7 @@ pub struct SafeRequestRecord {
     pub request_payload: Value,
     pub requester_api_key: Option<String>,
     pub requester_wallet: String,
-    pub requester_ip: Option<String>,
+    pub requester_ip: Option<IpAddr>,
     pub creator_signature: String,
     pub nonce: String,
     pub error_code: Option<String>,
@@ -1907,7 +1907,10 @@ fn row_to_request(row: sqlx::postgres::PgRow) -> SafeRequestRecord {
         request_payload: row.get("request_payload"),
         requester_api_key: row.get("requester_api_key"),
         requester_wallet: row.get("requester_wallet"),
-        requester_ip: row.get("requester_ip"),
+        requester_ip: row
+            .try_get::<Option<IpNetwork>, _>("requester_ip")
+            .unwrap_or(None)
+            .map(|value| value.ip()),
         creator_signature: row.get("creator_signature"),
         nonce: row.get("nonce"),
         error_code: row.get("error_code"),
