@@ -9,6 +9,13 @@ import { runtimeEnv } from '../../config/runtime';
 import { useDataMode } from '../../context/DataModeContext';
 import { useAppContext } from '../../context/AppContext';
 import type { Creator } from '../../utils/borrowingCalculations';
+import {
+  buildLiveTourStorageKey,
+  formatClusterLabel,
+  normalizeCluster,
+} from '../constants';
+import type { CreatedSafe, SafeDetectionEventDetail } from '../types';
+import { subscribeToSafeDetection } from '../safeDetectionEmitter';
 
 const BASE58_WALLET_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const BASE58_SIGNATURE_REGEX = /^[1-9A-HJ-NP-Za-km-z]{64,120}$/;
@@ -24,35 +31,6 @@ interface FormState {
   contactEmail: string;
   notes: string;
   creatorSignature: string;
-}
-
-interface CreatedSafe {
-  request_id: string;
-  status: string;
-  safe_address?: string | null;
-  transaction_url?: string | null;
-  status_url?: string | null;
-  cluster: string;
-  threshold: number;
-  members: string[];
-  mode: string;
-  raw_response?: unknown;
-  idempotency_key?: string | null;
-  creator_wallet: string;
-  attn_wallet: string;
-  import_source?: string | null;
-  import_metadata?: unknown;
-  imported_at?: string | null;
-  attempt_count: number;
-  last_attempt_at: string;
-  next_retry_at?: string | null;
-  status_last_checked_at?: string | null;
-  status_sync_error?: string | null;
-  status_last_response_hash?: string | null;
-  creator_vault?: string | null;
-  governance_linked_at?: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
 interface NonceResponse {
@@ -72,35 +50,49 @@ interface SuccessNotice {
   statusUrl?: string | null;
 }
 
-const LIVE_TOUR_STORAGE_KEY = 'attn.liveSponsorTour';
+interface SquadsSafeOnboardingProps {
+  onSafeDetected?: (record: CreatedSafe) => void;
+}
+
+const DEFAULT_SAFE_DETECTED_HANDLER: NonNullable<SquadsSafeOnboardingProps['onSafeDetected']> = () => {};
+
+type Brand<T, B> = T & { __brand: B };
+
+type NonEmptyBase58Wallet = Brand<string, 'NonEmptyBase58Wallet'>;
+type NonEmptyBase58Signature = Brand<string, 'NonEmptyBase58Signature'>;
+
+const asNonEmptyBase58Wallet = (value: string): NonEmptyBase58Wallet | null => {
+  const trimmed = value.trim();
+  return BASE58_WALLET_REGEX.test(trimmed) ? (trimmed as NonEmptyBase58Wallet) : null;
+};
+
+const asNonEmptyBase58Signature = (value: string): NonEmptyBase58Signature | null => {
+  const trimmed = value.trim();
+  return BASE58_SIGNATURE_REGEX.test(trimmed) ? (trimmed as NonEmptyBase58Signature) : null;
+};
+
+const hasNonEmptySafeAddress = (value?: string | null): value is string =>
+  typeof value === 'string' && value.trim().length > 0;
+
+type SafeLifecycleRecord =
+  | { state: 'pending'; record: CreatedSafe }
+  | { state: 'ready'; record: CreatedSafe }
+  | { state: 'failed'; record: CreatedSafe };
+
+const deriveSafeLifecycle = (record: CreatedSafe): SafeLifecycleRecord => {
+  const status = (record.status ?? '').toLowerCase();
+  if (status === 'failed') {
+    return { state: 'failed', record };
+  }
+  if (hasNonEmptySafeAddress(record.safe_address)) {
+    return { state: 'ready', record };
+  }
+  return { state: 'pending', record };
+};
+
+const isTerminalFailure = (record: CreatedSafe): boolean => deriveSafeLifecycle(record).state === 'failed';
 const PUMPFUN_CTO_FORM_URL =
   'https://docs.google.com/forms/d/e/1FAIpQLScCMDx2x2ewqaWvQ4JHs-hahEscqFKsV1NPoCTCIomil88AGA/viewform';
-
-const CLUSTER_LABELS: Record<string, string> = {
-  'mainnet-beta': 'Mainnet',
-  mainnet: 'Mainnet',
-  devnet: 'Devnet',
-  testnet: 'Testnet',
-  localnet: 'Localnet',
-};
-
-const normalizeCluster = (cluster?: string | null): string => {
-  if (!cluster) {
-    return 'devnet';
-  }
-  const trimmed = cluster.trim().toLowerCase();
-  if (trimmed === 'mainnet-beta') return 'mainnet';
-  if (trimmed === 'mainnet') return 'mainnet';
-  if (trimmed === 'devnet') return 'devnet';
-  if (trimmed === 'testnet') return 'testnet';
-  if (trimmed === 'localnet') return 'devnet';
-  return trimmed;
-};
-
-const formatClusterLabel = (cluster?: string | null): string => {
-  const normalized = normalizeCluster(cluster);
-  return CLUSTER_LABELS[normalized] ?? normalized;
-};
 
 const buildSquadsUiUrl = (cluster: string | undefined, safeAddress: string): string => {
   const normalizedCluster = normalizeCluster(cluster);
@@ -114,32 +106,37 @@ const buildSolanaExplorerUrl = (cluster: string | undefined, safeAddress: string
   return `https://explorer.solana.com/address/${safeAddress}${clusterSuffix}`;
 };
 
-const sanitizeClusterValue = (value?: string | null): string => {
+const pickNormalizedCluster = (value?: string | null): string | null => {
   if (typeof value !== 'string') {
-    return '';
+    return null;
   }
   const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed.toLowerCase() : '';
+  if (trimmed.length === 0) {
+    return null;
+  }
+  return normalizeCluster(trimmed);
 };
+
+const normalizedClusterFor = (value?: string | null): string => pickNormalizedCluster(value) ?? normalizeCluster(null);
 
 const resolveCluster = (
   formCluster?: string,
   runtimeCluster?: string | null,
   configuredCluster?: string | null
 ): string => {
-  const fromForm = sanitizeClusterValue(formCluster);
+  const fromForm = pickNormalizedCluster(formCluster);
   if (fromForm) {
     return fromForm;
   }
-  const fromRuntime = sanitizeClusterValue(runtimeCluster);
+  const fromRuntime = pickNormalizedCluster(runtimeCluster);
   if (fromRuntime) {
     return fromRuntime;
   }
-  const fromConfigured = sanitizeClusterValue(configuredCluster);
+  const fromConfigured = pickNormalizedCluster(configuredCluster);
   if (fromConfigured) {
     return fromConfigured;
   }
-  return 'devnet';
+  return normalizeCluster(null);
 };
 
 const composeSuccessNotice = (record: CreatedSafe, type: 'new' | 'existing'): SuccessNotice => {
@@ -241,21 +238,38 @@ const bridgePath = (path: string): string => `/api/bridge${path.startsWith('/') 
 
 const SUBMIT_COOLDOWN_MS = 1200;
 const SAFE_STORAGE_PREFIX = 'attn.squads.safe';
+const SAFE_CACHE_MAX_AGE_MS = 5 * 60 * 1000;
 
-const getSafeStorageKey = (wallet: string, cluster: string) =>
-  `${SAFE_STORAGE_PREFIX}.${cluster || 'default'}.${wallet}`;
+const buildSafeStorageKey = (wallet: NonEmptyBase58Wallet, cluster: string) =>
+  `${SAFE_STORAGE_PREFIX}::${cluster}::${wallet}`;
+
+const isCacheFresh = (storedAt?: number, updatedAt?: string | null): boolean => {
+  const now = Date.now();
+  if (typeof storedAt === 'number' && Number.isFinite(storedAt)) {
+    if (now - storedAt <= SAFE_CACHE_MAX_AGE_MS) {
+      return true;
+    }
+  }
+  if (typeof updatedAt === 'string') {
+    const parsed = Date.parse(updatedAt);
+    if (!Number.isNaN(parsed) && now - parsed <= SAFE_CACHE_MAX_AGE_MS) {
+      return true;
+    }
+  }
+  return false;
+};
 
 const storeSafeRecord = (record: CreatedSafe) => {
   if (typeof window === 'undefined') {
     return;
   }
   try {
-    const wallet = sanitize(record.creator_wallet ?? '');
-    const cluster = sanitizeClusterValue(record.cluster) || 'devnet';
+    const wallet = asNonEmptyBase58Wallet(record.creator_wallet ?? '');
     if (!wallet) {
       return;
     }
-    const key = getSafeStorageKey(wallet, cluster);
+    const cluster = normalizedClusterFor(record.cluster);
+    const key = buildSafeStorageKey(wallet, cluster);
     const payload = {
       record,
       stored_at: Date.now(),
@@ -271,13 +285,24 @@ const readSafeRecord = (wallet: string, cluster: string): CreatedSafe | null => 
     return null;
   }
   try {
-    const key = getSafeStorageKey(wallet, cluster);
+    const parsedWallet = asNonEmptyBase58Wallet(wallet);
+    if (!parsedWallet) {
+      return null;
+    }
+    const key = buildSafeStorageKey(parsedWallet, cluster);
     const raw = window.localStorage.getItem(key);
     if (!raw) {
       return null;
     }
-    const parsed = JSON.parse(raw) as { record?: CreatedSafe | null };
-    return parsed?.record ?? null;
+    const parsed = JSON.parse(raw) as { record?: CreatedSafe | null; stored_at?: number };
+    const record = parsed?.record ?? null;
+    if (!record) {
+      return null;
+    }
+    if (!isCacheFresh(parsed?.stored_at, record.updated_at)) {
+      return null;
+    }
+    return record;
   } catch (err) {
     console.warn('Failed to restore Squads safe record', err);
     return null;
@@ -289,7 +314,11 @@ const clearSafeRecord = (wallet: string, cluster: string) => {
     return;
   }
   try {
-    window.localStorage.removeItem(getSafeStorageKey(wallet, cluster));
+    const parsedWallet = asNonEmptyBase58Wallet(wallet);
+    if (!parsedWallet) {
+      return;
+    }
+    window.localStorage.removeItem(buildSafeStorageKey(parsedWallet, cluster));
   } catch (err) {
     console.warn('Failed to clear Squads safe cache', err);
   }
@@ -342,7 +371,9 @@ const buildCreatorDerivedSafe = (
   };
 };
 
-const SquadsSafeOnboarding: React.FC = () => {
+const SquadsSafeOnboarding: React.FC<SquadsSafeOnboardingProps> = ({
+  onSafeDetected = DEFAULT_SAFE_DETECTED_HANDLER,
+}) => {
   const { mode, apiBaseUrl, cluster: configuredCluster, apiKey, csrfToken, isAdmin } = useDataMode();
   const { currentUserWallet, currentUserCreator } = useAppContext();
   const wallet = useWallet();
@@ -393,11 +424,36 @@ const SquadsSafeOnboarding: React.FC = () => {
   const [signing, setSigning] = useState(false);
   const [autoSigning, setAutoSigning] = useState(false);
   const [signError, setSignError] = useState<string | null>(null);
-  const tourDismissedRef = useRef(false);
+  const lastTourKeyRef = useRef<string | null>(null);
+  const lastDetectedRequestIdRef = useRef<string | null>(null);
   const submitCooldownRef = useRef(0);
   const submitCooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [submitCoolingDown, setSubmitCoolingDown] = useState(false);
   const fetchingSafeKeyRef = useRef<string | null>(null);
+  const shouldDispatchSafeCreatedEvent = onSafeDetected === DEFAULT_SAFE_DETECTED_HANDLER;
+  const activeControllersRef = useRef<Set<AbortController>>(new Set());
+
+  const registerAbortController = useCallback((): AbortController => {
+    const controller = new AbortController();
+    activeControllersRef.current.add(controller);
+    return controller;
+  }, []);
+
+  const releaseAbortController = useCallback((controller: AbortController) => {
+    activeControllersRef.current.delete(controller);
+  }, []);
+
+  const emitSafeCreatedEvent = useCallback(() => {
+    if (!shouldDispatchSafeCreatedEvent || typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.dispatchEvent(new CustomEvent('attn:squads-safe-created'));
+    } catch (err) {
+      console.warn('Failed to emit Squads safe created event', err);
+    }
+  }, [shouldDispatchSafeCreatedEvent]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -435,21 +491,47 @@ const SquadsSafeOnboarding: React.FC = () => {
     [form.creatorSignature, nonce, signError]
   );
 
-const markTourComplete = useCallback(() => {
-    if (tourDismissedRef.current) {
-      return;
-    }
-    tourDismissedRef.current = true;
-    if (typeof window === 'undefined') {
-      return;
-    }
-    try {
-      window.localStorage.setItem(LIVE_TOUR_STORAGE_KEY, 'seen');
-      window.dispatchEvent(new CustomEvent('attn:squads-safe-created'));
-    } catch (err) {
-      console.warn('Failed to persist Squads tour dismissal', err);
-    }
-  }, []);
+  const markTourComplete = useCallback(
+    (record: CreatedSafe) => {
+      if (typeof window === 'undefined') {
+        return;
+      }
+      const storageKey = buildLiveTourStorageKey(record.cluster ?? null, record.creator_wallet ?? null);
+      if (lastTourKeyRef.current === storageKey) {
+        return;
+      }
+      lastTourKeyRef.current = storageKey;
+      try {
+        window.localStorage.setItem(storageKey, 'seen');
+      } catch (err) {
+        console.warn('Failed to persist Squads tour dismissal', err);
+      }
+      emitSafeCreatedEvent();
+    },
+    [emitSafeCreatedEvent]
+  );
+
+  const notifySafeDetected = useCallback(
+    (record: CreatedSafe) => {
+      const requestId = (record.request_id ?? '').trim();
+      if (!requestId || isTerminalFailure(record)) {
+        return;
+      }
+      if (lastDetectedRequestIdRef.current === requestId) {
+        return;
+      }
+      lastDetectedRequestIdRef.current = requestId;
+      const normalized = normalizedClusterFor(record.cluster);
+      console.info('[SquadsSafeOnboarding] safe detected', {
+        request_id: requestId,
+        cluster: normalized,
+        hasSafeAddress: hasNonEmptySafeAddress(record.safe_address),
+      });
+      onSafeDetected(record);
+      markTourComplete(record);
+    },
+    [markTourComplete, onSafeDetected]
+  );
 
   const canCallApi =
     mode === 'live' && Boolean(apiBaseUrl && apiKey && csrfToken && runtimeEnv.attnSquadsMember);
@@ -478,28 +560,32 @@ const markTourComplete = useCallback(() => {
   }, [canCallApi, form.creatorSignature, form.creatorWallet, nonce?.nonce, submitting, error]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    const handler = (event: Event) => {
-      const customEvent = event as CustomEvent<{ record: CreatedSafe; type?: 'existing' | 'new' }>;
-      const detail = customEvent.detail;
+    const applyDetail = (detail: SafeDetectionEventDetail | undefined) => {
       if (!detail || !detail.record) {
         return;
       }
       const record = detail.record;
       setResult(record);
       setSuccessNotice(composeSuccessNotice(record, detail.type ?? 'existing'));
-      markTourComplete();
-      try {
-        window.dispatchEvent(new CustomEvent('attn:squads-safe-created'));
-      } catch (err) {
-        console.warn('Failed to emit Squads safe created test event', err);
-      }
+      notifySafeDetected(record);
+      emitSafeCreatedEvent();
     };
-    window.addEventListener('attn:test:set-result', handler as EventListener);
-    return () => window.removeEventListener('attn:test:set-result', handler as EventListener);
-  }, [markTourComplete]);
+    if (typeof window !== 'undefined') {
+      const handler = (event: Event) => {
+        applyDetail((event as CustomEvent<SafeDetectionEventDetail>).detail);
+      };
+      window.addEventListener('attn:test:set-result', handler as EventListener);
+      const unsubscribe = subscribeToSafeDetection(applyDetail);
+      return () => {
+        window.removeEventListener('attn:test:set-result', handler as EventListener);
+        unsubscribe();
+      };
+    }
+    const unsubscribe = subscribeToSafeDetection(applyDetail);
+    return () => {
+      unsubscribe();
+    };
+  }, [emitSafeCreatedEvent, notifySafeDetected]);
 
   const updateForm = useCallback((next: Partial<FormState>) => {
     setForm((prev) => ({ ...prev, ...next }));
@@ -533,7 +619,7 @@ const markTourComplete = useCallback(() => {
       if (!canCallApi || !walletAddress) {
         return false;
       }
-      const targetCluster = sanitizeClusterValue(cluster) || preferredCluster;
+      const targetCluster = pickNormalizedCluster(cluster) ?? preferredCluster;
       const fetchKey = `${targetCluster || 'default'}::${walletAddress}`;
       if (!force && fetchingSafeKeyRef.current === fetchKey) {
         return false;
@@ -550,6 +636,7 @@ const markTourComplete = useCallback(() => {
       fetchingSafeKeyRef.current = fetchKey;
       setPrefetchState('loading');
       setPrefetchKey(fetchKey);
+      const controller = registerAbortController();
       try {
         const response = await fetch(
           `${bridgePath(`/v1/squads/safes/creator/${walletAddress}`)}${querySuffix}`,
@@ -557,6 +644,7 @@ const markTourComplete = useCallback(() => {
             method: 'GET',
             headers: buildHeaders(),
             cache: 'no-store',
+            signal: controller.signal,
           }
         );
         if (response.status === 404) {
@@ -571,25 +659,36 @@ const markTourComplete = useCallback(() => {
         const data = (await response.json()) as CreatedSafe;
         setResult(data);
         setSuccessNotice(composeSuccessNotice(data, 'existing'));
-        markTourComplete();
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('attn:squads-safe-created'));
-        }
+        notifySafeDetected(data);
         setPrefetchState('done');
         setPrefetchKey(fetchKey);
         return true;
       } catch (err) {
-        console.warn('Failed to fetch existing safe metadata', err);
+        if ((err as Error)?.name === 'AbortError') {
+          console.debug('Fetch existing safe aborted');
+        } else {
+          console.warn('Failed to fetch existing safe metadata', err);
+        }
         setPrefetchState('error');
         setPrefetchKey(fetchKey);
         return false;
       } finally {
+        releaseAbortController(controller);
         if (fetchingSafeKeyRef.current === fetchKey) {
           fetchingSafeKeyRef.current = null;
         }
       }
     },
-    [buildHeaders, canCallApi, markTourComplete, preferredCluster, prefetchKey, prefetchState]
+    [
+      buildHeaders,
+      canCallApi,
+      registerAbortController,
+      releaseAbortController,
+      notifySafeDetected,
+      preferredCluster,
+      prefetchKey,
+      prefetchState,
+    ]
   );
 
   const handleCreatorWalletChange = useCallback(
@@ -609,15 +708,24 @@ const markTourComplete = useCallback(() => {
     [canCallApi, connectedWalletAddress, fetchExistingSafe, preferredCluster, updateForm]
   );
 
-  const copyToClipboard = useCallback(async (value: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopiedField(label);
-      setTimeout(() => setCopiedField(null), 1500);
-    } catch (err) {
-      console.warn('Failed to copy text', err);
-    }
-  }, []);
+  const copyToClipboard = useCallback(
+    async (value: string, label: string) => {
+      try {
+        await navigator.clipboard.writeText(value);
+        setCopiedField(label);
+        if (copyResetTimerRef.current) {
+          clearTimeout(copyResetTimerRef.current);
+        }
+        copyResetTimerRef.current = setTimeout(() => {
+          setCopiedField(null);
+          copyResetTimerRef.current = null;
+        }, 1500);
+      } catch (err) {
+        console.warn('Failed to copy text', err);
+      }
+    },
+    []
+  );
 
   const syncResult = useCallback((updated: CreatedSafe) => {
     setResult((prev) => (prev && prev.request_id === updated.request_id ? updated : prev));
@@ -638,9 +746,9 @@ const markTourComplete = useCallback(() => {
       }
       return composeSuccessNotice(result, prev.type);
     });
-    markTourComplete();
+    notifySafeDetected(result);
     setShowFormGuide(false);
-  }, [markTourComplete, result]);
+  }, [notifySafeDetected, result]);
 
   useEffect(() => {
     if (!result) {
@@ -656,7 +764,7 @@ const markTourComplete = useCallback(() => {
     if (!sanitizedCreatorWallet) {
       return;
     }
-    const cacheCluster = sanitizeClusterValue(preferredCluster) || 'devnet';
+    const cacheCluster = normalizedClusterFor(preferredCluster);
     const cached = readSafeRecord(sanitizedCreatorWallet, cacheCluster);
     const derived = cached ?? buildCreatorDerivedSafe(currentUserCreator, cacheCluster, runtimeEnv.attnSquadsMember);
     if (!derived) {
@@ -664,10 +772,16 @@ const markTourComplete = useCallback(() => {
     }
     setResult(derived);
     setSuccessNotice(composeSuccessNotice(derived, 'existing'));
-    markTourComplete();
+    notifySafeDetected(derived);
     setPrefetchState('done');
     setPrefetchKey(`${cacheCluster || 'default'}::${sanitizedCreatorWallet}`);
-  }, [currentUserCreator, markTourComplete, preferredCluster, result, sanitizedCreatorWallet]);
+  }, [
+    currentUserCreator,
+    notifySafeDetected,
+    preferredCluster,
+    result,
+    sanitizedCreatorWallet,
+  ]);
 
   useEffect(() => {
     if (!canCallApi || !sanitizedCreatorWallet) {
@@ -692,7 +806,7 @@ const markTourComplete = useCallback(() => {
     if (
       result &&
       result.creator_wallet === sanitizedCreatorWallet &&
-      sanitizeClusterValue(result.cluster) === sanitizeClusterValue(targetCluster)
+      normalizedClusterFor(result.cluster) === normalizedClusterFor(targetCluster)
     ) {
       if (prefetchKey !== fetchKey || prefetchState !== 'done') {
         setPrefetchState('done');
@@ -744,11 +858,13 @@ const markTourComplete = useCallback(() => {
     }
 
     setRequestingNonce(true);
+    const controller = registerAbortController();
     try {
       const response = await fetch(bridgePath('/v1/squads/safes/nonce'), {
         method: 'POST',
         headers: buildHeaders(),
         body: JSON.stringify({ creator_wallet: creatorWallet }),
+        signal: controller.signal,
       });
       if (!response.ok) {
         const message = await response
@@ -762,13 +878,18 @@ const markTourComplete = useCallback(() => {
       setNonceError(null);
       return data;
     } catch (err) {
-      console.error('Failed to request nonce', err);
-      setNonceError(err instanceof Error ? err.message : 'Failed to request nonce.');
+      if ((err as Error)?.name === 'AbortError') {
+        console.debug('Nonce request aborted');
+      } else {
+        console.error('Failed to request nonce', err);
+        setNonceError(err instanceof Error ? err.message : 'Failed to request nonce.');
+      }
       return null;
     } finally {
+      releaseAbortController(controller);
       setRequestingNonce(false);
     }
-  }, [apiBaseUrl, buildHeaders, canCallApi, form.creatorWallet]);
+  }, [apiBaseUrl, buildHeaders, canCallApi, form.creatorWallet, registerAbortController, releaseAbortController]);
 
   const handleRequestNonce = useCallback(async () => {
     await issueNonce();
@@ -805,8 +926,15 @@ const markTourComplete = useCallback(() => {
 
   useEffect(() => {
     return () => {
+      activeControllersRef.current.forEach((controller) => {
+        controller.abort();
+      });
+      activeControllersRef.current.clear();
       if (submitCooldownTimerRef.current) {
         clearTimeout(submitCooldownTimerRef.current);
+      }
+      if (copyResetTimerRef.current) {
+        clearTimeout(copyResetTimerRef.current);
       }
     };
   }, []);
@@ -869,11 +997,13 @@ const markTourComplete = useCallback(() => {
 
       startSubmitCooldown();
       setSubmitting(true);
+      let controller: AbortController | null = null;
       try {
         if (!apiBaseUrl) {
           setError('API base URL is not configured.');
           return;
         }
+        controller = registerAbortController();
         const normalizedThreshold = 2;
         if (form.threshold !== normalizedThreshold) {
           updateForm({ threshold: normalizedThreshold });
@@ -898,6 +1028,7 @@ const markTourComplete = useCallback(() => {
             'Idempotency-Key': idempotencyKey,
           },
           body: JSON.stringify(bodyPayload),
+          signal: controller.signal,
         });
 
         if (!response.ok) {
@@ -920,9 +1051,7 @@ const markTourComplete = useCallback(() => {
         setResult(data);
         const submissionType = response.status === 201 ? 'new' : 'existing';
         setSuccessNotice(composeSuccessNotice(data, submissionType));
-        if (data.safe_address) {
-          markTourComplete();
-        }
+        notifySafeDetected(data);
         setGovernanceForm({
           creatorVault: '',
           creatorSignature: '',
@@ -933,9 +1062,13 @@ const markTourComplete = useCallback(() => {
         });
         setError(null);
       } catch (err) {
+        if ((err as Error)?.name === 'AbortError') {
+          console.debug('Squads safe creation aborted');
+          return;
+        }
         console.error('Failed to create Squads safe', err);
         if (err instanceof Error && /duplicate_request/i.test(err.message)) {
-          const clusterOverride = sanitizeClusterValue(form.cluster) || preferredCluster;
+          const clusterOverride = pickNormalizedCluster(form.cluster) ?? preferredCluster;
           setIdempotencyKey(generateIdempotencyKey());
           await recoverFromExistingSafe(creatorWallet, {
             cluster: clusterOverride,
@@ -945,7 +1078,7 @@ const markTourComplete = useCallback(() => {
         }
         if (err instanceof Error && /nonce_invalid/i.test(err.message)) {
           await recoverFromExistingSafe(creatorWallet, {
-            cluster: sanitizeClusterValue(form.cluster) || preferredCluster,
+            cluster: pickNormalizedCluster(form.cluster) ?? preferredCluster,
             message: 'Nonce expired or already used. Generated a new code—sign again to continue.',
           });
           return;
@@ -962,6 +1095,9 @@ const markTourComplete = useCallback(() => {
         })();
         setError(enhancedMessage);
       } finally {
+        if (controller) {
+          releaseAbortController(controller);
+        }
         setSubmitting(false);
       }
     },
@@ -973,10 +1109,11 @@ const markTourComplete = useCallback(() => {
       form,
       idempotencyKey,
       issueNonce,
-      markTourComplete,
       nonce,
       preferredCluster,
       recoverFromExistingSafe,
+      registerAbortController,
+      releaseAbortController,
       startSubmitCooldown,
       submitCoolingDown,
       updateForm,
@@ -986,10 +1123,12 @@ const markTourComplete = useCallback(() => {
   const handleRefreshStatus = useCallback(async () => {
     if (!result || !apiBaseUrl || !canCallApi) return;
     setPolling(true);
+    const controller = registerAbortController();
     try {
       const response = await fetch(bridgePath(`/v1/squads/safes/${result.request_id}`), {
         method: 'GET',
         headers: buildHeaders(),
+        signal: controller.signal,
       });
       if (!response.ok) {
         throw new Error(response.statusText);
@@ -997,12 +1136,25 @@ const markTourComplete = useCallback(() => {
       const data = (await response.json()) as CreatedSafe;
       syncResult(data);
     } catch (err) {
-      console.error('Failed to refresh safe status', err);
-      setError('Failed to refresh safe status.');
+      if ((err as Error)?.name === 'AbortError') {
+        console.debug('Safe status refresh aborted');
+      } else {
+        console.error('Failed to refresh safe status', err);
+        setError('Failed to refresh safe status.');
+      }
     } finally {
+      releaseAbortController(controller);
       setPolling(false);
     }
-  }, [apiBaseUrl, buildHeaders, canCallApi, result, syncResult]);
+  }, [
+    apiBaseUrl,
+    buildHeaders,
+    canCallApi,
+    registerAbortController,
+    releaseAbortController,
+    result,
+    syncResult,
+  ]);
 
   const handleLinkGovernance = useCallback(async () => {
     if (!result || !apiBaseUrl || !canCallApi) return;
@@ -1031,6 +1183,7 @@ const markTourComplete = useCallback(() => {
     }
 
     setGovernanceForm((prev) => ({ ...prev, submitting: true, error: null, success: null }));
+    const controller = registerAbortController();
     try {
       const response = await fetch(bridgePath(`/v1/squads/safes/${result.request_id}/governance`), {
         method: 'POST',
@@ -1040,6 +1193,7 @@ const markTourComplete = useCallback(() => {
           creator_signature: creatorSignature,
           attn_signature: attnSignature,
         }),
+        signal: controller.signal,
       });
       if (!response.ok) {
         const message = await response
@@ -1059,15 +1213,33 @@ const markTourComplete = useCallback(() => {
         success: 'Governance linked successfully.',
       });
     } catch (err) {
-      console.error('Failed to link governance', err);
-      setGovernanceForm((prev) => ({
-        ...prev,
-        submitting: false,
-        error: err instanceof Error ? err.message : 'Failed to link governance.',
-        success: null,
-      }));
+      if ((err as Error)?.name === 'AbortError') {
+        console.debug('Governance link aborted');
+      } else {
+        console.error('Failed to link governance', err);
+        setGovernanceForm((prev) => ({
+          ...prev,
+          submitting: false,
+          error: err instanceof Error ? err.message : 'Failed to link governance.',
+          success: null,
+        }));
+      }
+    } finally {
+      releaseAbortController(controller);
+      setGovernanceForm((prev) => ({ ...prev, submitting: false }));
     }
-  }, [apiBaseUrl, buildHeaders, canCallApi, governanceForm.attnSignature, governanceForm.creatorSignature, governanceForm.creatorVault, result, syncResult]);
+  }, [
+    apiBaseUrl,
+    buildHeaders,
+    canCallApi,
+    governanceForm.attnSignature,
+    governanceForm.creatorSignature,
+    governanceForm.creatorVault,
+    registerAbortController,
+    releaseAbortController,
+    result,
+    syncResult,
+  ]);
 
   const handleAdminFetch = useCallback(
     async (event?: React.FormEvent<HTMLFormElement>) => {
@@ -1078,6 +1250,7 @@ const markTourComplete = useCallback(() => {
       }
       setAdminLoading(true);
       setAdminError(null);
+      const controller = registerAbortController();
       try {
         const params = new URLSearchParams();
         const status = sanitize(adminFilters.status).toLowerCase();
@@ -1090,6 +1263,7 @@ const markTourComplete = useCallback(() => {
         const response = await fetch(bridgePath(`/v1/squads/safes${query ? `?${query}` : ''}`), {
           method: 'GET',
           headers: buildHeaders(),
+          signal: controller.signal,
         });
         if (!response.ok) {
           const message = await response
@@ -1101,13 +1275,28 @@ const markTourComplete = useCallback(() => {
         const data = (await response.json()) as CreatedSafe[];
         setAdminRequests(data);
       } catch (err) {
-        console.error('Failed to fetch admin safes', err);
-        setAdminError(err instanceof Error ? err.message : 'Failed to load safe requests.');
+        if ((err as Error)?.name === 'AbortError') {
+          console.debug('Admin fetch aborted');
+        } else {
+          console.error('Failed to fetch admin safes', err);
+          setAdminError(err instanceof Error ? err.message : 'Failed to load safe requests.');
+        }
       } finally {
+        releaseAbortController(controller);
         setAdminLoading(false);
       }
     },
-    [adminFilters.cluster, adminFilters.creatorWallet, adminFilters.status, apiBaseUrl, buildHeaders, canCallApi, isAdmin]
+    [
+      adminFilters.cluster,
+      adminFilters.creatorWallet,
+      adminFilters.status,
+      apiBaseUrl,
+      buildHeaders,
+      canCallApi,
+      isAdmin,
+      registerAbortController,
+      releaseAbortController,
+    ]
   );
 
   const handleAdminResubmit = useCallback(
@@ -1117,11 +1306,13 @@ const markTourComplete = useCallback(() => {
         return;
       }
       setAdminLoading(true);
+      const controller = registerAbortController();
       try {
         const response = await fetch(bridgePath(`/v1/squads/safes/${requestId}/resubmit`), {
           method: 'POST',
           headers: buildHeaders(),
           body: JSON.stringify({ force }),
+          signal: controller.signal,
         });
         if (!response.ok) {
           const message = await response
@@ -1137,13 +1328,18 @@ const markTourComplete = useCallback(() => {
         );
         setAdminError(null);
       } catch (err) {
-        console.error('Failed to resubmit safe', err);
-        setAdminError(err instanceof Error ? err.message : 'Failed to resubmit safe.');
+        if ((err as Error)?.name === 'AbortError') {
+          console.debug('Admin resubmit aborted');
+        } else {
+          console.error('Failed to resubmit safe', err);
+          setAdminError(err instanceof Error ? err.message : 'Failed to resubmit safe.');
+        }
       } finally {
+        releaseAbortController(controller);
         setAdminLoading(false);
       }
     },
-    [apiBaseUrl, buildHeaders, canCallApi, isAdmin, syncResult]
+    [apiBaseUrl, buildHeaders, canCallApi, isAdmin, registerAbortController, releaseAbortController, syncResult]
   );
 
   const handleAdminOverride = useCallback(
@@ -1175,8 +1371,9 @@ const markTourComplete = useCallback(() => {
       const transactionUrl = window.prompt('Transaction URL (optional):', '')?.trim() || undefined;
       const note = window.prompt('Note override (optional):', '')?.trim() || undefined;
 
+      setAdminLoading(true);
+      const controller = registerAbortController();
       try {
-        setAdminLoading(true);
         const response = await fetch(bridgePath(`/v1/squads/safes/${requestId}/status`), {
           method: 'POST',
           headers: buildHeaders(),
@@ -1186,6 +1383,7 @@ const markTourComplete = useCallback(() => {
             transaction_url: transactionUrl || undefined,
             note: note && note.length > 0 ? note : undefined,
           }),
+          signal: controller.signal,
         });
         if (!response.ok) {
           const message = await response
@@ -1201,13 +1399,26 @@ const markTourComplete = useCallback(() => {
         );
         setAdminError(null);
       } catch (err) {
-        console.error('Failed to override status', err);
-        setAdminError(err instanceof Error ? err.message : 'Failed to override status.');
+        if ((err as Error)?.name === 'AbortError') {
+          console.debug('Admin override aborted');
+        } else {
+          console.error('Failed to override status', err);
+          setAdminError(err instanceof Error ? err.message : 'Failed to override status.');
+        }
       } finally {
+        releaseAbortController(controller);
         setAdminLoading(false);
       }
     },
-    [apiBaseUrl, buildHeaders, canCallApi, isAdmin, syncResult]
+    [
+      apiBaseUrl,
+      buildHeaders,
+      canCallApi,
+      isAdmin,
+      registerAbortController,
+      releaseAbortController,
+      syncResult,
+    ]
   );
 
   const resetAndClear = useCallback(() => {
@@ -1221,7 +1432,7 @@ const markTourComplete = useCallback(() => {
     setShowRaw(false);
     setIdempotencyKey(generateIdempotencyKey());
     if (sanitizedCreatorWallet) {
-      clearSafeRecord(sanitizedCreatorWallet, sanitizeClusterValue(preferredCluster) || 'devnet');
+      clearSafeRecord(sanitizedCreatorWallet, normalizedClusterFor(preferredCluster));
     }
   }, [defaultFormState, preferredCluster, sanitizedCreatorWallet]);
 
@@ -1498,6 +1709,7 @@ const markTourComplete = useCallback(() => {
 
   useEffect(() => {
     let cancelled = false;
+    let activeHealthController: AbortController | null = null;
     const checkHealth = async () => {
       if (mode !== 'live' || !apiBaseUrl || !canCallApi) {
         if (!cancelled) {
@@ -1509,10 +1721,13 @@ const markTourComplete = useCallback(() => {
       if (!cancelled) {
         setApiHealth('checking');
       }
+      const controller = registerAbortController();
+      activeHealthController = controller;
       try {
         const response = await fetch('/api/bridge/readyz', {
           headers: buildHeaders(),
           cache: 'no-store',
+          signal: controller.signal,
         });
         if (!cancelled) {
           setApiHealth(response.ok ? 'healthy' : 'error');
@@ -1522,6 +1737,11 @@ const markTourComplete = useCallback(() => {
         if (!cancelled) {
           setApiHealth('error');
         }
+      } finally {
+        releaseAbortController(controller);
+        if (activeHealthController === controller) {
+          activeHealthController = null;
+        }
       }
     };
     void checkHealth();
@@ -1530,9 +1750,14 @@ const markTourComplete = useCallback(() => {
     }, 30000);
     return () => {
       cancelled = true;
+      if (activeHealthController) {
+        activeHealthController.abort();
+        releaseAbortController(activeHealthController);
+        activeHealthController = null;
+      }
       clearInterval(interval);
     };
-  }, [apiBaseUrl, buildHeaders, canCallApi, mode, healthTick]);
+  }, [apiBaseUrl, buildHeaders, canCallApi, mode, healthTick, registerAbortController, releaseAbortController]);
 
   useEffect(() => {
     if (result?.creator_vault) {
