@@ -102,7 +102,7 @@ export const runtimeEnv: RuntimeEnv = (() => {
   };
 })();
 
-export const useStoredMode = (): DataMode => {
+export const getStoredMode = (): DataMode => {
   if (typeof window === 'undefined') {
     return runtimeEnv.defaultMode;
   }
