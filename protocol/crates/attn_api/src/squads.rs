@@ -1211,7 +1211,39 @@ impl SquadsSafeRepository {
                 null, null, null, null, null,
                 1, now(), $17,
                 now(), now()
-            ) returning *",
+            )
+            on conflict on constraint squads_safe_requests_uniqueness_idx
+            do update set
+                idempotency_key = coalesce(excluded.idempotency_key, squads_safe_requests.idempotency_key),
+                threshold = excluded.threshold,
+                safe_name = excluded.safe_name,
+                contact_email = excluded.contact_email,
+                note = excluded.note,
+                status = 'pending',
+                safe_address = null,
+                transaction_url = null,
+                members = excluded.members,
+                raw_response = null,
+                raw_response_hash = null,
+                request_payload = excluded.request_payload,
+                requester_api_key = coalesce(excluded.requester_api_key, squads_safe_requests.requester_api_key),
+                requester_wallet = excluded.requester_wallet,
+                requester_ip = coalesce(excluded.requester_ip, squads_safe_requests.requester_ip),
+                creator_signature = excluded.creator_signature,
+                nonce = excluded.nonce,
+                error_code = null,
+                error_message = null,
+                attempt_count = squads_safe_requests.attempt_count + 1,
+                last_attempt_at = now(),
+                next_retry_at = excluded.next_retry_at,
+                status_url = null,
+                status_last_checked_at = null,
+                status_last_response = null,
+                status_last_response_hash = null,
+                status_sync_error = null,
+                updated_at = now()
+            where squads_safe_requests.status in ('failed', 'submitted', 'pending')
+            returning *",
         )
         .bind(input.request_id)
         .bind(input.idempotency_key)
