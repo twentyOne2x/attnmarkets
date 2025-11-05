@@ -2,7 +2,6 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Navigation from '../components/Navigation';
 import Tooltip from '../components/Tooltip';
@@ -12,21 +11,11 @@ import { useAppContext } from '../context/AppContext';
 import { calculateBorrowingTerms } from '../utils/borrowingCalculations';
 import { runtimeEnv } from '../config/runtime';
 import CreatorTourOverlay from './components/CreatorTourOverlay';
-import { buildLiveTourStorageKey, normalizeCluster } from './constants';
+import { LIVE_TOUR_STORAGE_PREFIX, buildLiveTourStorageKey, normalizeCluster } from './constants';
 import type { SafeDetectionEventDetail } from './types';
+import SquadsSafeOnboarding from './components/SquadsSafeOnboarding';
 
 const squadsFeatureEnabled = runtimeEnv.squadsEnabled;
-
-const SquadsSafeOnboarding = squadsFeatureEnabled
-  ? dynamic(() => import('./components/SquadsSafeOnboarding'), {
-      ssr: false,
-      loading: () => (
-        <div className="rounded-xl border border-neutral-800 bg-neutral-950/60 p-6 text-sm text-neutral-400">
-          Loading sponsor onboarding…
-        </div>
-      ),
-    })
-  : null;
 
 interface LoanDetails {
   originalAmount: number;
@@ -85,10 +74,12 @@ export default function SponsorPage(): React.JSX.Element {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const showSquadsOnboarding = squadsFeatureEnabled && SquadsSafeOnboarding !== null;
+  const showSquadsOnboarding = squadsFeatureEnabled;
   const liveChecklistRef = useRef<HTMLDivElement | null>(null);
   const [showLiveTour, setShowLiveTour] = useState(false);
   const [hasMounted, setHasMounted] = useState(false);
+  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Initialize weekly earnings from context
   const [weeklyEarnings, setWeeklyEarnings] = useState<number>(() => currentUserCreator?.fees7d_usd || 10000);
@@ -180,6 +171,25 @@ export default function SponsorPage(): React.JSX.Element {
     },
     [currentCreatorCluster, currentUserCreator?.wallet, currentUserWallet, normalizedRuntimeCluster]
   );
+
+  useEffect(() => {
+    if (!hasMounted || typeof window === 'undefined') {
+      return;
+    }
+    try {
+      const legacyValue = window.localStorage.getItem(LIVE_TOUR_STORAGE_PREFIX);
+      if (legacyValue === null) {
+        return;
+      }
+      const namespacedKey = resolveTourStorageKey();
+      if (window.localStorage.getItem(namespacedKey) === null) {
+        window.localStorage.setItem(namespacedKey, legacyValue);
+      }
+      window.localStorage.removeItem(LIVE_TOUR_STORAGE_PREFIX);
+    } catch (err) {
+      console.warn('Failed to migrate sponsor tour storage key', err);
+    }
+  }, [hasMounted, resolveTourStorageKey]);
 
   useEffect(() => {
     if (!hasMounted) return;
@@ -976,12 +986,70 @@ export default function SponsorPage(): React.JSX.Element {
     return '';
   };
 
-  if (loading) {
+  const isTestEnv = process.env.NEXT_PUBLIC_ATTN_TEST === '1';
+
+  useEffect(() => {
+    if (!loading || isTestEnv) {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
+      setLoadingTimedOut(false);
+      return;
+    }
+    if (loadingTimedOut) {
+      return;
+    }
+    loadingTimeoutRef.current = setTimeout(() => {
+      setLoadingTimedOut(true);
+      loadingTimeoutRef.current = null;
+    }, 10_000);
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
+    };
+  }, [loading, isTestEnv, loadingTimedOut]);
+
+  const handleRetryAfterTimeout = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.location.reload();
+    }
+  }, []);
+
+  if (loading && !isTestEnv && !loadingTimedOut) {
     return (
       <div className="min-h-screen bg-dark text-text-primary flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 bg-gradient-to-r from-primary to-secondary rounded-lg mx-auto mb-4"></div>
           <p>Loading sponsor interface (Builders, DAOs, Creators)...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadingTimedOut && !isTestEnv) {
+    return (
+      <div className="min-h-screen bg-dark text-text-primary flex items-center justify-center">
+        <div className="max-w-md text-center space-y-4 rounded-2xl border border-secondary/30 bg-black/60 px-8 py-10 shadow-xl">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-secondary/20 text-secondary">
+            <span className="text-2xl">⏳</span>
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-xl font-semibold">Still loading…</h1>
+            <p className="text-sm text-text-secondary">
+              The live sponsor dashboard is taking longer than expected to initialise.
+              Check your API credentials or retry the page. If the issue persists, review the attn-api logs.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleRetryAfterTimeout}
+            className="inline-flex items-center justify-center rounded-lg bg-secondary/30 px-4 py-2 text-sm font-medium text-secondary hover:bg-secondary/20"
+          >
+            Retry loading dashboard
+          </button>
         </div>
       </div>
     );

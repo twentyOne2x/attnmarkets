@@ -8,6 +8,7 @@ import Navigation from './components/Navigation';
 import Tooltip from './components/Tooltip';
 import { useAppContext } from './context/AppContext';
 import WelcomeGuideModal from './components/WelcomeGuideModal';
+import { LIVE_TOUR_STORAGE_PREFIX } from './sponsor/constants';
 
 interface DashboardData {
   totalTVL: number;
@@ -23,7 +24,7 @@ interface DashboardData {
 }
 
 const LANDING_GUIDE_STORAGE_KEY = 'attn.landingGuidePrompt';
-const SPONSOR_TOUR_STORAGE_KEY = 'attn.liveSponsorTour';
+const SPONSOR_TOUR_STORAGE_KEY = LIVE_TOUR_STORAGE_PREFIX;
 
 export default function Dashboard(): React.JSX.Element {
   const router = useRouter();

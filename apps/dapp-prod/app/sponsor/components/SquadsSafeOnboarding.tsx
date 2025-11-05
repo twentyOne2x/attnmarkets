@@ -10,11 +10,12 @@ import { useDataMode } from '../../context/DataModeContext';
 import { useAppContext } from '../../context/AppContext';
 import type { Creator } from '../../utils/borrowingCalculations';
 import {
+  LIVE_TOUR_STORAGE_PREFIX,
   buildLiveTourStorageKey,
   formatClusterLabel,
   normalizeCluster,
 } from '../constants';
-import type { CreatedSafe, SafeDetectionEventDetail } from '../types';
+import type { CreatedSafe, SafeDetectionEventDetail, SafeLifecycleRecord } from '../types';
 import { subscribeToSafeDetection } from '../safeDetectionEmitter';
 
 const BASE58_WALLET_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
@@ -73,11 +74,6 @@ const asNonEmptyBase58Signature = (value: string): NonEmptyBase58Signature | nul
 
 const hasNonEmptySafeAddress = (value?: string | null): value is string =>
   typeof value === 'string' && value.trim().length > 0;
-
-type SafeLifecycleRecord =
-  | { state: 'pending'; record: CreatedSafe }
-  | { state: 'ready'; record: CreatedSafe }
-  | { state: 'failed'; record: CreatedSafe };
 
 const deriveSafeLifecycle = (record: CreatedSafe): SafeLifecycleRecord => {
   const status = (record.status ?? '').toLowerCase();
@@ -150,8 +146,8 @@ const composeSuccessNotice = (record: CreatedSafe, type: 'new' | 'existing'): Su
         ? `Squads safe is live on ${clusterLabel}.`
         : `Safe request submitted on ${clusterLabel}. We'll surface the address once Squads finishes deployment.`
       : hasAddress
-      ? `Existing Squads safe detected on ${clusterLabel}.`
-      : `A Squads safe request already exists on ${clusterLabel}.`;
+      ? `Existing Squads safe found on ${clusterLabel}.`
+      : `Existing Squads safe request found on ${clusterLabel}.`;
 
   return {
     type,
@@ -307,6 +303,37 @@ const readSafeRecord = (wallet: string, cluster: string): CreatedSafe | null => 
     console.warn('Failed to restore Squads safe record', err);
     return null;
   }
+};
+
+const findAnyCachedSafeForCluster = (cluster: string): CreatedSafe | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  try {
+    const prefix = `${SAFE_STORAGE_PREFIX}::${cluster}::`;
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (!key || !key.startsWith(prefix)) {
+        continue;
+      }
+      const raw = window.localStorage.getItem(key);
+      if (!raw) {
+        continue;
+      }
+      const parsed = JSON.parse(raw) as { record?: CreatedSafe | null; stored_at?: number };
+      const record = parsed?.record ?? null;
+      if (!record) {
+        continue;
+      }
+      if (!isCacheFresh(parsed?.stored_at, record.updated_at)) {
+        continue;
+      }
+      return record;
+    }
+  } catch (err) {
+    console.warn('Failed to scan cached Squads safe records', err);
+  }
+  return null;
 };
 
 const clearSafeRecord = (wallet: string, cluster: string) => {
@@ -522,11 +549,13 @@ const SquadsSafeOnboarding: React.FC<SquadsSafeOnboardingProps> = ({
       }
       lastDetectedRequestIdRef.current = requestId;
       const normalized = normalizedClusterFor(record.cluster);
-      console.info('[SquadsSafeOnboarding] safe detected', {
-        request_id: requestId,
-        cluster: normalized,
-        hasSafeAddress: hasNonEmptySafeAddress(record.safe_address),
-      });
+      if (Math.random() < 0.1) {
+        console.info('[SquadsSafeOnboarding] safe detected', {
+          request_id: requestId,
+          cluster: normalized,
+          hasSafeAddress: hasNonEmptySafeAddress(record.safe_address),
+        });
+      }
       onSafeDetected(record);
       markTourComplete(record);
     },
@@ -568,7 +597,6 @@ const SquadsSafeOnboarding: React.FC<SquadsSafeOnboardingProps> = ({
       setResult(record);
       setSuccessNotice(composeSuccessNotice(record, detail.type ?? 'existing'));
       notifySafeDetected(record);
-      emitSafeCreatedEvent();
     };
     if (typeof window !== 'undefined') {
       const handler = (event: Event) => {
@@ -585,7 +613,7 @@ const SquadsSafeOnboarding: React.FC<SquadsSafeOnboardingProps> = ({
     return () => {
       unsubscribe();
     };
-  }, [emitSafeCreatedEvent, notifySafeDetected]);
+  }, [notifySafeDetected]);
 
   const updateForm = useCallback((next: Partial<FormState>) => {
     setForm((prev) => ({ ...prev, ...next }));
@@ -610,6 +638,53 @@ const SquadsSafeOnboarding: React.FC<SquadsSafeOnboardingProps> = ({
     () => resolveCluster(form.cluster, runtimeEnv.cluster, configuredCluster),
     [configuredCluster, form.cluster]
   );
+
+  useEffect(() => {
+    if (result || sanitizedCreatorWallet) {
+      return;
+    }
+    const cacheCluster = normalizedClusterFor(preferredCluster);
+    const cached = findAnyCachedSafeForCluster(cacheCluster);
+    const isTestEnv = process.env.NEXT_PUBLIC_ATTN_TEST === '1';
+    if (isTestEnv) {
+      console.info('[SquadsSafeOnboarding] cache probe', {
+        cacheCluster,
+        hasCached: Boolean(cached),
+        localStorageLength: typeof window !== 'undefined' ? window.localStorage.length : 'n/a',
+      });
+    }
+    if (!cached) {
+      return;
+    }
+    updateForm({ creatorWallet: cached.creator_wallet });
+    setResult(cached);
+    setSuccessNotice(composeSuccessNotice(cached, 'existing'));
+    notifySafeDetected(cached);
+  }, [preferredCluster, result, sanitizedCreatorWallet, notifySafeDetected, updateForm]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      const legacyValue = window.localStorage.getItem(LIVE_TOUR_STORAGE_PREFIX);
+      if (legacyValue === null) {
+        return;
+      }
+      const migrationWallet = sanitizedCreatorWallet || currentUserCreator?.wallet || connectedWalletAddress;
+      if (!migrationWallet) {
+        return;
+      }
+      const migrationKey = buildLiveTourStorageKey(preferredCluster, migrationWallet);
+      if (window.localStorage.getItem(migrationKey) === null) {
+        window.localStorage.setItem(migrationKey, legacyValue);
+      }
+      window.localStorage.removeItem(LIVE_TOUR_STORAGE_PREFIX);
+      lastTourKeyRef.current = migrationKey;
+    } catch (err) {
+      console.warn('Failed to migrate legacy Squads tour state', err);
+    }
+  }, [connectedWalletAddress, currentUserCreator?.wallet, preferredCluster, sanitizedCreatorWallet]);
 
   const fetchExistingSafe = useCallback(
     async (
@@ -1675,12 +1750,6 @@ const SquadsSafeOnboarding: React.FC<SquadsSafeOnboardingProps> = ({
 
   useEffect(() => {
     if (!connectedWalletAddress) {
-      if (!creatorWalletManuallyEdited && form.creatorWallet !== '') {
-        updateForm({ creatorWallet: '' });
-      }
-      if (creatorWalletManuallyEdited) {
-        setCreatorWalletManuallyEdited(false);
-      }
       return;
     }
 
@@ -1688,7 +1757,12 @@ const SquadsSafeOnboarding: React.FC<SquadsSafeOnboardingProps> = ({
       setCreatorWalletManuallyEdited(false);
       updateForm({ creatorWallet: connectedWalletAddress });
     }
-  }, [connectedWalletAddress, creatorWalletManuallyEdited, form.creatorWallet, updateForm]);
+  }, [
+    connectedWalletAddress,
+    creatorWalletManuallyEdited,
+    form.creatorWallet,
+    updateForm,
+  ]);
 
   useEffect(() => {
     const normalizedCurrentWallet = currentUserWallet ? sanitize(currentUserWallet) : '';

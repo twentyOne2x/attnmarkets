@@ -31,3 +31,8 @@ export interface SafeDetectionEventDetail {
   record: CreatedSafe;
   type?: 'existing' | 'new';
 }
+
+export type SafeLifecycleRecord =
+  | { state: 'pending'; record: CreatedSafe }
+  | { state: 'ready'; record: CreatedSafe }
+  | { state: 'failed'; record: CreatedSafe };
