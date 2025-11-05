@@ -402,7 +402,7 @@ const SquadsSafeOnboarding: React.FC<SquadsSafeOnboardingProps> = ({
   onSafeDetected = DEFAULT_SAFE_DETECTED_HANDLER,
 }) => {
   const { mode, apiBaseUrl, cluster: configuredCluster, apiKey, csrfToken, isAdmin } = useDataMode();
-  const { currentUserWallet, currentUserCreator } = useAppContext();
+  const { currentUserWallet, currentUserCreator, connectWallet, isWalletConnected } = useAppContext();
   const wallet = useWallet();
   const connectedWalletAddress = useMemo(() => wallet.publicKey?.toBase58() ?? null, [wallet.publicKey]);
   const defaultFormState = useMemo<FormState>(
@@ -2216,9 +2216,18 @@ const SquadsSafeOnboarding: React.FC<SquadsSafeOnboardingProps> = ({
                   {signingButtonLabel}
                 </button>
               ) : (
-                <span className="text-xs text-gray-500">
-                  Connect a wallet that supports message signing to autofill the signature automatically.
-                </span>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <span>Connect a wallet that supports message signing to autofill the signature automatically.</span>
+                  {!isWalletConnected && (
+                    <button
+                      type="button"
+                      onClick={connectWallet}
+                      className="rounded-md border border-primary/40 px-2.5 py-1 text-xs font-medium text-primary transition hover:bg-primary/10"
+                    >
+                      Connect wallet
+                    </button>
+                  )}
+                </div>
               )}
               <button
                 type="button"
