@@ -1730,7 +1730,7 @@ impl SquadsSafeRepository {
     ) -> Result<SafeRequestRecord> {
         let row = sqlx::query(
             "update squads_safe_requests set
-                status = $2,
+                status = $2::squads_safe_status,
                 safe_address = $3,
                 transaction_url = $4,
                 note = coalesce($5, note),
