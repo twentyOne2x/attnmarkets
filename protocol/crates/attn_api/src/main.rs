@@ -1942,6 +1942,14 @@ async fn create_squads_safe(
             Err(err) => ApiError::from(err),
         })?;
 
+    if pending.attempt_count > 1 {
+        info!(
+            request_id = %pending.id,
+            attempts = pending.attempt_count,
+            "squads safe request retried via duplicate submission"
+        );
+    }
+
     info!(
         request_id = %pending.id,
         creator = %pending.creator_wallet,
@@ -2043,7 +2051,12 @@ async fn create_squads_safe(
         "squads safe request updated"
     );
     let response = record_to_response(&stored, Some(service));
-    Ok((StatusCode::CREATED, Json(response)))
+    let http_status = if pending.attempt_count > 1 {
+        StatusCode::OK
+    } else {
+        StatusCode::CREATED
+    };
+    Ok((http_status, Json(response)))
 }
 
 async fn issue_squads_nonce(
@@ -2645,9 +2658,9 @@ mod tests {
     use axum::http::{Method, Request};
     use chrono::Duration;
     use http_body_util::BodyExt;
-    use std::collections::VecDeque;
-    use serde_json::{json, Value};
     use reqwest::Client;
+    use serde_json::{json, Value};
+    use std::collections::VecDeque;
     use tower::ServiceExt;
 
     use std::sync::Arc;
@@ -3270,10 +3283,7 @@ mod tests {
                 .filter(|record| {
                     let eligible = record.status == SafeStatus::Pending
                         || (record.status == SafeStatus::Submitted && record.status_url.is_none());
-                    let due = record
-                        .next_retry_at
-                        .map(|ts| ts <= now)
-                        .unwrap_or(true);
+                    let due = record.next_retry_at.map(|ts| ts <= now).unwrap_or(true);
                     eligible && due && record.last_attempt_at <= stale_before
                 })
                 .cloned()
@@ -3468,14 +3478,8 @@ mod tests {
 
         let updated = repo.get(record.id).await.unwrap();
         assert_eq!(updated.status, SafeStatus::Failed);
-        assert_eq!(
-            updated.error_code.as_deref(),
-            Some("auto_retry_exhausted")
-        );
-        assert!(updated
-            .next_retry_at
-            .expect("next retry set")
-            > Utc::now());
+        assert_eq!(updated.error_code.as_deref(), Some("auto_retry_exhausted"));
+        assert!(updated.next_retry_at.expect("next retry set") > Utc::now());
     }
 
     #[tokio::test]
@@ -3492,10 +3496,7 @@ mod tests {
 
         let updated = repo.get(record.id).await.unwrap();
         assert_eq!(updated.status, SafeStatus::Pending);
-        assert_eq!(
-            updated.error_code.as_deref(),
-            Some("squads_create_failed")
-        );
+        assert_eq!(updated.error_code.as_deref(), Some("squads_create_failed"));
         assert!(updated
             .error_message
             .as_ref()
