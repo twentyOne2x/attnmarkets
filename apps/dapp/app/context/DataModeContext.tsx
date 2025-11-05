@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { DataMode, persistMode, runtimeEnv, useStoredMode } from '../config/runtime';
+import { DataMode, getStoredMode, persistMode, runtimeEnv } from '../config/runtime';
 import { ApiDataProvider, DataProvider, demoDataProvider } from '../lib/data-providers';
 
 export type HealthStatus = 'unknown' | 'checking' | 'healthy' | 'unhealthy';
@@ -32,7 +32,7 @@ const checkHealth = async (apiBase: string): Promise<void> => {
 };
 
 export const DataModeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const stored = typeof window === 'undefined' ? runtimeEnv.defaultMode : useStoredMode();
+  const stored = getStoredMode();
   const initialMode = runtimeEnv.isValid ? stored : 'demo';
 
   const [mode, setModeState] = useState<DataMode>(initialMode);
