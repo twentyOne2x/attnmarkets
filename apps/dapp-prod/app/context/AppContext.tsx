@@ -376,13 +376,13 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [currentUserWallet, setCurrentUserWalletState] = useState<string>(() => {
     const savedState = getFromLocalStorage();
     const savedWallet = savedState?.currentUserWallet || '';
-    
+
     if (savedWallet) {
       console.log('🔑 WALLET RESTORED FROM STORAGE:', savedWallet);
     } else {
       console.log('🔑 NO WALLET IN STORAGE - STARTING DISCONNECTED');
     }
-    
+
     return savedWallet;
   });
 
@@ -442,6 +442,21 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       }
     }
   }, [wallet.connected, wallet.publicKey, currentUserWallet]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    if (currentUserWallet) {
+      return;
+    }
+    const savedState = getFromLocalStorage();
+    const savedWallet = savedState?.currentUserWallet;
+    if (savedWallet) {
+      console.log('🔄 Hydrating stored wallet post-mount:', savedWallet);
+      setCurrentUserWalletState(savedWallet);
+    }
+  }, [currentUserWallet]);
 
   // Global notification management
   const addNotification = (notification: Omit<Notification, 'id' | 'position'>) => {
