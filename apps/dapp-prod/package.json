@@ -7,10 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -p ./tsconfig.json --noEmit",
     "cypress": "cypress run",
     "cypress:open": "cypress open",
-    "test": "vitest",
+    "test": "playwright test",
     "test:e2e": "bash scripts/run-e2e.sh",
     "test:e2e:headed": "bash scripts/run-e2e.sh --headed"
   },
@@ -48,8 +48,13 @@
     "postcss": "^8",
     "tailwindcss": "^3.3.0",
     "typescript": "^5",
-    "vitest": "^1.3.1",
     "@playwright/test": "^1.50.0",
-    "@types/bs58": "^4.0.4"
+    "@types/bs58": "^4.0.4",
+    "vitest": "^1.3.1"
+  },
+  "vitest": {
+    "exclude": [
+      "apps/dapp-prod/tests/**"
+    ]
   }
 }

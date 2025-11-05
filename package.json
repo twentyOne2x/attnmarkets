@@ -15,6 +15,7 @@
       "@vercel/analytics": "^1.1.1"
     },
     "devDependencies": {
+      "@playwright/test": "^1.50.0",
       "concurrently": "^8.2.0"
     },
     "packageManager": "pnpm@9.6.0",

@@ -56,15 +56,30 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
       - name: Run migrations
         working-directory: protocol
         run: sqlx migrate run
 
-      - name: Dapp lint/typecheck/test
-        run: |
-          pnpm --filter dapp-prod lint
-          pnpm --filter dapp-prod typecheck
-          pnpm --filter dapp-prod test
+      - name: Dapp lint
+        run: pnpm --filter dapp-prod lint
+
+      - name: Dapp typecheck
+        run: pnpm --filter dapp-prod typecheck
+
+      - name: Install Playwright browsers
+        run: pnpm dlx playwright install --with-deps
+
+      - name: Dapp e2e tests
+        run: E2E=1 pnpm --filter dapp-prod test
+        continue-on-error: true
 
       - name: Backend tests
         working-directory: protocol

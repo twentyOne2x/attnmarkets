@@ -15,13 +15,16 @@ const config: PlaywrightTestConfig = {
     headless: true,
   },
   webServer: {
-    command: 'pnpm --filter dapp-prod start --hostname 127.0.0.1 --port 3100',
+    command: 'node scripts/start-playwright-server.js',
     port: 3100,
     timeout: 120_000,
     reuseExistingServer: false,
     env: {
+      USE_MOCK_API: process.env.USE_MOCK_API === '0' ? '0' : '1',
       NEXT_PUBLIC_API_BASE:
-        process.env.NEXT_PUBLIC_API_BASE ?? 'http://127.0.0.1:3999',
+        process.env.USE_MOCK_API === '0'
+          ? process.env.NEXT_PUBLIC_API_BASE ?? 'http://127.0.0.1:3999'
+          : 'http://127.0.0.1:3999',
       NEXT_PUBLIC_DATA_MODE: process.env.NEXT_PUBLIC_DATA_MODE ?? 'live',
       NEXT_PUBLIC_SQUADS_ENABLED: process.env.NEXT_PUBLIC_SQUADS_ENABLED ?? 'true',
       NEXT_PUBLIC_ATTN_API_KEY:
@@ -37,6 +40,7 @@ const config: PlaywrightTestConfig = {
       NEXT_PUBLIC_ALLOW_LOCAL_API_BASE:
         process.env.NEXT_PUBLIC_ALLOW_LOCAL_API_BASE ?? '1',
       NEXT_PUBLIC_CLUSTER: process.env.NEXT_PUBLIC_CLUSTER ?? 'devnet',
+      NEXT_PUBLIC_ATTN_TEST: process.env.NEXT_PUBLIC_ATTN_TEST ?? '1',
     },
   },
 };
