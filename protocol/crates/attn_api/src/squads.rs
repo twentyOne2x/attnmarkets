@@ -101,6 +101,7 @@ fn is_account_not_found(kind: &ClientErrorKind) -> bool {
 pub struct SquadsConfig {
     pub base_url: Option<String>,
     pub api_keys: Vec<String>,
+    pub allow_invalid_certs: bool,
     pub default_attn_wallet: String,
     pub default_cluster: String,
     pub default_threshold: u8,
@@ -141,6 +142,7 @@ impl SquadsConfig {
             .ok()
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty());
+        let allow_invalid_certs = parse_flag("ATTN_API_SQUADS_ALLOW_INVALID_TLS").unwrap_or(false);
         let mut api_keys: Vec<String> = env::var("ATTN_API_SQUADS_API_KEYS")
             .ok()
             .into_iter()
@@ -259,6 +261,7 @@ impl SquadsConfig {
             status_sync_enabled,
             kms_signer_resource,
             kms_payer_resource,
+            allow_invalid_certs,
         }))
     }
 }
@@ -345,10 +348,11 @@ impl SquadsService {
         let api_keys = Arc::new(config.api_keys.clone());
         let mode = match base_url {
             Some(url) if url != "local" => {
-                let client = Client::builder()
-                    .user_agent("attn_api/0.1")
-                    .build()
-                    .context("build squads http client")?;
+                let mut client_builder = Client::builder().user_agent("attn_api/0.1");
+                if config.allow_invalid_certs {
+                    client_builder = client_builder.danger_accept_invalid_certs(true);
+                }
+                let client = client_builder.build().context("build squads http client")?;
                 SquadsMode::Http(HttpMode {
                     client,
                     base_url: url.trim_end_matches('/').to_string(),

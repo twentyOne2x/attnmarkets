@@ -109,6 +109,7 @@ The dapp reads the following public environment variables:
 | `ATTN_API_RATE_LIMIT_PER_IP` / `_PER_WALLET` / `_WINDOW_SECS` | Rate limiting knobs. |
 | `ATTN_API_NONCE_TTL_SECS` | Expiration for issued nonces (60–3600s). |
 | `ATTN_API_SQUADS_BASE_URL` | `local` for demo mode or HTTPS endpoint for the Squads service. |
+| `ATTN_API_SQUADS_ALLOW_INVALID_TLS` | When `true`, skip TLS certificate verification for the Squads HTTP client (useful for testing against staging endpoints). |
 | `ATTN_API_SQUADS_API_KEY` / `_API_KEYS` | Primary + rotating bearer tokens for Squads HTTP calls. |
 | `ATTN_API_SQUADS_DEFAULT_MEMBER` / `_CLUSTER` / `_THRESHOLD` / `_SAFE_PREFIX` | Default attn signer, cluster, threshold, and safe name prefix. |
 | `ATTN_API_SQUADS_PAYER` | Optional payer wallet recorded alongside requests. |
