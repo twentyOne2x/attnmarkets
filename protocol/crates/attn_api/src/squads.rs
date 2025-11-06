@@ -1228,74 +1228,122 @@ impl SquadsSafeRepository {
         );
         let requester_ip = input.requester_ip.map(|ip| ip.to_string());
         let next_retry_at = Utc::now() + backoff;
-        let row = sqlx::query(
-            "insert into squads_safe_requests (
-                id, idempotency_key, creator_wallet, attn_wallet, cluster, threshold, safe_name, contact_email, note,
-                status, members, request_payload, requester_api_key, requester_wallet, requester_ip, creator_signature, nonce,
-                status_url, status_last_checked_at, status_last_response, status_last_response_hash, status_sync_error,
-                attempt_count, last_attempt_at, next_retry_at,
-                created_at, updated_at
-            ) values (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9,
-                'pending', $10, $11, $12, $13, $14::inet, $15, $16,
-                null, null, null, null, null,
-                1, now(), $17,
-                now(), now()
-            )
-            on conflict on constraint squads_safe_requests_uniqueness_idx
-            do update set
-                idempotency_key = coalesce(excluded.idempotency_key, squads_safe_requests.idempotency_key),
-                threshold = excluded.threshold,
-                safe_name = excluded.safe_name,
-                contact_email = excluded.contact_email,
-                note = excluded.note,
-                status = 'pending',
-                safe_address = null,
-                transaction_url = null,
-                members = excluded.members,
-                raw_response = null,
-                raw_response_hash = null,
-                request_payload = excluded.request_payload,
-                requester_api_key = coalesce(excluded.requester_api_key, squads_safe_requests.requester_api_key),
-                requester_wallet = excluded.requester_wallet,
-                requester_ip = coalesce(excluded.requester_ip, squads_safe_requests.requester_ip),
-                creator_signature = excluded.creator_signature,
-                nonce = excluded.nonce,
-                error_code = null,
-                error_message = null,
-                attempt_count = squads_safe_requests.attempt_count + 1,
-                last_attempt_at = now(),
-                next_retry_at = excluded.next_retry_at,
-                status_url = null,
-                status_last_checked_at = null,
-                status_last_response = null,
-                status_last_response_hash = null,
-                status_sync_error = null,
-                updated_at = now()
-            where squads_safe_requests.status in ('failed', 'submitted', 'pending')
-            returning *",
+
+        let mut tx = self.pool.begin().await?;
+
+        let existing_row = sqlx::query(
+            "select * from squads_safe_requests
+             where lower(creator_wallet) = lower($1)
+               and lower(attn_wallet) = lower($2)
+               and cluster = $3
+             for update",
         )
-        .bind(input.request_id)
-        .bind(input.idempotency_key)
-        .bind(input.creator_wallet)
-        .bind(input.attn_wallet)
-        .bind(input.cluster)
-        .bind(i32::from(input.threshold))
-        .bind(input.safe_name)
-        .bind(input.contact_email)
-        .bind(input.note)
-        .bind(members)
-        .bind(input.request_payload)
-        .bind(input.requester_api_key)
-        .bind(input.requester_wallet)
-        .bind(requester_ip)
-        .bind(input.creator_signature)
-        .bind(input.nonce)
-        .bind(next_retry_at)
-        .fetch_one(&self.pool)
+        .bind(&input.creator_wallet)
+        .bind(&input.attn_wallet)
+        .bind(&input.cluster)
+        .fetch_optional(&mut *tx)
         .await?;
 
-        Ok(row_to_request(row))
+        let updated_row = if let Some(existing_row) = existing_row {
+            let existing_request = row_to_request(existing_row);
+            if matches!(
+                existing_request.status.as_str(),
+                "failed" | "submitted" | "pending"
+            ) {
+                sqlx::query(
+                    "update squads_safe_requests set
+                        idempotency_key = coalesce($2, idempotency_key),
+                        threshold = $3,
+                        safe_name = $4,
+                        contact_email = $5,
+                        note = $6,
+                        status = 'pending',
+                        safe_address = null,
+                        transaction_url = null,
+                        members = $7,
+                        raw_response = null,
+                        raw_response_hash = null,
+                        request_payload = $8,
+                        requester_api_key = coalesce($9, requester_api_key),
+                        requester_wallet = $10,
+                        requester_ip = coalesce($11::inet, requester_ip),
+                        creator_signature = $12,
+                        nonce = $13,
+                        error_code = null,
+                        error_message = null,
+                        attempt_count = attempt_count + 1,
+                        last_attempt_at = now(),
+                        next_retry_at = $14,
+                        status_url = null,
+                        status_last_checked_at = null,
+                        status_last_response = null,
+                        status_last_response_hash = null,
+                        status_sync_error = null,
+                        updated_at = now()
+                     where id = $1
+                     returning *",
+                )
+                .bind(existing_request.id)
+                .bind(input.idempotency_key.clone())
+                .bind(i32::from(input.threshold))
+                .bind(input.safe_name.clone())
+                .bind(input.contact_email.clone())
+                .bind(input.note.clone())
+                .bind(members.clone())
+                .bind(input.request_payload.clone())
+                .bind(input.requester_api_key.clone())
+                .bind(input.requester_wallet.clone())
+                .bind(requester_ip.clone())
+                .bind(input.creator_signature.clone())
+                .bind(input.nonce.clone())
+                .bind(next_retry_at)
+                .fetch_one(&mut *tx)
+                .await?
+            } else {
+                tx.commit().await?;
+                return Ok(existing_request);
+            }
+        } else {
+            sqlx::query(
+                "insert into squads_safe_requests (
+                    id, idempotency_key, creator_wallet, attn_wallet, cluster, threshold, safe_name, contact_email, note,
+                    status, members, request_payload, requester_api_key, requester_wallet, requester_ip, creator_signature, nonce,
+                    status_url, status_last_checked_at, status_last_response, status_last_response_hash, status_sync_error,
+                    attempt_count, last_attempt_at, next_retry_at,
+                    created_at, updated_at
+                ) values (
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9,
+                    'pending', $10, $11, $12, $13, $14::inet, $15, $16,
+                    null, null, null, null, null,
+                    1, now(), $17,
+                    now(), now()
+                )
+                returning *",
+            )
+            .bind(input.request_id)
+            .bind(input.idempotency_key.clone())
+            .bind(input.creator_wallet.clone())
+            .bind(input.attn_wallet.clone())
+            .bind(input.cluster.clone())
+            .bind(i32::from(input.threshold))
+            .bind(input.safe_name.clone())
+            .bind(input.contact_email.clone())
+            .bind(input.note.clone())
+            .bind(members.clone())
+            .bind(input.request_payload.clone())
+            .bind(input.requester_api_key.clone())
+            .bind(input.requester_wallet.clone())
+            .bind(requester_ip.clone())
+            .bind(input.creator_signature.clone())
+            .bind(input.nonce.clone())
+            .bind(next_retry_at)
+            .fetch_one(&mut *tx)
+            .await?
+        };
+
+        tx.commit().await?;
+
+        Ok(row_to_request(updated_row))
     }
 
     pub async fn update_submission(
@@ -1394,8 +1442,77 @@ impl SquadsSafeRepository {
         let hash = hash_json(&raw_response);
         let now = Utc::now();
         let threshold = input.threshold as i16;
-        let row = sqlx::query(
-            "insert into squads_safe_requests (
+        let mut tx = self.pool.begin().await?;
+
+        let existing_row = sqlx::query(
+            "select * from squads_safe_requests
+             where lower(creator_wallet) = lower($1)
+               and lower(attn_wallet) = lower($2)
+               and cluster = $3
+             for update",
+        )
+        .bind(&input.creator_wallet)
+        .bind(&input.attn_wallet)
+        .bind(&input.cluster)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        let row = if let Some(existing_row) = existing_row {
+            let existing_record = row_to_request(existing_row);
+            sqlx::query(
+                "update squads_safe_requests set
+                    threshold = $2,
+                    safe_name = $3,
+                    contact_email = $4,
+                    note = $5,
+                    status = 'ready',
+                    safe_address = $6,
+                    transaction_url = $7,
+                    members = $8,
+                    raw_response = $9,
+                    raw_response_hash = $10,
+                    request_payload = $11,
+                    requester_wallet = $12,
+                    creator_signature = 'imported',
+                    nonce = 'imported',
+                    attempt_count = 1,
+                    last_attempt_at = $13,
+                    next_retry_at = null,
+                    status_url = $14,
+                    status_last_checked_at = $13,
+                    status_last_response = $15,
+                    status_last_response_hash = $16,
+                    status_sync_error = null,
+                    import_source = $17,
+                    import_metadata = $18,
+                    imported_at = $13,
+                    updated_at = $13
+                 where id = $1
+                 returning *",
+            )
+            .bind(existing_record.id)
+            .bind(threshold)
+            .bind(&input.safe_name)
+            .bind(&input.contact_email)
+            .bind(&input.note)
+            .bind(&input.safe_address)
+            .bind(&input.transaction_url)
+            .bind(members_value.clone())
+            .bind(raw_response.clone())
+            .bind(hash.clone())
+            .bind(payload.clone())
+            .bind(&input.creator_wallet)
+            .bind(now)
+            .bind(&input.status_url)
+            .bind(raw_response.clone())
+            .bind(hash.clone())
+            .bind(&input.import_source)
+            .bind(&input.import_metadata)
+            .fetch_one(&mut *tx)
+            .await?
+        } else {
+            sqlx::query(
+                "insert into squads_safe_requests (
                 id,
                 creator_wallet,
                 attn_wallet,
@@ -1487,27 +1604,30 @@ impl SquadsSafeRepository {
                 imported_at = excluded.imported_at,
                 updated_at = excluded.updated_at
             returning *",
-        )
-        .bind(Uuid::new_v4())
-        .bind(&input.creator_wallet)
-        .bind(&input.attn_wallet)
-        .bind(&input.cluster)
-        .bind(threshold)
-        .bind(&input.safe_name)
-        .bind(&input.contact_email)
-        .bind(&input.note)
-        .bind(&input.safe_address)
-        .bind(&input.transaction_url)
-        .bind(members_value)
-        .bind(raw_response)
-        .bind(hash.clone())
-        .bind(payload)
-        .bind(now)
-        .bind(&input.status_url)
-        .bind(&input.import_source)
-        .bind(&input.import_metadata)
-        .fetch_one(&self.pool)
-        .await?;
+            )
+            .bind(Uuid::new_v4())
+            .bind(&input.creator_wallet)
+            .bind(&input.attn_wallet)
+            .bind(&input.cluster)
+            .bind(threshold)
+            .bind(&input.safe_name)
+            .bind(&input.contact_email)
+            .bind(&input.note)
+            .bind(&input.safe_address)
+            .bind(&input.transaction_url)
+            .bind(members_value.clone())
+            .bind(raw_response.clone())
+            .bind(hash.clone())
+            .bind(payload.clone())
+            .bind(now)
+            .bind(&input.status_url)
+            .bind(&input.import_source)
+            .bind(&input.import_metadata)
+            .fetch_one(&mut *tx)
+            .await?
+        };
+
+        tx.commit().await?;
 
         Ok(row_to_request(row))
     }
