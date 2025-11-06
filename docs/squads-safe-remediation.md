@@ -21,6 +21,10 @@
 - No other Cloud Run errors surfaced in the past six hours besides the recurring migration warning (“migration 6 was previously applied but has been modified”), so remediation should focus on flipping this request into `mode=http` and ensuring the portfolio ingest runs successfully.
 - **Upstream discovery:** Squads' production API for relayer/safe operations is served from `https://orca-app-eq7y4.ondigitalocean.app`. The REST surface hangs off the `/multisig/*` namespace (for example `GET /multisig/safe` and `GET /relayer/get_relayer/<address>`). We can now point `ATTN_API_SQUADS_BASE_URL` at this host and override the creation endpoint via the new `ATTN_API_SQUADS_CREATE_PATH` environment variable once the exact route is confirmed with Squads.
 
+## Follow-up Log Investigation (2025-11-06)
+- **500s during new safe creation:** POST `/v1/squads/safes` continues to fail. Cloud Run trace `2acf1cf2debceabfdef6b64f05656347` at `2025-11-06T01:21:51Z` shows the handler panicking because Postgres reports `constraint "squads_safe_requests_uniqueness_idx" for table "squads_safe_requests" does not exist`. That index is created in migration `006_squads_safe_requests.sql`; it looks to have been dropped or never applied in the production database, so every insert that relies on `ON CONFLICT ON CONSTRAINT squads_safe_requests_uniqueness_idx` now bubbles a 500 to the user. **Action:** re-run migration 006 (or manually recreate the index) on the prod Postgres instance before retrying.
+- **Resubmit still hitting Squads 404:** The manual resubmit we fired at `2025-11-05T22:23:07Z` (`trace 4842d0d28a3446b884d110d5d42a0cdf`) was forwarded to `https://orca-app-eq7y4.ondigitalocean.app` and the upstream returned an HTML `404 Not Found`. The API translated this into a `502` for the caller. This confirms the new `/multisig/...` path wiring still needs the exact endpoint from Squads before we can flip the stuck request to `mode=http`.
+
 ### Detailed Walkthrough
 Streaming `vercel logs prod.attn.markets --json` while hitting the sponsor API shows every bridge request running a `/api/bridge/readyz` health probe first, then the wallet lookup `GET /api/bridge/v1/portfolio/ehNPTG1BUYU8jxn5TxhSmjrVt826ipHZChMkfkYNc8D`. The edge middleware logs the call as `status=200`, but the paired serverless log records the upstream call to Cloud Run failing with `404` and payload `{"error":"not_found","id":"…","resource":"portfolio"}` (timestamp ≈ `2025-11-05T03:15Z`). So the 404 the browser reports is coming straight from the attn API; the bridge layer is not masking anything.
 
@@ -38,6 +42,9 @@ Aside from the Squads failure, Cloud Run stdout is clean except for recurring mi
 ### Code Changes (2025-11-05)
 - `protocol/crates/attn_api/src/squads.rs#create_pending` now performs an `ON CONFLICT` update for `(creator_wallet, attn_wallet, cluster)` collisions when the stored status is `failed`, `submitted`, or `pending`. The update resets status → `pending`, clears stale response/status fields, swaps in the new nonce/signature/payload/idempotency key, and bumps `attempt_count`.
 - `create_squads_safe` logs duplicate-driven retries and returns `200 OK` (instead of `201`) when an existing record is replayed. The pending record is reused rather than inserting a new row, so sponsors no longer see `duplicate_request`—the backend immediately replays the request against the live Squads client.
+
+### Code Changes (2025-11-06)
+- `create_pending` and `upsert_imported_safe` no longer rely on the `squads_safe_requests_uniqueness_idx` Postgres index. Both routines now run inside a transaction, `SELECT ... FOR UPDATE` the existing row by wallet+cluster, and issue an `UPDATE` if a record is present. This keeps the flow working even when the index is missing, while still preferring the newer data. (We should still recreate the unique index for correctness and performance, but the API no longer throws a 500 if it disappears.)
 
 ## Goals
 1. Allow sponsor onboarding to recover from a failed `local` record by re-submitting with an active Squads client (`mode: http`) using real API credentials.
