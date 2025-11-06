@@ -39,6 +39,7 @@ struct SquadsInner {
     status_sync_enabled: bool,
     kms_signer: Option<Arc<KmsSigner<HttpKmsClient>>>,
     kms_payer: Option<Arc<KmsSigner<HttpKmsClient>>>,
+    create_path: String,
 }
 
 #[derive(Debug, Clone)]
@@ -52,6 +53,7 @@ struct HttpMode {
     client: Client,
     base_url: String,
     api_keys: Arc<Vec<String>>,
+    create_path: String,
 }
 
 #[derive(Clone)]
@@ -114,6 +116,7 @@ pub struct SquadsConfig {
     pub status_sync_enabled: bool,
     pub kms_signer_resource: Option<String>,
     pub kms_payer_resource: Option<String>,
+    pub create_path: String,
 }
 
 impl SquadsConfig {
@@ -223,6 +226,19 @@ impl SquadsConfig {
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty());
 
+        let create_path = env::var("ATTN_API_SQUADS_CREATE_PATH")
+            .ok()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+            .map(|value| {
+                if value.starts_with('/') {
+                    value
+                } else {
+                    format!("/{}", value)
+                }
+            })
+            .unwrap_or_else(|| "/squads".to_string());
+
         let config_digest = compute_config_digest(
             base_url.as_deref(),
             &default_attn_wallet,
@@ -235,6 +251,7 @@ impl SquadsConfig {
             &api_keys,
             kms_signer_resource.as_deref(),
             kms_payer_resource.as_deref(),
+            &create_path,
         );
         if let Some(expected) = expected_config_digest.as_ref() {
             if expected != &config_digest {
@@ -261,6 +278,7 @@ impl SquadsConfig {
             status_sync_enabled,
             kms_signer_resource,
             kms_payer_resource,
+            create_path,
             allow_invalid_certs,
         }))
     }
@@ -357,6 +375,7 @@ impl SquadsService {
                     client,
                     base_url: url.trim_end_matches('/').to_string(),
                     api_keys: api_keys.clone(),
+                    create_path: config.create_path.clone(),
                 })
             }
             _ => SquadsMode::Local,
@@ -405,6 +424,7 @@ impl SquadsService {
             status_sync_enabled: config.status_sync_enabled,
             kms_signer,
             kms_payer,
+            create_path: config.create_path,
         };
 
         Ok(Self {
@@ -695,7 +715,11 @@ impl SquadsService {
         request_id: String,
         members: Vec<String>,
     ) -> Result<CreateSafeResult> {
-        let url = format!("{}/squads", http.base_url);
+        let url = if http.create_path.starts_with('/') {
+            format!("{}{}", http.base_url, http.create_path)
+        } else {
+            format!("{}/{}", http.base_url, http.create_path)
+        };
         let payload = HttpCreateSafeRequest::from_input(input.clone());
 
         let mut request = http.client.post(url);
@@ -926,6 +950,7 @@ fn compute_config_digest(
     api_keys: &[String],
     kms_signer_resource: Option<&str>,
     kms_payer_resource: Option<&str>,
+    create_path: &str,
 ) -> String {
     let mut hasher = Sha256::new();
     if let Some(url) = base_url {
@@ -948,6 +973,7 @@ fn compute_config_digest(
     if let Some(resource) = kms_payer_resource {
         hasher.update(resource.as_bytes());
     }
+    hasher.update(create_path.as_bytes());
     let mut hashed_keys: Vec<String> = api_keys.iter().map(|key| hash_secret(key)).collect();
     hashed_keys.sort();
     for key in hashed_keys {
@@ -1874,6 +1900,7 @@ mod tests {
             &api_keys,
             None,
             None,
+            "/squads",
         );
         let config = SquadsConfig {
             base_url: Some(base_url),
@@ -1890,6 +1917,8 @@ mod tests {
             status_sync_enabled: false,
             kms_signer_resource: None,
             kms_payer_resource: None,
+            allow_invalid_certs: false,
+            create_path: "/squads".to_string(),
         };
         let service = SquadsService::new(config).await.unwrap();
 

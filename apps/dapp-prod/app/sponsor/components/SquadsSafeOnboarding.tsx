@@ -42,9 +42,11 @@ interface NonceResponse {
 
 interface SuccessNotice {
   type: 'new' | 'existing';
+  heading: string;
   message: string;
   cluster: string;
   requestId: string;
+  status: SafeLifecycleRecord['state'];
   safeAddress?: string | null;
   squadsUrl?: string | null;
   explorerUrl?: string | null;
@@ -139,24 +141,59 @@ const composeSuccessNotice = (record: CreatedSafe, type: 'new' | 'existing'): Su
   const rawCluster = record.cluster ?? 'devnet';
   const clusterLabel = formatClusterLabel(rawCluster);
   const safeAddress = record.safe_address ?? null;
-  const hasAddress = Boolean(safeAddress);
-  const message =
-    type === 'new'
-      ? hasAddress
-        ? `Squads safe is live on ${clusterLabel}.`
-        : `Safe request submitted on ${clusterLabel}. We'll surface the address once Squads finishes deployment.`
-      : hasAddress
-      ? `Existing Squads safe found on ${clusterLabel}.`
-      : `Existing Squads safe request found on ${clusterLabel}.`;
+  const lifecycle = deriveSafeLifecycle(record);
+
+  let heading = '';
+  let message = '';
+
+  if (type === 'new') {
+    switch (lifecycle.state) {
+      case 'ready':
+        heading = 'Squads safe is live';
+        message = `Your Squads safe is live on ${clusterLabel}.`;
+        break;
+      case 'failed':
+        heading = 'Safe request failed';
+        message = `The latest Squads request on ${clusterLabel} failed. Please try again or contact the attn team for help.`;
+        break;
+      default:
+        heading = 'Squads safe request submitted';
+        message = `Safe request submitted on ${clusterLabel}. We'll surface the address once Squads finishes deployment.`;
+        break;
+    }
+  } else {
+    switch (lifecycle.state) {
+      case 'ready':
+        heading = 'Existing Squads safe found';
+        message = `We found an existing Squads safe on ${clusterLabel}. You can jump to Squads or the explorer below.`;
+        break;
+      case 'failed':
+        heading = 'Existing Squads safe attempt failed';
+        message = `A previous Squads safe attempt on ${clusterLabel} failed. Resubmit the request or reach out to the attn team if this looks wrong.`;
+        break;
+      default:
+        heading = 'Existing request still pending';
+        message = `A prior Squads safe request on ${clusterLabel} is still pending upstream. If it should be live, contact the attn team to retry or clear the stale request.`;
+        break;
+    }
+  }
 
   return {
     type,
+    heading,
     message,
     cluster: rawCluster,
     requestId: record.request_id,
+    status: lifecycle.state,
     safeAddress,
-    squadsUrl: hasAddress ? buildSquadsUiUrl(rawCluster, safeAddress as string) : null,
-    explorerUrl: hasAddress ? buildSolanaExplorerUrl(rawCluster, safeAddress as string) : null,
+    squadsUrl:
+      lifecycle.state === 'ready' && safeAddress
+        ? buildSquadsUiUrl(rawCluster, safeAddress as string)
+        : null,
+    explorerUrl:
+      lifecycle.state === 'ready' && safeAddress
+        ? buildSolanaExplorerUrl(rawCluster, safeAddress as string)
+        : null,
     statusUrl: record.status_url ?? null,
   };
 };
@@ -1912,13 +1949,19 @@ const SquadsSafeOnboarding: React.FC<SquadsSafeOnboardingProps> = ({
             <div className="flex-1 space-y-3">
               <div>
                 <p className="text-sm font-semibold text-emerald-200">
-                  {successNotice.type === 'new'
-                    ? 'Squads safe request submitted'
-                    : 'Existing Squads safe found'}
+                  {successNotice.heading}
                 </p>
                 <p className="mt-1 text-emerald-100/90">{successNotice.message}</p>
                 <p className="mt-1 text-xs text-emerald-200/80">
                   Cluster: {formatClusterLabel(successNotice.cluster)}
+                </p>
+                <p className="mt-1 text-xs text-emerald-200/80">
+                  Status:{' '}
+                  {successNotice.status === 'ready'
+                    ? 'Ready'
+                    : successNotice.status === 'failed'
+                    ? 'Failed'
+                    : 'Pending with Squads'}
                 </p>
               </div>
               {successNotice.safeAddress ? (

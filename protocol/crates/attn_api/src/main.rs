@@ -3248,6 +3248,8 @@ mod tests {
             status_sync_enabled: true,
             kms_signer_resource: None,
             kms_payer_resource: None,
+            allow_invalid_certs: false,
+            create_path: "/squads".to_string(),
         }
     }
 
