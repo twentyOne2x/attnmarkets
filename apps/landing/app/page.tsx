@@ -179,12 +179,7 @@ export default function Home(): React.JSX.Element {
         <div className="max-w-7xl mx-auto text-center">
           <div className="text-lg text-text-secondary mb-4">Solana's bridge from earnings to funding</div>
           
-          <h1
-            className={`text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold mb-8 pb-[10px] transition-all duration-1000 ${
-              isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
-            }`}
-            style={{ overflow: 'hidden' }}
-          >
+          <h1 className={`text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold mb-8 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`} style={{ overflow: 'hidden' }}>
                     <span className="gradient-text block mb-4">Get instant funding</span>
                     <div className="text-2xl sm:text-5xl lg:text-6xl xl:text-7xl text-white inline-flex items-center justify-center" style={{ overflow: 'hidden' }}>
                       <span>backed by your</span>
