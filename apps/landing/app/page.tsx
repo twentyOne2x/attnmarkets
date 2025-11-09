@@ -860,6 +860,7 @@ export default function Home(): React.JSX.Element {
           /* Prevent any scrollbars */
           overflow-x: hidden !important;
           overflow-y: hidden !important;
+          margin-bottom: 10px;
         }
 
         .word-wheel-inner {
