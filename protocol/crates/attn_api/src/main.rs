@@ -1258,6 +1258,10 @@ where
         threshold: prepared.threshold as u8,
         contact_email: prepared.contact_email.clone(),
         note: prepared.note.clone(),
+        idempotency_key: prepared
+            .idempotency_key
+            .clone()
+            .unwrap_or_else(|| prepared.id.to_string()),
     };
     match service.retry_create_safe(input).await {
         Ok(result) => {
@@ -1965,6 +1969,10 @@ async fn create_squads_safe(
         threshold,
         contact_email: pending.contact_email.clone(),
         note: pending.note.clone(),
+        idempotency_key: pending
+            .idempotency_key
+            .clone()
+            .unwrap_or_else(|| pending.id.to_string()),
     };
 
     let created = match service.create_safe(input).await {
@@ -3249,7 +3257,8 @@ mod tests {
             kms_signer_resource: None,
             kms_payer_resource: None,
             allow_invalid_certs: false,
-            create_path: "/squads".to_string(),
+            create_paths: vec!["/squads".to_string()],
+            mode_override: None,
         }
     }
 
