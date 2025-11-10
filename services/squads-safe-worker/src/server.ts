@@ -7,6 +7,7 @@ import {
   Connection,
   Keypair,
   PublicKey,
+  SendTransactionError,
   Transaction,
 } from "@solana/web3.js";
 import * as multisig from "@sqds/multisig";
@@ -19,6 +20,30 @@ const CreateBody = z.object({
   idempotencyKey: z.string().min(8),
   label: z.string().default("CreatorVault"),
 });
+
+function extractErrorMessage(error: unknown): string {
+  if (typeof error === "object" && error && "message" in error) {
+    return String((error as { message: unknown }).message);
+  }
+  return String(error ?? "");
+}
+
+function isAccountAlreadyInUse(error: unknown): boolean {
+  if (error instanceof SendTransactionError) {
+    if (Array.isArray(error.logs)) {
+      const hit = error.logs.some((line) =>
+        line.toLowerCase().includes("already in use"),
+      );
+      if (hit) return true;
+    }
+  }
+
+  const message = extractErrorMessage(error).toLowerCase();
+  return (
+    message.includes("account") &&
+    message.includes("already in use")
+  );
+}
 
 function deterministicFakeAddress(seed: string): string {
   const hash = createHash("sha256").update(seed).digest();
@@ -73,20 +98,27 @@ async function createOnChain(
 
   tx.sign(signer, createKey);
 
-  const sig = await connection.sendRawTransaction(tx.serialize(), {
-    skipPreflight: false,
-  });
+  try {
+    const sig = await connection.sendRawTransaction(tx.serialize(), {
+      skipPreflight: false,
+    });
 
-  await connection.confirmTransaction(
-    {
-      signature: sig,
-      blockhash: latest.blockhash,
-      lastValidBlockHeight: latest.lastValidBlockHeight,
-    },
-    "confirmed",
-  );
+    await connection.confirmTransaction(
+      {
+        signature: sig,
+        blockhash: latest.blockhash,
+        lastValidBlockHeight: latest.lastValidBlockHeight,
+      },
+      "confirmed",
+    );
 
-  return { safeAddress: multisigPda.toBase58(), txSig: sig };
+    return { safeAddress: multisigPda.toBase58(), txSig: sig };
+  } catch (err) {
+    if (isAccountAlreadyInUse(err)) {
+      return { safeAddress: multisigPda.toBase58(), txSig: "already-exists" };
+    }
+    throw err;
+  }
 }
 
 let cachedConnection: Connection | null = null;
@@ -144,10 +176,7 @@ export function createApp(): Express {
         cluster: env.CLUSTER,
       });
     } catch (err) {
-      const msg =
-        typeof err === "object" && err && "message" in err
-          ? String((err as { message: unknown }).message)
-          : String(err);
+      const msg = extractErrorMessage(err);
       return res.status(502).json({ error: "squads_create_failed", detail: msg });
     }
   });
