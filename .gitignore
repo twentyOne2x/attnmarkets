@@ -1,6 +1,7 @@
 node_modules/
 .next/
 .env.local
+.env
 apps/dapp-prod/.env.playwright
 dist/
 apps/dapp/.turbo

@@ -46,6 +46,126 @@ Aside from the Squads failure, Cloud Run stdout is clean except for recurring mi
 ### Code Changes (2025-11-06)
 - `create_pending` and `upsert_imported_safe` no longer rely on the `squads_safe_requests_uniqueness_idx` Postgres index. Both routines now run inside a transaction, `SELECT ... FOR UPDATE` the existing row by wallet+cluster, and issue an `UPDATE` if a record is present. This keeps the flow working even when the index is missing, while still preferring the newer data. (We should still recreate the unique index for correctness and performance, but the API no longer throws a 500 if it disappears.)
 
+### Cloud Run Deployment (2025-11-06)
+- Built and pushed `us-central1-docker.pkg.dev/just-skyline-474622-e1/attn-api/attn-api:3b73c3f` (houses the transactional upsert + index resilience changes).
+- `gcloud run deploy attn-api --image ...:3b73c3f` created revision `attn-api-00031-r4t` (Ready) and a follow-up `attn-api-00032-6f7` that failed the startup TCP probe. Cloud Run automatically routed traffic to the healthy `00031` revision; active digest: `sha256:31476d20c7d681e95ed6c4ce8912155350f5bbd5bb210a7893e0366daa5cc207`.
+- `/version` now reports `built_at_unix=1762400610`, matching the 3b73c3f build timestamp.
+- Bridge smoke (`curl https://prod.attn.markets/api/bridge/v1/squads/safes/creator/ehNPTG1BUYU8jxn5TxhSmjrVt826ipHZChMkfkYNc8D`) still returns `status: "failed", mode: "http", attempt_count: 4` because Squads keeps answering `404`. The backend now keeps the same record hot, so a future resubmit will reuse it once the upstream path is corrected.
+- Local regression pass: `cargo test -p attn_api` (26 tests) green.
+- New fallback support for the Squads create endpoint: set `ATTN_API_SQUADS_CREATE_PATHS=/squads,/multisig/create,/multisig/safe` (or update `ATTN_API_SQUADS_CREATE_PATH_FALLBACKS`) so the API automatically retries alternate routes when the primary path returns `404`/`405`. The config digest now includes the ordered list of paths.
+- Remaining steps before we can call the incident closed:
+  1. Confirm Squads' production REST route (`https://orca-app-eq7y4.ondigitalocean.app`, likely `/multisig/safe`) and update `ATTN_API_SQUADS_BASE_URL` / `ATTN_API_SQUADS_CREATE_PATH`, then redeploy.
+  2. Trigger a manual `POST /v1/squads/safes/3144a127-79da-462d-8fb9-45ba343cb53a/resubmit` once the upstream returns 201/202; verify `GET /v1/squads/safes/creator/:wallet` flips to `status: "ready"` and bridge 404s disappear.
+  3. Add a Cloud Monitoring alert for repeated `duplicate_request` / `upstream=404` responses so the ops team gets paged before sponsors hit the loop.
+
+### Code Changes (2025-11-07)
+- Removed the unfinished `program` execution path from `SquadsService` so the crate compiles cleanly while we stabilise HTTP fallbacks. The service now only exposes `local` and `http` modes, with a simple `ATTN_API_SQUADS_MODE` override for forcing either one.
+- Normalised the Squads configuration digest to include the ordered list of create-path fallbacks and (optionally) the explicit mode override.
+- Simplified `SquadsService::new` to reuse the existing HTTP client configuration while sharing a single `Arc<Vec<String>>` across retry attempts.
+- Updated the fallback test coverage (`http_service_falls_back_to_alternate_create_path`) for the new multi-path behaviour.
+
+### Cloud Run Deployment (2025-11-07)
+- Cloud Build `5425169a-2ad0-4254-b35e-a599d2e3b0d1` produced `us-central1-docker.pkg.dev/just-skyline-474622-e1/attn-api/attn-api:3b73c3f-fallback-fix` from the patched workspace.
+- `gcloud run deploy attn-api --image ...:3b73c3f-fallback-fix` rolled out revision `attn-api-00033-984`; traffic now points 100% at the new build. `/version` reports `built_at_unix=1762517057`.
+- Post-deploy verification: `curl https://attn-api-406386298457.us-central1.run.app/version` succeeded (no TLS errors).
+- Regression check rerun locally: `cargo test -p attn_api` (27 tests) green.
+
+### Configuration Update (2025-11-08)
+- Cloud Run logs captured `squads api returned no success; attempts: /squads 404 Not Found` followed by an HTML body `Cannot POST /squads`, proving the upstream host at `https://api.squads.so` does not serve the expected create route.
+- Switched the service to Squads’ documented relayer host and REST namespace:
+  ```bash
+  gcloud run services update attn-api \
+    --region us-central1 \
+    --project just-skyline-474622-e1 \
+    --update-env-vars=ATTN_API_SQUADS_BASE_URL=https://orca-app-eq7y4.ondigitalocean.app
+
+  gcloud run services update attn-api \
+    --region us-central1 \
+    --project just-skyline-474622-e1 \
+    --update-env-vars=^:^ATTN_API_SQUADS_CREATE_PATHS=/multisig/create,/multisig/safe
+
+  gcloud run services update attn-api \
+    --region us-central1 \
+    --project just-skyline-474622-e1 \
+    --update-env-vars=^:^ATTN_ENABLE_SQUADS=true:ATTN_API_SQUADS_CLUSTER=devnet:ATTN_API_SQUADS_THRESHOLD=2:ATTN_API_SQUADS_SAFE_PREFIX=CreatorVault-:ATTN_API_SQUADS_DEFAULT_MEMBER=BVQHZaUHBTwk2mfUFsaHdbBhe5EkxNz8nPeynmbfXr2i:ATTN_API_SQUADS_STATUS_SYNC_ENABLED=false:ATTN_API_ADMIN_KEYS=prod:ATTN_API_SQUADS_ALLOW_INVALID_TLS=true
+  ```
+- Revision `attn-api-00034-pxx` now carries the new configuration and serves 100 % of traffic. `gcloud run services describe attn-api ... --format='value(status.traffic)'` confirms the rollout.
+- Bridge status remains `failed` until the next retry hits the updated path; monitor `projects/just-skyline-474622-e1/logs/run.googleapis.com%2Fstdout` for a 201/202 response or any residual 404s. Use
+  ```bash
+  gcloud logging read \
+    'resource.type="cloud_run_revision" AND resource.labels.service_name="attn-api" AND trace:"3144a127-79da-462d-8fb9-45ba343cb53a"' \
+    --project just-skyline-474622-e1 \
+    --freshness=1h
+  ```
+  to inspect the next attempt.
+- Follow-up deployment (`gcloud run deploy ... --env-vars-file=/tmp/squads-env-full.yaml --set-secrets ...`) rolled out revision `attn-api-00040-tz6`, now serving 100 % of traffic with both `ATTN_ENABLE_SQUADS` and `ATTN_API_SQUADS_ENABLED` set to `true`. Startup logs confirm `squads service configured` with config digest `679fe61a1076703c56ebe2e4735db83e42a665062c2911204cee289e5435488c`, and the bridge reader now reports `mode: "http"` for request `3144a127-79da-462d-8fb9-45ba343cb53a`.
+
+### Open Issue: Squads REST surface still unknown (2025-11-08)
+- **Root cause:** we are POSTing to unsupported Squads routes (`/squads`, `/multisig/create`, `/multisig/safe`). Upstream responds 404/405 because those endpoints are not part of their public API. Squads’ docs point to either the TypeScript SDK (`multisigCreateV2`) or the new “Grid” REST API (`https://grid.squads.xyz/api/grid/v1/...`) with different headers (`Authorization: Bearer …`, `x-grid-environment: devnet`) and payloads.
+- Latest sponsor attempt (trace `437c52b082e1816835f6e4ddd234951d` @ 15:07 UTC) confirms both configured fallbacks return `405 Method Not Allowed`.
+- Manual curl reproduces the 405 on both `/multisig/create` and `/multisig/safe`, even though the host accepts OPTIONS.
+- **Immediate plan:**
+  1. **Stop calling unknown routes.** Remove `/squads`, `/multisig/create`, `/multisig/safe` from the production config to avoid noisy retries.
+  2. **Pick an integration path and wire it correctly:**
+     - **Recommended:** run the official Squads SDK (`@sqds/multisig`) yourself. Deploy a small worker (see below) that executes `multisigCreateV2`, derives the multisig PDA, and returns `{ status, safe_address, tx_signature }`. Point `attn_api` at this worker instead of the dead REST guesses.
+     - **Alternative:** onboard to Grid REST (`https://grid.squads.xyz/api/grid/v1`). Use their documented resources, include `Authorization: Bearer <grid-token>` and `x-grid-environment: devnet`, and map the response back into our safe record. Do **not** reuse `/multisig/*`.
+  3. **Unstick request `3144a127-79da-462d-8fb9-45ba343cb53a`.** After the new integration is live, resubmit the request so the SDK/worker (or Grid) creates the multisig on-chain, fills `safe_address`, and flips status to `ready`.
+  4. **Verify UI + portfolio.** Once the address exists, `GET /api/bridge/v1/portfolio/:wallet` should return 200 and the sponsor tour should dismiss.
+- **SDK worker outline (drop-in):**
+  - Express service calling `multisigCreateV2`, deriving the PDA using `getCreateKey(idempotencyKey)`, sending the signed transaction with our `ATTN_WALLET_SECRET`, and responding with `201`.
+  - See the code sample in the main thread (or attach it to `workers/squads-worker/src/index.ts`). Env requirements: `SOLANA_RPC_URL`, `ATTN_WALLET_SECRET`, `SQUADS_SAFE_PREFIX`.
+  - Update `attn_api`’s `create_safe_http` to POST to the worker (`/v1/squads/safe`) and parse `safe_address` / `tx_signature`. Add wiremock-based unit tests to ensure success + error propagation.
+- **Grid path checklist (if chosen instead of SDK):**
+  - Obtain Grid API key & project onboarding.
+  - Use documented routes (`/accounts`, `/transactions`, etc.) with the required headers.
+
+  - Map Grid’s response into our safe record (status, address, explorer URL).
+- **Next steps with Squads:**
+  - Confirm whether we can rely on the SDK immediately or if Grid credentials are available.
+  - Provide the correct REST entry point if Grid is desired (base URL, resources, sample body/response).
+  - Clarify any auth or memo requirements so we can finalise the worker/REST integration.
+
+Until the integration path is chosen and implemented, sponsor onboarding will continue surfacing `squads_create_failed`.
+
+### Deployment & Replay (2025-11-09)
+- Payload v3 shipped with the Cloud Run deploy of `attn-api-00046-cj4`. Backend now POSTs the worker with:
+  - `members`: `string[]`
+  - `threshold`: `number`
+  - `idempotencyKey`: `string` (falls back to the request UUID when absent)
+  - `label`: `string`
+- `attn_api` env stays pinned to the Squads worker (`/v1/squads/safe`).
+- To recover a failed bridge record:
+  1. `gcloud run deploy attn-api ...` (or roll out the latest revision) so the payload shape is live.
+  2. `http POST https://prod.attn.markets/api/bridge/v1/squads/safes/{id}/resubmit X-API-Key:<bridge key>`
+  3. Expect worker `201` with `tx_signature` and `safe_address`; the safe row should flip to `status:"ready", mode:"http"`.
+- If the resubmit still fails with `502 squads_create_failed`, inspect worker logs for RPC/signing/funds issues and re-airdrop the signer before retrying.
+
+### Cloud Run startup probe remediation
+**Symptom:** new `attn-api` revisions fail the “STARTUP TCP probe” and never serve traffic.
+
+**Root causes to check:**
+- Empty env values causing parse panics (shows up as a key with an empty value in the template).
+- Missing Secret Manager access on the revision’s service account.
+- Blocking startup work (Cloud SQL connect / migrations) exceeding the probe window.
+- Process not binding to `$PORT` early in startup.
+
+**Safe rollout:**
+1. Create a no-traffic, single-instance canary:
+   ```bash
+   gcloud run services update attn-api --tag canary --no-traffic \
+     --min-instances=1 --max-instances=1 --concurrency=1 --cpu-boost \
+     --update-env-vars=ATTN_API_SQUADS_MODE=http,ATTN_API_SQUADS_BASE_URL=<worker>,ATTN_API_SQUADS_CREATE_PATHS=/v1/squads/safe \
+     --remove-env-vars=ATTN_API_SQUADS_CREATE_PATH_FALLBACKS
+   ```
+2. Probe: `curl $CANARY_URL/readyz`; `curl $CANARY_URL/version`
+3. Shift traffic: `update-traffic canary=10` → `canary=100`
+4. Restore autoscaling: reset max-instances and concurrency as needed.
+
+**Hardening:**
+- Never set an env var to the empty string; remove it instead.
+- Keep `min-instances=1` to avoid cold-start probe delays.
+- Run DB migrations out-of-band; the HTTP server must bind before any slow init runs.
+
 ## Goals
 1. Allow sponsor onboarding to recover from a failed `local` record by re-submitting with an active Squads client (`mode: http`) using real API credentials.
 2. Provide deterministic Playwright coverage that simulates the whole flow from signature → submission → ready status.

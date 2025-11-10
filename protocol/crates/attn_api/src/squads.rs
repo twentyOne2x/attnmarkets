@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::env;
 use std::fmt;
 use std::net::IpAddr;
@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
-use reqwest::Client;
+use reqwest::{Client, StatusCode};
 use serde::Serialize;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -39,7 +39,6 @@ struct SquadsInner {
     status_sync_enabled: bool,
     kms_signer: Option<Arc<KmsSigner<HttpKmsClient>>>,
     kms_payer: Option<Arc<KmsSigner<HttpKmsClient>>>,
-    create_path: String,
 }
 
 #[derive(Debug, Clone)]
@@ -53,7 +52,7 @@ struct HttpMode {
     client: Client,
     base_url: String,
     api_keys: Arc<Vec<String>>,
-    create_path: String,
+    create_paths: Arc<Vec<String>>,
 }
 
 #[derive(Clone)]
@@ -116,7 +115,8 @@ pub struct SquadsConfig {
     pub status_sync_enabled: bool,
     pub kms_signer_resource: Option<String>,
     pub kms_payer_resource: Option<String>,
-    pub create_path: String,
+    pub create_paths: Vec<String>,
+    pub mode_override: Option<SquadsModeKind>,
 }
 
 impl SquadsConfig {
@@ -145,6 +145,16 @@ impl SquadsConfig {
             .ok()
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty());
+        let mode_override = env::var("ATTN_API_SQUADS_MODE")
+            .ok()
+            .map(|value| value.trim().to_lowercase())
+            .filter(|value| !value.is_empty())
+            .map(|value| match value.as_str() {
+                "http" => Ok(SquadsModeKind::Http),
+                "local" => Ok(SquadsModeKind::Local),
+                other => Err(anyhow!("unsupported ATTN_API_SQUADS_MODE value: {}", other)),
+            })
+            .transpose()?;
         let allow_invalid_certs = parse_flag("ATTN_API_SQUADS_ALLOW_INVALID_TLS").unwrap_or(false);
         let mut api_keys: Vec<String> = env::var("ATTN_API_SQUADS_API_KEYS")
             .ok()
@@ -226,18 +236,52 @@ impl SquadsConfig {
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty());
 
-        let create_path = env::var("ATTN_API_SQUADS_CREATE_PATH")
+        let normalize_path = |raw: &str| {
+            let trimmed = raw.trim();
+            if trimmed.is_empty() {
+                None
+            } else if trimmed.starts_with('/') {
+                Some(trimmed.to_string())
+            } else {
+                Some(format!("/{}", trimmed))
+            }
+        };
+
+        let mut create_paths: Vec<String> = env::var("ATTN_API_SQUADS_CREATE_PATHS")
             .ok()
-            .map(|value| value.trim().to_string())
-            .filter(|value| !value.is_empty())
-            .map(|value| {
-                if value.starts_with('/') {
-                    value
+            .and_then(|value| {
+                let entries: Vec<String> = value
+                    .split(',')
+                    .filter_map(|segment| normalize_path(segment))
+                    .collect();
+                if entries.is_empty() {
+                    None
                 } else {
-                    format!("/{}", value)
+                    Some(entries)
                 }
             })
-            .unwrap_or_else(|| "/squads".to_string());
+            .unwrap_or_else(|| {
+                let primary = env::var("ATTN_API_SQUADS_CREATE_PATH")
+                    .ok()
+                    .and_then(|value| normalize_path(&value))
+                    .unwrap_or_else(|| "/squads".to_string());
+                vec![primary]
+            });
+
+        if let Some(fallbacks) = env::var("ATTN_API_SQUADS_CREATE_PATH_FALLBACKS").ok() {
+            for entry in fallbacks.split(',') {
+                if let Some(path) = normalize_path(entry) {
+                    create_paths.push(path);
+                }
+            }
+        }
+        if create_paths.is_empty() {
+            create_paths.push("/squads".to_string());
+        } else {
+            // Preserve the first occurrence order while removing duplicates.
+            let mut seen = HashSet::with_capacity(create_paths.len());
+            create_paths.retain(|path| seen.insert(path.clone()));
+        }
 
         let config_digest = compute_config_digest(
             base_url.as_deref(),
@@ -251,7 +295,8 @@ impl SquadsConfig {
             &api_keys,
             kms_signer_resource.as_deref(),
             kms_payer_resource.as_deref(),
-            &create_path,
+            &create_paths,
+            mode_override,
         );
         if let Some(expected) = expected_config_digest.as_ref() {
             if expected != &config_digest {
@@ -278,8 +323,9 @@ impl SquadsConfig {
             status_sync_enabled,
             kms_signer_resource,
             kms_payer_resource,
-            create_path,
+            create_paths,
             allow_invalid_certs,
+            mode_override,
         }))
     }
 }
@@ -293,6 +339,7 @@ pub struct CreateSafeInput {
     pub threshold: u8,
     pub contact_email: Option<String>,
     pub note: Option<String>,
+    pub idempotency_key: String,
 }
 
 impl CreateSafeInput {
@@ -305,6 +352,10 @@ impl CreateSafeInput {
             threshold: record.threshold.max(0).min(u8::MAX as i16) as u8,
             contact_email: record.contact_email.clone(),
             note: record.note.clone(),
+            idempotency_key: record
+                .idempotency_key
+                .clone()
+                .unwrap_or_else(|| record.id.to_string()),
         }
     }
 }
@@ -364,22 +415,7 @@ impl SquadsService {
             .filter(|value| !value.is_empty());
 
         let api_keys = Arc::new(config.api_keys.clone());
-        let mode = match base_url {
-            Some(url) if url != "local" => {
-                let mut client_builder = Client::builder().user_agent("attn_api/0.1");
-                if config.allow_invalid_certs {
-                    client_builder = client_builder.danger_accept_invalid_certs(true);
-                }
-                let client = client_builder.build().context("build squads http client")?;
-                SquadsMode::Http(HttpMode {
-                    client,
-                    base_url: url.trim_end_matches('/').to_string(),
-                    api_keys: api_keys.clone(),
-                    create_path: config.create_path.clone(),
-                })
-            }
-            _ => SquadsMode::Local,
-        };
+        let create_paths = Arc::new(config.create_paths.clone());
         let rpc = if let Some(url) = config.rpc_url.as_ref() {
             let client = Arc::new(RpcClient::new_with_commitment(
                 url.clone(),
@@ -411,6 +447,35 @@ impl SquadsService {
         } else {
             None
         };
+        let resolved_mode = if let Some(mode) = config.mode_override {
+            mode
+        } else if let Some(url) = base_url {
+            if url.eq_ignore_ascii_case("local") {
+                SquadsModeKind::Local
+            } else {
+                SquadsModeKind::Http
+            }
+        } else {
+            SquadsModeKind::Local
+        };
+        let mode = match resolved_mode {
+            SquadsModeKind::Http => {
+                let url = base_url
+                    .ok_or_else(|| anyhow!("ATTN_API_SQUADS_BASE_URL required for http mode"))?;
+                let mut client_builder = Client::builder().user_agent("attn_api/0.1");
+                if config.allow_invalid_certs {
+                    client_builder = client_builder.danger_accept_invalid_certs(true);
+                }
+                let client = client_builder.build().context("build squads http client")?;
+                SquadsMode::Http(HttpMode {
+                    client,
+                    base_url: url.trim_end_matches('/').to_string(),
+                    api_keys: api_keys.clone(),
+                    create_paths: Arc::clone(&create_paths),
+                })
+            }
+            SquadsModeKind::Local => SquadsMode::Local,
+        };
         let inner = SquadsInner {
             mode,
             default_attn_wallet: config.default_attn_wallet,
@@ -424,7 +489,6 @@ impl SquadsService {
             status_sync_enabled: config.status_sync_enabled,
             kms_signer,
             kms_payer,
-            create_path: config.create_path,
         };
 
         Ok(Self {
@@ -715,76 +779,103 @@ impl SquadsService {
         request_id: String,
         members: Vec<String>,
     ) -> Result<CreateSafeResult> {
-        let url = if http.create_path.starts_with('/') {
-            format!("{}{}", http.base_url, http.create_path)
-        } else {
-            format!("{}/{}", http.base_url, http.create_path)
-        };
         let payload = HttpCreateSafeRequest::from_input(input.clone());
+        let mut attempts = Vec::new();
 
-        let mut request = http.client.post(url);
-        if let Some(api_key) = http.api_keys.first() {
-            request = request.bearer_auth(api_key);
+        for create_path in http.create_paths.iter() {
+            let url = if create_path.starts_with('/') {
+                format!("{}{}", http.base_url, create_path)
+            } else {
+                format!("{}/{}", http.base_url, create_path)
+            };
+            let mut request = http.client.post(url.clone());
+            if let Some(api_key) = http.api_keys.first() {
+                request = request.bearer_auth(api_key);
+            }
+            request = request.json(&payload);
+
+            let response = match request.send().await {
+                Ok(response) => response,
+                Err(err) => {
+                    attempts.push(format!("{} send error: {}", create_path, err));
+                    continue;
+                }
+            };
+            let status = response.status();
+            let body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "unable to read response body".to_string());
+
+            if status.is_success() {
+                let raw_response: Value =
+                    serde_json::from_str(&body).unwrap_or_else(|_| json!({ "raw": body }));
+                let safe_address = extract_string(
+                    &raw_response,
+                    &[
+                        &["safe", "address"],
+                        &["data", "safe", "address"],
+                        &["safeAddress"],
+                        &["safe_address"],
+                        &["address"],
+                        &["multisig", "address"],
+                        &["squad", "address"],
+                    ],
+                )
+                .unwrap_or_else(|| {
+                    generate_deterministic_address(
+                        &input.creator_wallet,
+                        &input.attn_wallet,
+                        &input.cluster,
+                    )
+                });
+
+                let transaction_url = extract_string(
+                    &raw_response,
+                    &[
+                        &["transaction", "explorerUrl"],
+                        &["transaction", "url"],
+                        &["transactionUrl"],
+                        &["transaction_url"],
+                        &["explorer", "url"],
+                    ],
+                );
+
+                let status_url = extract_string(
+                    &raw_response,
+                    &[&["status", "url"], &["links", "status"], &["status_url"]],
+                );
+
+                return Ok(CreateSafeResult {
+                    request_id,
+                    safe_address,
+                    transaction_url,
+                    cluster: input.cluster.clone(),
+                    threshold: input.threshold,
+                    members,
+                    raw_response,
+                    mode: self.current_mode(),
+                    status_url,
+                });
+            }
+
+            let trimmed_body = body.trim();
+            let entry = if trimmed_body.is_empty() {
+                format!("{} {}", create_path, status)
+            } else {
+                format!("{} {}: {}", create_path, status, trimmed_body)
+            };
+            attempts.push(entry.clone());
+
+            if status != StatusCode::NOT_FOUND && status != StatusCode::METHOD_NOT_ALLOWED {
+                return Err(anyhow!("squads api returned {}: {}", status, body));
+            }
         }
-        request = request.json(&payload);
 
-        let response = request.send().await.context("send squads create request")?;
-        let status = response.status();
-        let body = response.text().await.context("read squads response body")?;
-
-        if !status.is_success() {
-            return Err(anyhow!("squads api returned {}: {}", status, body));
-        }
-
-        let raw_response: Value =
-            serde_json::from_str(&body).unwrap_or_else(|_| json!({ "raw": body }));
-        let safe_address = extract_string(
-            &raw_response,
-            &[
-                &["safe", "address"],
-                &["data", "safe", "address"],
-                &["safeAddress"],
-                &["safe_address"],
-                &["address"],
-                &["multisig", "address"],
-                &["squad", "address"],
-            ],
-        )
-        .unwrap_or_else(|| {
-            generate_deterministic_address(
-                &input.creator_wallet,
-                &input.attn_wallet,
-                &input.cluster,
-            )
-        });
-
-        let transaction_url = extract_string(
-            &raw_response,
-            &[
-                &["transaction", "explorerUrl"],
-                &["transaction", "url"],
-                &["transactionUrl"],
-                &["transaction_url"],
-                &["explorer", "url"],
-            ],
-        );
-
-        let status_url = extract_string(
-            &raw_response,
-            &[&["status", "url"], &["links", "status"], &["status_url"]],
-        );
-
-        Ok(CreateSafeResult {
-            request_id,
-            safe_address,
-            transaction_url,
-            cluster: input.cluster.clone(),
-            threshold: input.threshold,
-            members,
-            raw_response,
-            mode: self.current_mode(),
-            status_url,
-        })
+        Err(anyhow!(
+            "squads api returned no success; attempts: {}",
+            attempts.join("; ")
+        ))
     }
 }
 
@@ -798,64 +889,39 @@ impl SquadsService {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct HttpCreateSafeRequest {
-    name: String,
+    members: Vec<String>,
     threshold: u8,
-    members: Vec<HttpMember>,
-    cluster: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    metadata: Option<HttpMetadata>,
+    idempotency_key: String,
+    label: String,
 }
 
 impl HttpCreateSafeRequest {
     fn from_input(input: CreateSafeInput) -> Self {
+        let CreateSafeInput {
+            creator_wallet,
+            attn_wallet,
+            safe_name,
+            cluster: _,
+            threshold,
+            contact_email: _,
+            note: _,
+            idempotency_key,
+        } = input;
+
+        let label = safe_name.unwrap_or_else(|| {
+            format!(
+                "CreatorVault-{}",
+                creator_wallet.chars().take(6).collect::<String>()
+            )
+        });
+
         Self {
-            name: input.safe_name.unwrap_or_else(|| {
-                format!(
-                    "CreatorVault-{}",
-                    input.creator_wallet.chars().take(6).collect::<String>()
-                )
-            }),
-            threshold: input.threshold,
-            members: vec![
-                HttpMember {
-                    address: input.creator_wallet,
-                    role: "member".to_string(),
-                },
-                HttpMember {
-                    address: input.attn_wallet,
-                    role: "member".to_string(),
-                },
-            ],
-            cluster: input.cluster,
-            metadata: HttpMetadata::from_optional_fields(input.contact_email, input.note),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct HttpMember {
-    address: String,
-    role: String,
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct HttpMetadata {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    contact_email: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    note: Option<String>,
-}
-
-impl HttpMetadata {
-    fn from_optional_fields(contact_email: Option<String>, note: Option<String>) -> Option<Self> {
-        if contact_email.is_none() && note.is_none() {
-            None
-        } else {
-            Some(Self {
-                contact_email,
-                note,
-            })
+            members: vec![creator_wallet, attn_wallet],
+            threshold,
+            idempotency_key,
+            label,
         }
     }
 }
@@ -950,7 +1016,8 @@ fn compute_config_digest(
     api_keys: &[String],
     kms_signer_resource: Option<&str>,
     kms_payer_resource: Option<&str>,
-    create_path: &str,
+    create_paths: &[String],
+    mode: Option<SquadsModeKind>,
 ) -> String {
     let mut hasher = Sha256::new();
     if let Some(url) = base_url {
@@ -973,7 +1040,16 @@ fn compute_config_digest(
     if let Some(resource) = kms_payer_resource {
         hasher.update(resource.as_bytes());
     }
-    hasher.update(create_path.as_bytes());
+    if create_paths.is_empty() {
+        hasher.update("/squads".as_bytes());
+    } else {
+        for path in create_paths {
+            hasher.update(path.as_bytes());
+        }
+    }
+    if let Some(mode) = mode {
+        hasher.update(mode.as_str().as_bytes());
+    }
     let mut hashed_keys: Vec<String> = api_keys.iter().map(|key| hash_secret(key)).collect();
     hashed_keys.sort();
     for key in hashed_keys {
@@ -1355,11 +1431,11 @@ impl SquadsSafeRepository {
         let raw_response = upstream.raw_response.clone();
         let hash = hash_json(&raw_response);
         let status = if upstream.safe_address.is_empty() {
-            "submitted"
+            SafeStatus::Submitted
         } else {
-            "ready"
+            SafeStatus::Ready
         };
-        let next_retry_at = if status == "submitted" {
+        let next_retry_at = if status == SafeStatus::Submitted {
             Some(Utc::now() + backoff)
         } else {
             None
@@ -2008,6 +2084,7 @@ mod tests {
 
         let base_url = server.url("");
         let api_keys = vec!["token".to_string()];
+        let create_paths = vec!["/squads".to_string()];
         let digest = compute_config_digest(
             Some(base_url.as_str()),
             "Attn111111111111111111111111111111111111111",
@@ -2020,7 +2097,8 @@ mod tests {
             &api_keys,
             None,
             None,
-            "/squads",
+            &create_paths,
+            None,
         );
         let config = SquadsConfig {
             base_url: Some(base_url),
@@ -2038,7 +2116,8 @@ mod tests {
             kms_signer_resource: None,
             kms_payer_resource: None,
             allow_invalid_certs: false,
-            create_path: "/squads".to_string(),
+            create_paths,
+            mode_override: None,
         };
         let service = SquadsService::new(config).await.unwrap();
 
@@ -2050,6 +2129,7 @@ mod tests {
             threshold: 2,
             contact_email: None,
             note: None,
+            idempotency_key: "test-idempotency-1".to_string(),
         };
 
         let result = service.create_safe(input).await.unwrap();
@@ -2059,6 +2139,84 @@ mod tests {
             Some("https://explorer/tx")
         );
         assert_eq!(result.status_url.as_deref(), Some("https://status/123"));
+    }
+
+    #[tokio::test]
+    async fn http_service_falls_back_to_alternate_create_path() {
+        let server = MockServer::start_async().await;
+        let miss = server.mock(|when, then| {
+            when.method(POST).path("/missing");
+            then.status(404).body("not found");
+        });
+        let hit = server.mock(|when, then| {
+            when.method(POST).path("/squads");
+            then.status(200).json_body(json!({
+                "safe": { "address": "SafeFallback1111111111111111111111111111111" },
+                "status": { "url": "https://status/fallback" }
+            }));
+        });
+
+        let base_url = server.url("");
+        let api_keys = vec!["token".to_string()];
+        let create_paths = vec!["/missing".to_string(), "/squads".to_string()];
+        let digest = compute_config_digest(
+            Some(base_url.as_str()),
+            "Attn111111111111111111111111111111111111111",
+            "devnet",
+            2,
+            "CreatorVault-",
+            None,
+            None,
+            false,
+            &api_keys,
+            None,
+            None,
+            &create_paths,
+            None,
+        );
+        let config = SquadsConfig {
+            base_url: Some(base_url),
+            api_keys,
+            default_attn_wallet: "Attn111111111111111111111111111111111111111".to_string(),
+            default_cluster: "devnet".to_string(),
+            default_threshold: 2,
+            default_name_prefix: "CreatorVault-".to_string(),
+            payer_wallet: None,
+            rpc_url: None,
+            rpc_strict: false,
+            expected_config_digest: None,
+            config_digest: digest,
+            status_sync_enabled: false,
+            kms_signer_resource: None,
+            kms_payer_resource: None,
+            allow_invalid_certs: false,
+            create_paths,
+            mode_override: None,
+        };
+        let service = SquadsService::new(config).await.unwrap();
+
+        let input = CreateSafeInput {
+            creator_wallet: "Creator1111111111111111111111111111111111111".to_string(),
+            attn_wallet: "Attn111111111111111111111111111111111111111".to_string(),
+            safe_name: None,
+            cluster: "devnet".to_string(),
+            threshold: 2,
+            contact_email: None,
+            note: None,
+            idempotency_key: "test-idempotency-2".to_string(),
+        };
+
+        let result = service.create_safe(input).await.unwrap();
+        miss.assert();
+        hit.assert();
+        assert_eq!(
+            result.safe_address,
+            "SafeFallback1111111111111111111111111111111"
+        );
+        assert_eq!(
+            result.status_url.as_deref(),
+            Some("https://status/fallback")
+        );
     }
 }
 
