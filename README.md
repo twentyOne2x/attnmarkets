@@ -6,7 +6,7 @@
 - X: https://x.com/attndotmarkets
 - Founder Billy (https://x.com/twentyOne2x), 
   * full-time on attn, 
-  * 3 yoe in defi startups (research+bd+product) from pre-PMF to Binance listing, 
+  * 3 yoe in defi startups (research+bd) from pre-PMF to Binance listing, 
   * 2 yoe in hft (c++ dev in market-making)
 
 
@@ -280,6 +280,23 @@ curl -s -H 'If-None-Match: W/"demo"' http://localhost:8787/v1/rewards?limit=5
 - **CreatorVault.admin is a Squads Safe with members `{creator, attn}` and threshold `2`.** StableVault/RewardsVault admins can be separate Squads Safes; mirror the same members/threshold if dual control is desired. `emergency_admin` is optional. `toggle_pause` and config updates execute only via Squads approvals.
 - Keeper flows must supply `operation_id` so sweeps/conversions/funding are replay-safe; paused vaults block writes until governance resumes.
 - Neither creator nor attn can change admin, pause, or redirect fees unilaterally; all privileged ops require Squads 2-of-2 approval.
+
+## Revenue Reroute Safeguards
+
+Creators and projects can move activity to new contracts or tokens. attn cannot force new revenues to appear. We mitigate by enforcing per-asset custody, hard revenue sources, and conservative underwriting.
+
+- **DAO-native projects (e.g., MetaDAO, Z-Combinator).** Projects route all product revenues and ICO proceeds to a DAO Safe. Governance controls spend. Our controls assume the Safe is the canonical receiver and that new revenue endpoints are registered before activation.
+
+
+- **Pump.fun is per token.** “Creator rewards” are set per token; reassignment (e.g., CTO) is also per token. Financing requires rotating each financed token to a Squads 2-of-2 Safe or a CreatorVault PDA before funding.
+
+- **Waterfall.** While a position is open, `locked = true`; sweeps repay principal → interest → residual to sponsor.
+- **Hard sources.** Vaults sweep only from registered revenue PDAs for that asset; keeper ops are idempotent and pause-gated.
+- **Underwriting.** Seasoning, dynamic LTV from trailing sweeps, reserves, and a collateral ladder (stables first; PT secondary with haircuts).
+- **Covenants.** Sweep cadence and revenue floor, successor assignment to the same Safe, negative pledge, cross-default, make-whole.
+
+Details: see [`docs/attn-fee-reroute-safeguards.md`](docs/attn-fee-reroute-safeguards.md).
+
 
 
 ## Built on Solana
