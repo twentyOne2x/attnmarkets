@@ -1,0 +1,185 @@
+# Pump.fun creator incentives (example based on A5RH5EVE…)
+
+Link: https://pump.fun/profile/A5RH5EVEkUnEfpWvz7b94NqzsforWk63mLcujoXVKiHs?tab=coins
+
+This page sketches how attn could detect high-earning Pump.fun creators on-chain and surface instant, personalised funding offers.
+
+The concrete example here is the creator address `A5RH5EVEkUnEfpWvz7b94NqzsforWk63mLcujoXVKiHs`, which (over the last month window on Pump.fun):
+
+- shows **~$113.9k** creator rewards (**~820 SOL**)  
+- with the first few days around:
+  - day 1: **~$3.5k**  
+  - day 2: **~$37k**  
+  - day 3: **~$16k**  
+  - day 4: **~$15k**  
+  - and multiple later days in the mid–high four figures
+
+This is exactly the profile of a creator who should see:
+
+- “you can claim an attn revenue account right now”  
+- “here is what a short-dated advance or credit line would look like, sized from your Pump.fun income.”
+
+---
+
+## 1. What we are trying to surface
+
+For creators like this, attn wants to show:
+
+- **Instant preview of credit capacity** (e.g. “based on your last 10 days of creator rewards, you could access up to $20k in short-dated funding”).  
+- **Simple products**:
+  - 30-day revenue advances backed by future creator rewards.  
+  - Small revolving lines that refill as new rewards land.  
+- **A clean revenue account**:
+  - creator rewards re-pointed to a Squads/attn revenue vault,  
+  - unencumbered balances earning simple yield.
+
+The surface-level UX should feel like:
+
+> “You earned $113,900 in the last 11 days.  
+> Route your Pump.fun creator rewards to attn and unlock up to **$X,XXX** right now, with everything repaid from a share of next month’s rewards.”
+
+---
+
+## 2. Onchain detection pipeline
+
+**Inputs**
+
+- Pump.fun program events (creator_reward mints, fee routing).  
+- Creator reward balances by address and time window.  
+- Basic volatility stats (peak days vs baseline).
+
+**Heuristics (first pass)**
+
+Define a 3-band segmentation:
+
+- **Tier S – breakout creators**
+  - 7-day creator rewards ≥ $50k  
+  - at least 3 days ≥ $10k each  
+- **Tier A – strong baseline**
+  - 7-day creator rewards between $10k and $50k  
+  - at least 5 reward days in the last 10 days  
+- **Tier B – emerging**
+  - 7-day creator rewards between $2.5k and $10k  
+  - consistent earnings for ≥ 5 days
+
+The example profile above clearly sits in **Tier S**.
+
+For each tier we compute:
+
+- `avg_daily_7d` – average daily rewards over 7 days  
+- `credit_preview` – a fraction of `avg_daily_7d * 30`:
+
+  - Tier S: `credit_preview = min( 0.20 × avg_daily_7d × 30, 25_000 )`  
+  - Tier A: `credit_preview = min( 0.15 × avg_daily_7d × 30, 15_000 )`  
+  - Tier B: `credit_preview = min( 0.10 × avg_daily_7d × 30, 7_500 )`
+
+For the address `A5RH5…`:
+
+- assume rough `avg_daily_7d ≈ $10–12k` (from the sequence 3.5k / 37k / 16k / 15k / …).  
+- Tier S rule → `credit_preview ≈ 0.20 × 10,000 × 30 = $60k`, capped at **$25k** in this sketch.
+
+So the UI can safely say something like:
+
+> “Based on your recent rewards, you are pre-qualified for up to **$25,000** in short-dated funding, automatically repaid from creator rewards.”
+
+---
+
+## 3. Product shapes for Pump.fun creators
+
+### 3.1 Short-dated revenue advances
+
+For this segment, positions should be:
+
+- **Tenor**: 15–45 days, max.  
+- **Share of rewards**: 20–35% of upcoming creator rewards.  
+- **Repayment**: automatic from the creator rewards routed into the revenue account.  
+- **Usage**: up-front cash for:
+  - liquidity seeding,  
+  - marketing pushes,  
+  - small builds (games, tools, bots).
+
+Example offer for `A5RH5…`:
+
+- credit preview: $25,000  
+- product: “Sell 30% of the next 30 days of creator rewards”  
+- projected rewards: assume `avg_daily_30d ≈ $8k` → `$240k` in the month  
+- 30% share → `$72k` capacity against which we price a $25k advance
+
+In the interface, this is presented as:
+
+- slider: “share of next 30 days rewards” (20–35%),  
+- slider: “size of upfront funding”, capped by risk limits,  
+- live readout of:
+  - max monthly repayment share,  
+  - projected completion date.
+
+### 3.2 Rolling credit previews
+
+Rather than only single advances, attn can offer:
+
+- a **soft line** bounded by:
+  - `monthly_limit = credit_preview` (e.g. $25k),  
+  - maximum active tenor of 45 days per draw.
+
+This is still implemented as a set of short-dated advance positions under the hood, but the creator sees:
+
+- “Available to draw this month: $25,000”  
+- “Used: $7,500”  
+- “Next repayment checkpoint: 30 days; repaid automatically from 30% of creator rewards.”
+
+---
+
+## 4. Offer and claim flow
+
+1. **Detection**  
+   - Indexer flags wallet `A5RH5…` as Tier S.  
+   - We compute credit preview and basic parameters.
+
+2. **Outbound**  
+   - Surface a non-intrusive CTA:
+     - e.g. DM / reply from an attn account on X, or an in-app Pump.fun banner (if ever possible).  
+   - Example message:
+     - “You earned $113.9k in Pump.fun creator rewards this month. Route your creator rewards to an attn revenue account and unlock up to $25k in short-dated funding, auto-repaid from future rewards.”
+
+3. **One-click setup**  
+   - Creator lands on attn:  
+     - Connects the `A5RH5…` wallet.  
+     - Sees their recent reward chart mirrored.  
+     - Clicks “Set up revenue account and redirect creator rewards.”  
+   - Flow:
+     - Create a Squads/attn revenue vault (joint config).  
+     - Provide a new “creator rewards destination” address.  
+     - Present exact routing instructions / helper transaction, so the creator can update Pump.fun routing in one click.
+
+4. **Preview and accept a position**  
+   - Once the routing is set, the UI enables:
+     - a default pre-sized position (e.g. $10k / 30 days / 25% share),  
+     - plus a “custom” mode within risk limits.  
+   - Creator signs the position. Funds are delivered immediately.
+
+5. **Afterwards**  
+   - attn tracks realised creator rewards vs projections.  
+   - If performance is strong and repayment is smooth:
+     - raise `credit_preview`,  
+     - gradually open true revolving lines with lower friction.
+
+---
+
+## 5. Guardrails and risk flags
+
+- **Minimum sample size**: require at least N reward days and a minimum total (e.g. ≥ $10k in 7 days) before any non-toy preview.  
+- **Decay on peaks**: treat single mega-days (e.g. $37k) with heavier discounting than a smooth series.  
+- **Concentration caps**: avoid any single creator representing >X% of the attnUSD book.  
+- **Fast shutdown**: if creator rewards dry up unexpectedly for several days, pause new advances until there is clarity.
+
+---
+
+## 6. Where this doc fits
+
+This content can live under something like:
+
+- `pages/use-cases/pumpfun-creator-incentives.md`  
+
+and be linked from:
+
+- the “Pump.fun and creator flows” page as a deeper design note.
