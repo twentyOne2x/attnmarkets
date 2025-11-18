@@ -160,12 +160,14 @@ export default function Home(): React.JSX.Element {
               <span className="text-xs bg-warning/20 text-warning border border-warning/30 px-2 py-1 rounded ml-2">DEMO</span>
             </div>
             <div className="flex items-center space-x-6">
-              <button 
-                onClick={() => showComingSoon('Documentation')}
+              <a
+                href="https://docs.attn.markets"
+                target="_blank"
+                rel="noreferrer"
                 className="text-text-secondary hover:text-primary transition-colors hidden sm:inline"
               >
                 Docs
-              </button>
+              </a>
               <a href="https://app.attn.markets" className="bg-primary text-dark px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors">
                 Launch App
               </a>
@@ -787,6 +789,14 @@ export default function Home(): React.JSX.Element {
               >
                 Privacy
               </button>
+              <a
+                href="https://docs.attn.markets"
+                target="_blank"
+                rel="noreferrer"
+                className="text-text-secondary hover:text-primary transition-colors text-sm sm:text-base"
+              >
+                Docs
+              </a>
               <a
                 href="https://x.com/attndotmarkets"
                 target="_blank"
