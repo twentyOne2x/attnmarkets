@@ -54,6 +54,14 @@ const AppFooter: React.FC = () => {
           Docs
         </a>
         <a
+          href="https://t.me/twentyOne2x"
+          target="_blank"
+          rel="noreferrer"
+          className="text-text-secondary hover:text-primary transition-colors"
+        >
+          Telegram
+        </a>
+        <a
           href={repoUrl}
           target="_blank"
           rel="noreferrer"
