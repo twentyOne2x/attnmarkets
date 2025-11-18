@@ -106,10 +106,10 @@ Active borrowers: ${activeCreators.length}`;
   }
 
   return (
-    <div className="min-h-screen bg-dark text-text-primary">
+    <div className="min-h-screen bg-dark text-text-primary flex flex-col">
       <Navigation />
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="flex-1 max-w-7xl mx-auto px-4 py-8 w-full">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
             <Tooltip content="Total funding available for creators to borrow against their future earnings">
@@ -350,6 +350,37 @@ Active borrowers: ${activeCreators.length}`;
           * All values shown are simulated for demonstration purposes
         </div>
       </div>
+      <footer className="border-t border-gray-800 bg-dark-card/40">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-[11px] text-text-secondary">
+          <span>attn.markets</span>
+          <div className="flex items-center gap-3">
+            <a
+              href="https://x.com/attndotmarkets"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-primary transition-colors"
+            >
+              Twitter/X
+            </a>
+            <a
+              href="https://docs.attn.markets"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-primary transition-colors"
+            >
+              Docs
+            </a>
+            <a
+              href="https://github.com/twentyOne2x/attnmarket"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-primary transition-colors"
+            >
+              GitHub
+            </a>
+          </div>
+        </div>
+      </footer>
       <Analytics />
     </div>
   );

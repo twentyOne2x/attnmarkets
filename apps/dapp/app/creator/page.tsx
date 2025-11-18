@@ -915,7 +915,7 @@ export default function CreatorPage(): React.JSX.Element {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Sponsor (Builder, DAO, Creator) Portal</h1>
+            <h1 className="text-3xl font-bold">User Portal</h1>
             {currentUserWallet && (
               <div className="text-sm text-text-secondary mt-1">
                 Wallet: <span className="font-mono">{currentUserWallet?.slice(0, 8)}...{currentUserWallet?.slice(-4)}</span>
