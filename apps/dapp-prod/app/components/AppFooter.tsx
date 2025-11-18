@@ -46,6 +46,14 @@ const AppFooter: React.FC = () => {
           Twitter/X
         </a>
         <a
+          href="https://docs.attn.markets"
+          target="_blank"
+          rel="noreferrer"
+          className="text-text-secondary hover:text-primary transition-colors"
+        >
+          Docs
+        </a>
+        <a
           href={repoUrl}
           target="_blank"
           rel="noreferrer"
