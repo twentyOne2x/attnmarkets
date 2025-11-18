@@ -371,6 +371,14 @@ Active borrowers: ${activeCreators.length}`;
               Docs
             </a>
             <a
+              href="https://t.me/twentyOne2x"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-primary transition-colors"
+            >
+              Telegram
+            </a>
+            <a
               href="https://github.com/twentyOne2x/attnmarket"
               target="_blank"
               rel="noreferrer"

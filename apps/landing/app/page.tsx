@@ -798,6 +798,14 @@ export default function Home(): React.JSX.Element {
                 Docs
               </a>
               <a
+                href="https://t.me/twentyOne2x"
+                target="_blank"
+                rel="noreferrer"
+                className="text-text-secondary hover:text-primary transition-colors text-sm sm:text-base"
+              >
+                Telegram
+              </a>
+              <a
                 href="https://x.com/attndotmarkets"
                 target="_blank"
                 rel="noreferrer"
