@@ -22,7 +22,7 @@ export interface PoolData {
   tvl_usdc: number;
   projected_apr: number;
   epoch_end: string;
-  creator_earnings_next30d: number;
+  creator_revenues_next30d: number;
 }
 
 export interface BorrowingTerms {
@@ -36,7 +36,7 @@ export interface BorrowingTerms {
 }
 
 /**
- * Calculate borrowing terms for a creator based on their weekly earnings and desired borrow percentage
+ * Calculate borrowing terms for a creator based on their weekly revenues and desired borrow percentage
  * This is the SINGLE SOURCE OF TRUTH for all borrowing calculations
  */
 export const calculateBorrowingTerms = (
@@ -67,11 +67,11 @@ export const calculateBorrowingTerms = (
   // Repayment rate tiers based on loan size
   let repaymentRate;
   if (borrowPercentage <= 50) {
-    repaymentRate = 50; // 50% of daily earnings
+    repaymentRate = 50; // 50% of daily revenues
   } else if (borrowPercentage <= 75) {
-    repaymentRate = 75; // 75% of daily earnings
+    repaymentRate = 75; // 75% of daily revenues
   } else {
-    repaymentRate = 100; // 100% of daily earnings
+    repaymentRate = 100; // 100% of daily revenues
   }
   
   // Calculate repayment schedule

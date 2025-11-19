@@ -20,7 +20,7 @@
 ## Why now
 * Solana app revenues = $1.72B annually. (30d annualised, [DeFiLlama](https://defillama.com/app-revenue/chains))
 
-* Pump.fun creator rewards = $300M annually. (30d annualised, [earnings.wtf](https://earnings.wtf))
+* Pump.fun creator rewards = $300M annually. (30d annualised, [revenues.wtf](https://revenues.wtf))
    * The Web2 creator economy alone pays $30B annually to its creators (YouTube [$23B](https://blog.youtube/inside-youtube/2024-letter-from-neal/), OnlyFans [$5.32B](https://www.upmarket.co/blog/onlyfans-official-revenue-net-profit-creator-and-subscriber-data-updated-september-2024/), TikTok [$1.5B](https://www.fxcintel.com/research/press-releases/new-data-analysis-shows-tiktok-takes-77-cut-of-gift-payments-sent-to-creators), Twitch [$1B](https://blog.twitch.tv/en/2024/01/10/a-difficult-update-about-our-workforce/))
 
 -> These $2B miss out on the entire DeFi ecosystem
@@ -52,7 +52,7 @@ This can be reused wherever the revenue/fee authority can be reassigned.
 LPs deposit stables (USDC, USDT, Ethena’s USDe, Reflect’s USDC+) to mint `attnUSD`, the yield-bearing stablecoin acting as attn products counterparty.
 
 ### What this unlocks
-- **Creators & builders**:  Autosweep fees, autostake fees (+4%-6% APR) through Helius/Jito/Bulk and Ethena/Reflect, cash advance by selling YT, M&A by selling PT. Later: loans, credit card powered by earnings.
+- **Creators & builders**:  Autosweep fees, autostake fees (+4%-6% APR) through Helius/Jito/Bulk and Ethena/Reflect, cash advance by selling YT, M&A by selling PT. Later: loans, credit card powered by revenues.
 - **DeFi users, protocols, vault curators**: deposit stables (USDC, USDT, Ethena’s USDe, Reflect’s USDC+) to mint attnUSD, the yield-bearing stablecoin acting as attn products counterparty.
 - **ICM launchpads & Safe-based apps**: get rev-share from Safes hooked to the attn CreatorVault
 - **Builders on top of attnmarkets**: create products built on top of tokenised revenues (M&A desk, structured financing [...]).
@@ -61,7 +61,7 @@ LPs deposit stables (USDC, USDT, Ethena’s USDe, Reflect’s USDC+) to mint `at
 Three primary revenue engines (before rev-share):
 
 1. % take on yields from autostaked revenue flows.
-2. Cash advances (factoring) against future earnings.
+2. Cash advances (factoring) against future revenues.
 3. Loans & open credit lines secured by fee streams.
 
 Assuming attn captures a constant 2 % share of the addressable revenue base, the blended annual run rate scales as follows:

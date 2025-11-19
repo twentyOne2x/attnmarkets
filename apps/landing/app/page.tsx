@@ -179,7 +179,7 @@ export default function Home(): React.JSX.Element {
       {/* Hero Section */}
       <section id="hero" className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
-          <div className="text-lg text-text-secondary mb-4">Solana's bridge from earnings to funding</div>
+          <div className="text-lg text-text-secondary mb-4">Solana's bridge from revenues to funding</div>
           
           <h1 className={`text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold mb-8 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`} style={{ overflow: 'hidden' }}>
                     <span className="gradient-text block mb-4">Get instant funding</span>
@@ -224,7 +224,7 @@ export default function Home(): React.JSX.Element {
                           })()}
                         </div>
                       </div>
-                      <span>earnings</span>
+                      <span>revenues</span>
                     </div>
             </h1>
           
@@ -242,7 +242,7 @@ export default function Home(): React.JSX.Element {
               <h3 className="text-xl sm:text-2xl font-semibold mb-4 text-primary">For Users (Builders, DAOs, Creators)</h3>
               <p className="text-base sm:text-lg font-medium mb-6">Unlock cash, keep your upside</p>
               <p className="text-text-secondary mb-8 text-sm sm:text-base">
-                Get a funding limit instantly. Only when you borrow do earnings auto-repay. No upfront commitment required for users.
+                Get a funding limit instantly. Only when you borrow do revenues auto-repay. No upfront commitment required for users.
               </p>
               <div className="space-y-3 mb-8">
                 <div className="flex items-center space-x-3">
@@ -269,7 +269,7 @@ export default function Home(): React.JSX.Element {
                 <span className="text-secondary text-2xl">💰</span>
               </div>
               <h3 className="text-xl sm:text-2xl font-semibold mb-4 text-secondary">For LPs</h3>
-              <p className="text-base sm:text-lg font-medium mb-6">Yield paid first from user earnings</p>
+              <p className="text-base sm:text-lg font-medium mb-6">Yield paid first from user revenues</p>
               <p className="text-text-secondary mb-8 text-sm sm:text-base">
                 Earn returns uncorrelated to crypto markets. First-priority claims on active user repayments across builders, DAOs, and creators.
               </p>
@@ -341,7 +341,7 @@ export default function Home(): React.JSX.Element {
               </div>
               <h3 className="text-lg sm:text-xl font-semibold mb-4">Connect & Get Your Limit</h3>
               <p className="text-text-secondary mb-4 text-sm sm:text-base">
-                We estimate what you can unlock based on your earnings history. No obligation, completely free.
+                We estimate what you can unlock based on your revenues history. No obligation, completely free.
               </p>
               <div className="bg-gray-800/30 rounded-lg p-3 text-xs sm:text-sm">
                 List on leaderboard → Get visibility → Instant quote
@@ -354,7 +354,7 @@ export default function Home(): React.JSX.Element {
               </div>
               <h3 className="text-lg sm:text-xl font-semibold mb-4">Open an Advance (Optional)</h3>
               <p className="text-text-secondary mb-4 text-sm sm:text-base">
-                When you need funding, pick a repayment percentage and activate your advance. Only then do earnings flow to repayment.
+                When you need funding, pick a repayment percentage and activate your advance. Only then do revenues flow to repayment.
               </p>
               <div className="bg-gray-800/30 rounded-lg p-3 text-xs sm:text-sm">
                 Choose repayment % → Get instant funding
@@ -386,7 +386,7 @@ export default function Home(): React.JSX.Element {
               <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center mb-4">
                 <span className="text-red-400 text-2xl">⚡</span>
               </div>
-              <h3 className="text-lg sm:text-xl font-semibold mb-4 text-red-400">Builders, DAOs, and Creators need cash before earnings hit</h3>
+              <h3 className="text-lg sm:text-xl font-semibold mb-4 text-red-400">Builders, DAOs, and Creators need cash before revenues hit</h3>
               <p className="text-text-secondary text-sm sm:text-base">
                 Growth opportunities don't wait for monthly payments. Equipment, team expansion, viral moment investments - timing matters for user success across builders, DAOs, and creators.
               </p>
@@ -405,7 +405,7 @@ export default function Home(): React.JSX.Element {
             <div className="bg-primary/10 border border-primary/20 rounded-xl p-6 sm:p-8 inline-block max-w-lg">
               <h3 className="text-lg sm:text-xl font-semibold mb-4 text-primary">We bridge both sides</h3>
               <p className="text-text-secondary text-sm sm:text-base">
-                LPs want uncorrelated yield. Users need flexible funding. We connect those earnings to internet capital markets without the traditional banking overhead.
+                LPs want uncorrelated yield. Users need flexible funding. We connect those revenues to internet capital markets without the traditional banking overhead.
               </p>
             </div>
           </div>
@@ -417,7 +417,7 @@ export default function Home(): React.JSX.Element {
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl sm:text-4xl font-bold text-center mb-4">Our Solution</h2>
           <p className="text-lg sm:text-xl text-text-secondary text-center mb-16 max-w-3xl mx-auto">
-            No forced commitments. Users list first, borrow only when needed. While borrowed, chosen earnings percentage auto-repays.
+            No forced commitments. Users list first, borrow only when needed. While borrowed, chosen revenues percentage auto-repays.
           </p>
           
           <div className="space-y-8 sm:space-y-12">
@@ -444,7 +444,7 @@ export default function Home(): React.JSX.Element {
                     <span className="text-primary">🎯</span>
                   </div>
                   <h4 className="font-semibold mb-2">Activate When Ready</h4>
-                  <p className="text-text-secondary text-sm sm:text-base">Only when you click "Open Advance" do earnings start flowing to repayment.</p>
+                  <p className="text-text-secondary text-sm sm:text-base">Only when you click "Open Advance" do revenues start flowing to repayment.</p>
                 </div>
               </div>
             </div>
@@ -496,7 +496,7 @@ export default function Home(): React.JSX.Element {
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">No Upfront Commitments</h4>
-                    <p className="text-text-secondary text-sm sm:text-base">Join the platform, get visibility, and access quotes without any earnings obligations. Pay only when you borrow.</p>
+                    <p className="text-text-secondary text-sm sm:text-base">Join the platform, get visibility, and access quotes without any revenues obligations. Pay only when you borrow.</p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-4">
@@ -571,7 +571,7 @@ export default function Home(): React.JSX.Element {
                   onClick={() => toggleFAQ('creator-1')}
                   className="w-full text-left p-4 sm:p-6 flex justify-between items-center hover:bg-gray-800/30 transition-colors"
                 >
-                  <h4 className="text-base sm:text-lg font-semibold pr-4">Do I have to pledge earnings to join?</h4>
+                  <h4 className="text-base sm:text-lg font-semibold pr-4">Do I have to pledge revenues to join?</h4>
                   <svg 
                     className={`w-5 h-5 transform transition-transform flex-shrink-0 ${openFAQs.has('creator-1') ? 'rotate-180' : ''}`}
                     fill="none" 
@@ -584,7 +584,7 @@ export default function Home(): React.JSX.Element {
                 {openFAQs.has('creator-1') && (
                   <div className="px-4 sm:px-6 pb-4 sm:pb-6">
                     <p className="text-text-secondary text-sm sm:text-base">
-                      No. You can list and get a funding limit with 0% pledged. Only when you open an advance does a percentage of earnings route to repayment. Think of it like getting pre-approved for a credit line - no cost until you use it.
+                      No. You can list and get a funding limit with 0% pledged. Only when you open an advance does a percentage of revenues route to repayment. Think of it like getting pre-approved for a credit line - no cost until you use it.
                     </p>
                   </div>
                 )}
@@ -595,7 +595,7 @@ export default function Home(): React.JSX.Element {
                   onClick={() => toggleFAQ('creator-2')}
                   className="w-full text-left p-4 sm:p-6 flex justify-between items-center hover:bg-gray-800/30 transition-colors"
                 >
-                  <h4 className="text-base sm:text-lg font-semibold pr-4">What if my earnings drop?</h4>
+                  <h4 className="text-base sm:text-lg font-semibold pr-4">What if my revenues drop?</h4>
                   <svg 
                     className={`w-5 h-5 transform transition-transform flex-shrink-0 ${openFAQs.has('creator-2') ? 'rotate-180' : ''}`}
                     fill="none" 
@@ -608,7 +608,7 @@ export default function Home(): React.JSX.Element {
                 {openFAQs.has('creator-2') && (
                   <div className="px-4 sm:px-6 pb-4 sm:pb-6">
                     <p className="text-text-secondary text-sm sm:text-base">
-                      Repayments are percentage-based, so they auto-adjust down when earnings drop. We re-price weekly and you can pause new advances at epoch end. If you're not actively borrowing, earnings changes don't affect you at all.
+                      Repayments are percentage-based, so they auto-adjust down when revenues drop. We re-price weekly and you can pause new advances at epoch end. If you're not actively borrowing, revenues changes don't affect you at all.
                     </p>
                   </div>
                 )}
@@ -673,7 +673,7 @@ export default function Home(): React.JSX.Element {
                   onClick={() => toggleFAQ('lp-1')}
                   className="w-full text-left p-4 sm:p-6 flex justify-between items-center hover:bg-gray-800/30 transition-colors"
                 >
-                  <h4 className="text-base sm:text-lg font-semibold pr-4">How do I earn from user earnings?</h4>
+                  <h4 className="text-base sm:text-lg font-semibold pr-4">How do I earn from user revenues?</h4>
                   <svg 
                     className={`w-5 h-5 transform transition-transform flex-shrink-0 ${openFAQs.has('lp-1') ? 'rotate-180' : ''}`}
                     fill="none" 
@@ -686,7 +686,7 @@ export default function Home(): React.JSX.Element {
                 {openFAQs.has('lp-1') && (
                   <div className="px-4 sm:px-6 pb-4 sm:pb-6">
                     <p className="text-text-secondary text-sm sm:text-base">
-                      You deposit USDC which funds user advances. When builders, DAOs, or creators borrow and their earnings flow in, you earn returns as a priority claimant. Your yields come from user repayments, not speculation.
+                      You deposit USDC which funds user advances. When builders, DAOs, or creators borrow and their revenues flow in, you earn returns as a priority claimant. Your yields come from user repayments, not speculation.
                     </p>
                   </div>
                 )}
@@ -734,7 +734,7 @@ export default function Home(): React.JSX.Element {
                 {openFAQs.has('lp-3') && (
                   <div className="px-4 sm:px-6 pb-4 sm:pb-6">
                     <p className="text-text-secondary text-sm sm:text-base">
-                      Sponsor earnings volatility, platform changes, smart contract bugs, and concentration risk if many participants underperform. You have priority claims and portfolio diversification across multiple users.
+                      Sponsor revenues volatility, platform changes, smart contract bugs, and concentration risk if many participants underperform. You have priority claims and portfolio diversification across multiple users.
                     </p>
                   </div>
                 )}
@@ -824,7 +824,7 @@ export default function Home(): React.JSX.Element {
             </div>
           </div>
           <div className="text-center text-text-secondary text-xs sm:text-sm mt-8">
-            © 2025 attn.markets. Solana's bridge from earnings to funding.
+            © 2025 attn.markets. Solana's bridge from revenues to funding.
           </div>
         </div>
       </footer>

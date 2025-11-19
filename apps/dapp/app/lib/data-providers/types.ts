@@ -15,7 +15,7 @@ export interface PaginatedResponse<T> {
 export interface PoolOverview {
   tvl_usdc: number;
   epoch_end: string;
-  creator_earnings_next30d: number;
+  creator_revenues_next30d: number;
 }
 
 export interface CreatorSummary {
