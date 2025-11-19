@@ -3,6 +3,7 @@
 ## Quick links
 - Site/Demo: https://attn.markets / https://app.attn.markets
 - Devnet (WIP): https://prod.attn.markets
+- Docs: https://docs.attn.markets
 - X: https://x.com/attndotmarkets
 - Founder Billy (https://x.com/twentyOne2x), 
   * full-time on attn, 
