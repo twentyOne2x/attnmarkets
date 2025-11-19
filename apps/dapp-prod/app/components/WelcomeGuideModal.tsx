@@ -5,14 +5,14 @@ import { createPortal } from 'react-dom';
 
 interface WelcomeGuideModalProps {
   open: boolean;
-  onChooseSponsor: () => void;
+  onChooseUser: () => void;
   onChooseLP: () => void;
   onExplore: () => void;
 }
 
 const WelcomeGuideModal: React.FC<WelcomeGuideModalProps> = ({
   open,
-  onChooseSponsor,
+  onChooseUser,
   onChooseLP,
   onExplore,
 }) => {
@@ -51,7 +51,7 @@ const WelcomeGuideModal: React.FC<WelcomeGuideModalProps> = ({
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           <button
             type="button"
-            onClick={onChooseSponsor}
+            onClick={onChooseUser}
             className="group flex flex-col rounded-xl border border-secondary/30 bg-secondary/10 p-4 text-left transition hover:border-secondary/60 hover:bg-secondary/20"
             title="Users include builders, DAOs, and creators with on-chain revenue."
           >

@@ -961,7 +961,7 @@ const SquadsSafeOnboarding: React.FC<SquadsSafeOnboardingProps> = ({
       return null;
     }
     if (!BASE58_WALLET_REGEX.test(creatorWallet)) {
-      setNonceError('Sponsor wallet must be a valid Solana address (base58, 32-44 chars).');
+      setNonceError('User wallet must be a valid Solana address (base58, 32-44 chars).');
       return null;
     }
     if (!apiBaseUrl) {
@@ -1077,9 +1077,9 @@ const SquadsSafeOnboarding: React.FC<SquadsSafeOnboardingProps> = ({
 
       const errors: string[] = [];
       if (!creatorWallet) {
-        errors.push('Sponsor wallet is required.');
+        errors.push('User wallet is required.');
       } else if (!BASE58_WALLET_REGEX.test(creatorWallet)) {
-        errors.push('Sponsor wallet must be a valid Solana address (base58, 32-44 chars).');
+        errors.push('User wallet must be a valid Solana address (base58, 32-44 chars).');
       }
       if (!BASE58_WALLET_REGEX.test(attnWallet)) {
         errors.push('attn wallet must be a valid Solana address.');
@@ -1090,7 +1090,7 @@ const SquadsSafeOnboarding: React.FC<SquadsSafeOnboardingProps> = ({
       if (!signature) {
         errors.push('Provide the user signature for the nonce.');
       } else if (!BASE58_SIGNATURE_REGEX.test(signature)) {
-        errors.push('Sponsor signature must be base58 encoded.');
+        errors.push('User signature must be base58 encoded.');
       }
       if (form.threshold !== 2) {
         errors.push('Threshold must be 2 for a 2-of-2 Squads safe.');

@@ -94,7 +94,7 @@ const configureMockApi = async (
   await request.post(`${MOCK_API_BASE}/__config`, { data: config });
 };
 
-test.describe('Sponsor Squads detection', () => {
+test.describe('User Squads detection', () => {
   test.beforeEach(async ({ request }) => {
     await resetMockApi(request);
   });

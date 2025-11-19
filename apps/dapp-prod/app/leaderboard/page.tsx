@@ -127,7 +127,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Sponsor Leaderboard (Builders, DAOs, Creators)</h1>
+            <h1 className="text-3xl font-bold">User Leaderboard (Builders, DAOs, Creators)</h1>
             <p className="text-text-secondary mt-2">Top performing users across builders, DAOs, and creators by revenues generation and borrowing activity</p>
           </div>
           <a href="/" className="text-text-secondary hover:text-primary transition-colors">
@@ -179,7 +179,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
                     </span>
                   </div>
                   <p className="mt-2 text-xs text-text-secondary">
-                    Create the 2-of-2 safe from the Sponsor page so vault locks co-sign with attn.
+                    Create the 2-of-2 safe from the User page so vault locks co-sign with attn.
                   </p>
                   {!hasCreatorVault && (
                     <a
@@ -340,7 +340,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
             <thead className="bg-gray-800/50">
                 <tr>
                   <th className="text-left py-4 px-6 text-text-secondary font-medium">Rank</th>
-                  <th className="text-left py-4 px-6 text-text-secondary font-medium">Sponsor</th>
+                  <th className="text-left py-4 px-6 text-text-secondary font-medium">User</th>
                   <th className="text-left py-4 px-6 text-text-secondary font-medium">
                     <Tooltip content="Total revenues this user (builder, DAO, creator) generated in the last 7 days from their on-chain activity">
                       <span className="cursor-help flex items-center">

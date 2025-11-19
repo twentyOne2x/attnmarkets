@@ -5,10 +5,9 @@ FILES=(
 
 
 'apps/landing/app/page.tsx'
-'apps/dapp/app/context/AppContext.tsx'
 'apps/dapp/app/layout.tsx'
 'apps/dapp/app/deposit/page.tsx'
-'apps/dapp/app/creator/page.tsx'
+'apps/dapp/app/user/page.tsx'
 'apps/dapp/app/leaderboard/page.tsx'
 'apps/dapp/app/page.tsx'
 'apps/dapp/app/components/Navigation.tsx'

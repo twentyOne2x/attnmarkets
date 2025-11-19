@@ -28,10 +28,10 @@ This doc captures the incremental work required to:
 1. **Net-new user (no safe)**  
    - Connect wallet → Request nonce → Submit safe → Success banner → CTA to Pump.fun form.
 
-2. **Sponsor with existing Squads safe**  
+2. **User with existing Squads safe**  
    - Connect wallet → attn detects the safe → Checklist marks “Create Squads safe” as completed → Guide to add attn signatory → CTA to Pump.fun form once attn is added.
 
-3. **Sponsor returning after safe creation**  
+3. **User returning after safe creation**  
    - Safe metadata loads from attn-api. Success banner shows addresses, quick links, and the Pump.fun CTA. No duplicate submission error is shown.
 
 ## Work Streams
@@ -69,7 +69,7 @@ This doc captures the incremental work required to:
   - **Problem:** Prod wallet `ehNPTG1BUYU8jxn5TxhSmjrVt826ipHZChMkfkYNc8D` still sees the creation tour because the bridge call `/v1/squads/safes/creator/:wallet?cluster=devnet` returns 404. Cloud Run logs show every lookup fails; Cloud SQL has the request (ID `3144a127-79da-462d-8fb9-45ba343cb53a`) stuck in `pending` with `safe_address` NULL.
   - **Solution:** Import or update the record via `POST /v1/squads/safes/import` (or resubmit) so it moves to `ready` and carries `safe_address`, `status_url`, etc. Once the backend returns 200, the UI cache hides the tour automatically. Add an operational check to flag safes that remain `pending` beyond the expected window.
 
-### Frontend – Sponsor Console
+### Frontend – User Console
 
 - [x] Squads detection hook
   - [x] On mount (live mode only), call `/api/bridge/v1/squads/safes/creator/:wallet`.

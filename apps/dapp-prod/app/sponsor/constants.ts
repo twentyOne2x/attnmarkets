@@ -30,7 +30,7 @@ export const formatClusterLabel = (cluster?: string | null): string => {
   return CLUSTER_LABELS[normalized] ?? normalized;
 };
 
-export const LIVE_TOUR_STORAGE_PREFIX = 'attn.liveSponsorTour';
+export const LIVE_TOUR_STORAGE_PREFIX = 'attn.liveUserTour';
 
 const sanitizeStorageSegment = (value: string | null | undefined, fallback: string): string => {
   if (!value) {

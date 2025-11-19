@@ -86,17 +86,17 @@ This note captures the open work required to provide a first-class Squads safe c
 1. Should builder/DAO users skip the auto-generated Squads request entirely and jump to an “attach existing safe” form? (Needs product decision.)
 2. Do we want to stage a devnet faucet flow that funds the signer wallet before Squads submission?
 3. How should we display pending Squads status to collaborators who are not the original requester?
-4. Copy/nomenclature: do we keep the `/creator` route name or adopt umbrella language like **Sponsor** (builder, DAO, creator)? If we rename, audit all references (`rg -g '*.tsx' 'Creator' apps/dapp-prod`) plus docs to keep terminology consistent.
+4. Copy/nomenclature: do we keep the `/creator` route name or adopt umbrella language like **User** (builder, DAO, creator)? If we rename, audit all references (`rg -g '*.tsx' 'Creator' apps/dapp-prod`) plus docs to keep terminology consistent.
 
-## 6. Sponsor Onboarding Terminology & Copy Work
+## 6. User Onboarding Terminology & Copy Work
 
-- **Goal:** align the UI copy so solo builders, DAOs, and traditional creators recognise themselves. Adopt “Sponsor (Builder, DAO, Creator)” unless product picks a different umbrella term.
+- **Goal:** align the UI copy so solo builders, DAOs, and traditional creators recognise themselves. Adopt “User (Builder, DAO, Creator)” unless product picks a different umbrella term.
 - **Deliverables:**
- 1. **Route naming:** consider renaming `/creator` to `/user` (or similar). If we keep `/creator` for now, update page headers and breadcrumbs to read “Sponsor Console (Builders, DAOs, Creators)” while documenting the future route change.
+ 1. **Route naming:** consider renaming `/creator` to `/user` (or similar). If we keep `/creator` for now, update page headers and breadcrumbs to read “User Console (Builders, DAOs, Creators)” while documenting the future route change.
  2. **Component copy sweep:** use `rg "Creator"` across `apps/dapp-prod` and docs to identify hero headers, CTA buttons, checklist items, and tooltips that should switch to the inclusive terminology.
- 3. **Tour & welcome modal:** ensure `apps/dapp-prod/app/components/WelcomeGuideModal.tsx` and the onboarding tour ask “Are you a Sponsor (Builder, DAO, Creator)?”.
+ 3. **Tour & welcome modal:** ensure `apps/dapp-prod/app/components/WelcomeGuideModal.tsx` and the onboarding tour ask “Are you a User (Builder, DAO, Creator)?”.
  4. **Backend/API schemas:** confirm any responses (`/v1/governance`, `/v1/squads/safes`) that return `creator_wallet` remain backward compatible, and capture follow-up work if we rename fields to `user_wallet`.
-  5. **Button/tooltips:** wherever “Sponsor” appears alone (nav links, CTAs, checklist badges), add `title` or helper copy clarifying “Users include creators, builders, and DAOs with on-chain revenue.”
+  5. **Button/tooltips:** wherever “User” appears alone (nav links, CTAs, checklist badges), add `title` or helper copy clarifying “Users include creators, builders, and DAOs with on-chain revenue.”
   6. **Testing:** add regression cases that check the new copy renders (Playwright snapshots or React Testing Library assertions).
 
 _Please update this document as the devnet flow evolves._

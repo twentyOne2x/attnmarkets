@@ -24,7 +24,7 @@ interface DashboardData {
 }
 
 const LANDING_GUIDE_STORAGE_KEY = 'attn.landingGuidePrompt';
-const SPONSOR_TOUR_STORAGE_KEY = LIVE_TOUR_STORAGE_PREFIX;
+const User_TOUR_STORAGE_KEY = LIVE_TOUR_STORAGE_PREFIX;
 
 export default function Dashboard(): React.JSX.Element {
   const router = useRouter();
@@ -81,10 +81,10 @@ export default function Dashboard(): React.JSX.Element {
     setShowWelcomeGuide(false);
   }, [persistGuideChoice]);
 
-  const handleSponsorGuide = useCallback(() => {
+  const handleUserGuide = useCallback(() => {
     persistGuideChoice('user');
     if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(SPONSOR_TOUR_STORAGE_KEY);
+      window.localStorage.removeItem(User_TOUR_STORAGE_KEY);
     }
     setShowWelcomeGuide(false);
     router.push('/user?startTour=1');
@@ -157,7 +157,7 @@ Active borrowers: ${activeCreators.length}`;
 
       <WelcomeGuideModal
         open={showWelcomeGuide}
-        onChooseSponsor={handleSponsorGuide}
+        onChooseUser={handleUserGuide}
         onChooseLP={handleLpGuide}
         onExplore={handleExploreFreely}
       />
@@ -191,7 +191,7 @@ Active borrowers: ${activeCreators.length}`;
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
             <Tooltip content="Borrowing rate for users (builders, DAOs, creators) using their on-chain revenue">
               <h3 className="text-sm text-text-secondary mb-2 cursor-help flex items-center">
-                Sponsor Borrowing Rate (Builders, DAOs, Creators)
+                User Borrowing Rate (Builders, DAOs, Creators)
                 <span className="ml-1 text-xs text-primary">ⓘ</span>
               </h3>
             </Tooltip>
@@ -235,9 +235,9 @@ Active borrowers: ${activeCreators.length}`;
         {/* REMOVED: Pool Utilization Section - moved to top cards */}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* Sponsor Section - NOW ON LEFT */}
+          {/* User Section - NOW ON LEFT */}
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6 flex flex-col">
-            <h2 className="text-xl font-bold mb-4">Sponsor Portal</h2>
+            <h2 className="text-xl font-bold mb-4">User Portal</h2>
             <p className="text-text-secondary mb-6">
               Redirect your on-chain revenue into attn to unlock upfront cash, staking yield, and structured financing.
             </p>
@@ -255,7 +255,7 @@ Active borrowers: ${activeCreators.length}`;
             {/* Current User Status Display */}
             {currentUserCreator && (
               <div className="bg-gray-800/50 rounded-lg p-4 mb-4">
-                <h3 className="font-semibold mb-2">Your Sponsor Status</h3>
+                <h3 className="font-semibold mb-2">Your User Status</h3>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span>Status:</span>
@@ -353,7 +353,7 @@ Active borrowers: ${activeCreators.length}`;
                 href="/leaderboard" 
                 className="block w-full bg-gray-700 text-text-primary py-3 rounded-xl font-semibold text-center hover:bg-gray-600 transition-colors"
               >
-                View Sponsor Performance
+                View User Performance
               </a>
             </div>
           </div>
