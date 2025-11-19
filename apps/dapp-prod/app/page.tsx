@@ -8,7 +8,7 @@ import Navigation from './components/Navigation';
 import Tooltip from './components/Tooltip';
 import { useAppContext } from './context/AppContext';
 import WelcomeGuideModal from './components/WelcomeGuideModal';
-import { LIVE_TOUR_STORAGE_PREFIX } from './sponsor/constants';
+import { LIVE_TOUR_STORAGE_PREFIX } from './user/constants';
 
 interface DashboardData {
   totalTVL: number;
@@ -82,12 +82,12 @@ export default function Dashboard(): React.JSX.Element {
   }, [persistGuideChoice]);
 
   const handleSponsorGuide = useCallback(() => {
-    persistGuideChoice('sponsor');
+    persistGuideChoice('user');
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(SPONSOR_TOUR_STORAGE_KEY);
     }
     setShowWelcomeGuide(false);
-    router.push('/sponsor?startTour=1');
+    router.push('/user?startTour=1');
   }, [persistGuideChoice, router]);
 
   const handleLpGuide = useCallback(() => {
@@ -164,7 +164,7 @@ Active borrowers: ${activeCreators.length}`;
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-primary/30 bg-primary/10 px-6 py-5 text-base text-primary/80 shadow-lg">
-          <span className="font-medium">Not sure where to start? Launch the guided tour for sponsors and LPs.</span>
+          <span className="font-medium">Not sure where to start? Launch the guided tour for users and LPs.</span>
           <button
             type="button"
             onClick={handleOpenGuide}
@@ -176,7 +176,7 @@ Active borrowers: ${activeCreators.length}`;
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-            <Tooltip content="Total funding available for sponsors to borrow against their on-chain revenue">
+            <Tooltip content="Total funding available for users to borrow against their on-chain revenue">
               <h3 className="text-sm text-text-secondary mb-2 cursor-help flex items-center">
                 Available Funding
                 <span className="ml-1 text-xs text-primary">ⓘ</span>
@@ -189,7 +189,7 @@ Active borrowers: ${activeCreators.length}`;
           </div>
 
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-            <Tooltip content="Borrowing rate for sponsors (builders, DAOs, creators) using their on-chain revenue">
+            <Tooltip content="Borrowing rate for users (builders, DAOs, creators) using their on-chain revenue">
               <h3 className="text-sm text-text-secondary mb-2 cursor-help flex items-center">
                 Sponsor Borrowing Rate (Builders, DAOs, Creators)
                 <span className="ml-1 text-xs text-primary">ⓘ</span>
@@ -212,12 +212,12 @@ Active borrowers: ${activeCreators.length}`;
               {dashboardData ? dashboardData.projectedAPR.toFixed(1) : '0'}%
             </p>
             <p className="text-xs text-text-secondary mt-1">
-              {dashboardData ? `${dashboardData.utilization.toFixed(1)}% utilization` : 'From sponsor activity'}
+              {dashboardData ? `${dashboardData.utilization.toFixed(1)}% utilization` : 'From user activity'}
             </p>
           </div>
 
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-            <Tooltip content="Percentage of the pool currently being borrowed by sponsors (builders, DAOs, creators). Higher utilization increases LP returns.">
+            <Tooltip content="Percentage of the pool currently being borrowed by users (builders, DAOs, creators). Higher utilization increases LP returns.">
               <h3 className="text-sm text-text-secondary mb-2 cursor-help flex items-center">
                 Pool Utilization
                 <span className="ml-1 text-xs text-primary">ⓘ</span>
@@ -287,7 +287,7 @@ Active borrowers: ${activeCreators.length}`;
 
             <div className="space-y-3">
               <a 
-                href="/sponsor" 
+                href="/user" 
                 className="block w-full bg-secondary text-white py-3 rounded-xl font-semibold text-center hover:bg-secondary/90 transition-colors"
               >
                 {currentUserCreator 
@@ -315,7 +315,7 @@ Active borrowers: ${activeCreators.length}`;
               <h3 className="text-success font-semibold mb-2">How It Works</h3>
               <ul className="space-y-1 text-sm">
                 <li>• <strong>Deposit USDC, USDT, USDe, or USDC+:</strong> mint attnUSD on entry</li>
-                <li>• <strong>Earn blended yield:</strong> sponsor fee staking plus borrowing spreads flow back to attnUSD</li>
+                <li>• <strong>Earn blended yield:</strong> user fee staking plus borrowing spreads flow back to attnUSD</li>
                 <li>• <strong>Track Live APR:</strong> currently {dashboardData ? dashboardData.projectedAPR.toFixed(1) : '0'}% while borrowing is idle</li>
                 <li>• <strong>Redeem anytime:</strong> burn attnUSD to withdraw your chosen stable</li>
               </ul>
@@ -361,7 +361,7 @@ Active borrowers: ${activeCreators.length}`;
 
         <div className="bg-dark-card border border-gray-700 rounded-xl p-6 mb-8">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold">Top Earning Sponsors This Week</h2>
+            <h2 className="text-xl font-bold">Top Earning Users This Week</h2>
             <a 
               href="/leaderboard" 
               className="text-primary hover:text-primary/80 text-sm font-medium"

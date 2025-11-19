@@ -1,4 +1,4 @@
-// apps/dapp/app/sponsor/page.tsx
+// apps/dapp/app/user/page.tsx
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -187,7 +187,7 @@ export default function SponsorPage(): React.JSX.Element {
       }
       window.localStorage.removeItem(LIVE_TOUR_STORAGE_PREFIX);
     } catch (err) {
-      console.warn('Failed to migrate sponsor tour storage key', err);
+      console.warn('Failed to migrate user tour storage key', err);
     }
   }, [hasMounted, resolveTourStorageKey]);
 
@@ -203,7 +203,7 @@ export default function SponsorPage(): React.JSX.Element {
       window.localStorage.removeItem(resolveTourStorageKey());
     }
     setShowLiveTour(true);
-    router.replace('/sponsor', { scroll: false });
+    router.replace('/user', { scroll: false });
   }, [hasMounted, resolveTourStorageKey, router, searchParams]);
 
   useEffect(() => {
@@ -449,13 +449,13 @@ export default function SponsorPage(): React.JSX.Element {
     }
   }, [weeklyEarnings]); // Only depend on weeklyEarnings, not availableLiquidity or borrowPercentage
 
-  // Update sponsor revenues when weekly earnings change - SIMPLIFIED AND DEBOUNCED
+  // Update user revenues when weekly earnings change - SIMPLIFIED AND DEBOUNCED
   useEffect(() => {
     if (!currentUserWallet || isUserEditing) return;
     
     const existingCreator = currentUserCreator;
     if (existingCreator && Math.abs(existingCreator.fees7d_usd - weeklyEarnings) > 0.01) {
-      console.log('Updating sponsor revenues in context:', weeklyEarnings);
+      console.log('Updating user revenues in context:', weeklyEarnings);
       
       // Debounce the update to prevent rapid updates
       const timeoutId = setTimeout(() => {
@@ -519,7 +519,7 @@ export default function SponsorPage(): React.JSX.Element {
       addNotification({
         type: 'processing',
         title: 'Setting Up Account',
-        message: 'Adding to sponsor leaderboard...',
+        message: 'Adding to user leaderboard...',
         duration: 800
       });
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -1023,7 +1023,7 @@ export default function SponsorPage(): React.JSX.Element {
       <div className="min-h-screen bg-dark text-text-primary flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 bg-gradient-to-r from-primary to-secondary rounded-lg mx-auto mb-4"></div>
-          <p>Loading sponsor interface (Builders, DAOs, Creators)...</p>
+          <p>Loading user interface (Builders, DAOs, Creators)...</p>
         </div>
       </div>
     );
@@ -1039,7 +1039,7 @@ export default function SponsorPage(): React.JSX.Element {
           <div className="space-y-2">
             <h1 className="text-xl font-semibold">Still loading…</h1>
             <p className="text-sm text-text-secondary">
-              The live sponsor dashboard is taking longer than expected to initialise.
+              The live user dashboard is taking longer than expected to initialise.
               Check your API credentials or retry the page. If the issue persists, review the attn-api logs.
             </p>
           </div>
@@ -1144,7 +1144,7 @@ export default function SponsorPage(): React.JSX.Element {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold" title="Sponsors include builders, DAOs, and creators with recurring on-chain revenue.">
+            <h1 className="text-3xl font-bold" title="Users include builders, DAOs, and creators with recurring on-chain revenue.">
               Sponsor Console (Builders, DAOs, Creators)
             </h1>
             {currentUserWallet && (
@@ -1182,7 +1182,7 @@ export default function SponsorPage(): React.JSX.Element {
                       </span>
                     </div>
                     <p className="mt-2 text-xs text-text-secondary">
-                      Use the wallet adapter to authorize sponsor actions in Live mode.
+                      Use the wallet adapter to authorize user actions in Live mode.
                     </p>
                     {!isWalletConnected && (
                       <button
@@ -1202,7 +1202,7 @@ export default function SponsorPage(): React.JSX.Element {
                       </span>
                     </div>
                     <p className="mt-2 text-xs text-text-secondary">
-                      Set up a 2-of-2 sponsor safe so auto-sweeps and locks are co-signed.
+                      Set up a 2-of-2 user safe so auto-sweeps and locks are co-signed.
                     </p>
                     {hasSquadsSafe && squadsAdminAddress && (
                       <div className="mt-3 rounded-md bg-black/40 px-3 py-2 text-[11px] font-mono text-text-secondary">
@@ -1229,7 +1229,7 @@ export default function SponsorPage(): React.JSX.Element {
                     <p className="mt-2 text-xs text-text-secondary">
                       {isPreviewOnly
                         ? 'Preview created, sign once your Squads safe is live to activate borrowing.'
-                        : 'Sign the attn sponsor agreement to appear on the leaderboard and enable loan quotes.'}
+                        : 'Sign the attn user agreement to appear on the leaderboard and enable loan quotes.'}
                     </p>
                     {creatorMetrics ? (
                       <div className="mt-3 space-y-1 rounded-md border border-secondary/20 bg-black/30 px-3 py-2 text-[11px] text-text-secondary">
@@ -1259,7 +1259,7 @@ export default function SponsorPage(): React.JSX.Element {
                         className="mt-3 inline-flex items-center justify-center rounded-lg bg-secondary/30 px-3 py-1.5 text-sm font-medium text-secondary hover:bg-secondary/20 disabled:opacity-50"
                         disabled={!isWalletConnected || (isFullyConnected && hasSquadsSafe)}
                       >
-                        Sign &amp; list sponsor
+                        Sign &amp; list user
                       </button>
                     )}
                   </div>

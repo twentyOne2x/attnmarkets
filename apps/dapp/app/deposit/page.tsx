@@ -355,7 +355,7 @@ Higher utilization = higher LP returns`;
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold">Yield Pool</h1>
-            <p className="text-text-secondary mt-2">Earn yield from sponsors revenues and borrowing interest</p>
+            <p className="text-text-secondary mt-2">Earn yield from users revenues and borrowing interest</p>
           </div>
           <a href="/" className="text-text-secondary hover:text-primary transition-colors">
             ← Back to Dashboard

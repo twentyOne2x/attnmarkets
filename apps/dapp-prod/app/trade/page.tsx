@@ -17,7 +17,7 @@ export default function TradePage(): React.JSX.Element {
             <div className="flex items-center space-x-6">
               <a href="/" className="text-text-secondary hover:text-primary transition-colors">Dashboard</a>
               <a href="/leaderboard" className="text-text-secondary hover:text-primary transition-colors">Leaderboard</a>
-              <a href="/sponsor" className="text-text-secondary hover:text-primary transition-colors">Sponsors</a>
+              <a href="/user" className="text-text-secondary hover:text-primary transition-colors">Users</a>
               <a href="/deposit" className="text-text-secondary hover:text-primary transition-colors">LP</a>
               <button className="bg-primary text-dark px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors">
                 Connect Wallet

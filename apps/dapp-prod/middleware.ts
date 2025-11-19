@@ -9,10 +9,10 @@ export function middleware(request: NextRequest) {
     pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
 
   const legacyRedirects: Record<string, string> = {
-    '/creator': '/sponsor',
-    '/creators': '/sponsor',
-    '/sponsors': '/sponsor',
-    '/sponasor': '/sponsor',
+    '/creator': '/user',
+    '/creators': '/user',
+    '/users': '/user',
+    '/sponasor': '/user',
   };
 
   if (normalizedPath in legacyRedirects) {
@@ -24,7 +24,7 @@ export function middleware(request: NextRequest) {
   // Define the valid app routes
   const allowedPaths = [
     '/',
-    '/sponsor',
+    '/user',
     '/leaderboard',
     '/deposit',
     '/_next',

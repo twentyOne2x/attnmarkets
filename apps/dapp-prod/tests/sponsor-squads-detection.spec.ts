@@ -1,6 +1,6 @@
 import { test, expect, Page, APIRequestContext } from '@playwright/test';
-import { buildLiveTourStorageKey } from '../app/sponsor/constants';
-import type { CreatedSafe } from '../app/sponsor/types';
+import { buildLiveTourStorageKey } from '../app/user/constants';
+import type { CreatedSafe } from '../app/user/types';
 
 process.env.NEXT_PUBLIC_ATTN_TEST = '1';
 
@@ -108,7 +108,7 @@ test.describe('Sponsor Squads detection', () => {
       await route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ error: 'not_found' }) });
     });
 
-    await page.goto('/sponsor');
+    await page.goto('/user');
     await expect(page.getByRole('heading', { name: 'Squads Safe Onboarding' })).toBeVisible();
     await expect(page.getByText('Existing Squads safe found')).toBeVisible();
     await expect(page.getByText(safePayload.safe_address!)).toBeVisible();
@@ -125,7 +125,7 @@ test.describe('Sponsor Squads detection', () => {
 
     await prepareWalletState(page, EXISTING_WALLET);
 
-    await page.goto('/sponsor');
+    await page.goto('/user');
     const onboardingHeading = page.getByRole('heading', { name: 'Squads Safe Onboarding' });
     await onboardingHeading.waitFor({ state: 'visible' });
 
@@ -146,7 +146,7 @@ test.describe('Sponsor Squads detection', () => {
     });
 
     await prepareWalletState(page, EXISTING_WALLET);
-    await page.goto('/sponsor');
+    await page.goto('/user');
     await expect(page.getByRole('heading', { name: 'Squads Safe Onboarding' })).toBeVisible();
 
     const firstNonce: TestNonce = {
@@ -176,7 +176,7 @@ test.describe('Sponsor Squads detection', () => {
 
   test('duplicate event surfaces existing safe and clears signature', async ({ page }) => {
     await prepareWalletState(page, EXISTING_WALLET);
-    await page.goto('/sponsor');
+    await page.goto('/user');
     await expect(page.getByRole('heading', { name: 'Squads Safe Onboarding' })).toBeVisible();
 
     const nonceDetail: TestNonce = {
@@ -260,7 +260,7 @@ test.describe('Sponsor Squads detection', () => {
       });
     });
 
-    await page.goto('/sponsor');
+    await page.goto('/user');
     await expect(page.getByRole('heading', { name: 'Squads Safe Onboarding' })).toBeVisible();
 
     const initialNonce: TestNonce = {
@@ -335,7 +335,7 @@ test.describe('Sponsor Squads detection', () => {
     });
 
     await prepareWalletState(page, EXISTING_WALLET);
-    await page.goto('/sponsor');
+    await page.goto('/user');
     await expect(page.getByRole('heading', { name: 'Squads Safe Onboarding' })).toBeVisible();
 
     const nonceDetail: TestNonce = {
@@ -371,7 +371,7 @@ test.describe('Sponsor Squads detection', () => {
     await expect(page.getByText(/Hold tight—we're refreshing your Squads request state/i)).toBeVisible();
 
     await page.evaluate(() => {
-      const form = document.querySelector('[data-testid="sponsor-safe-form"]') as HTMLFormElement | null;
+      const form = document.querySelector('[data-testid="user-safe-form"]') as HTMLFormElement | null;
       form?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     });
   });

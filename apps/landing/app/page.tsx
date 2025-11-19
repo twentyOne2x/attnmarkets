@@ -239,10 +239,10 @@ export default function Home(): React.JSX.Element {
               <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <span className="text-primary text-2xl">🚀</span>
               </div>
-              <h3 className="text-xl sm:text-2xl font-semibold mb-4 text-primary">For Sponsors (Builders, DAOs, Creators)</h3>
+              <h3 className="text-xl sm:text-2xl font-semibold mb-4 text-primary">For Users (Builders, DAOs, Creators)</h3>
               <p className="text-base sm:text-lg font-medium mb-6">Unlock cash, keep your upside</p>
               <p className="text-text-secondary mb-8 text-sm sm:text-base">
-                Get a funding limit instantly. Only when you borrow do earnings auto-repay. No upfront commitment required for sponsors.
+                Get a funding limit instantly. Only when you borrow do earnings auto-repay. No upfront commitment required for users.
               </p>
               <div className="space-y-3 mb-8">
                 <div className="flex items-center space-x-3">
@@ -269,9 +269,9 @@ export default function Home(): React.JSX.Element {
                 <span className="text-secondary text-2xl">💰</span>
               </div>
               <h3 className="text-xl sm:text-2xl font-semibold mb-4 text-secondary">For LPs</h3>
-              <p className="text-base sm:text-lg font-medium mb-6">Yield paid first from sponsor earnings</p>
+              <p className="text-base sm:text-lg font-medium mb-6">Yield paid first from user earnings</p>
               <p className="text-text-secondary mb-8 text-sm sm:text-base">
-                Earn returns uncorrelated to crypto markets. First-priority claims on active sponsor repayments across builders, DAOs, and creators.
+                Earn returns uncorrelated to crypto markets. First-priority claims on active user repayments across builders, DAOs, and creators.
               </p>
               <div className="space-y-3 mb-8">
                 <div className="flex items-center space-x-3">
@@ -331,7 +331,7 @@ export default function Home(): React.JSX.Element {
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl sm:text-4xl font-bold text-center mb-4">How It Works</h2>
           <p className="text-lg sm:text-xl text-text-secondary text-center mb-16 max-w-3xl mx-auto">
-            Simple, sponsor-friendly flow for builders, DAOs, and creators, no upfront commitments
+            Simple, user-friendly flow for builders, DAOs, and creators, no upfront commitments
           </p>
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 mb-16">
@@ -388,7 +388,7 @@ export default function Home(): React.JSX.Element {
               </div>
               <h3 className="text-lg sm:text-xl font-semibold mb-4 text-red-400">Builders, DAOs, and Creators need cash before earnings hit</h3>
               <p className="text-text-secondary text-sm sm:text-base">
-                Growth opportunities don't wait for monthly payments. Equipment, team expansion, viral moment investments - timing matters for sponsor success across builders, DAOs, and creators.
+                Growth opportunities don't wait for monthly payments. Equipment, team expansion, viral moment investments - timing matters for user success across builders, DAOs, and creators.
               </p>
             </div>
             <div className="bg-dark-card border border-red-500/20 rounded-xl p-6 sm:p-8">
@@ -405,7 +405,7 @@ export default function Home(): React.JSX.Element {
             <div className="bg-primary/10 border border-primary/20 rounded-xl p-6 sm:p-8 inline-block max-w-lg">
               <h3 className="text-lg sm:text-xl font-semibold mb-4 text-primary">We bridge both sides</h3>
               <p className="text-text-secondary text-sm sm:text-base">
-                LPs want uncorrelated yield. Sponsors need flexible funding. We connect those earnings to internet capital markets without the traditional banking overhead.
+                LPs want uncorrelated yield. Users need flexible funding. We connect those earnings to internet capital markets without the traditional banking overhead.
               </p>
             </div>
           </div>
@@ -417,13 +417,13 @@ export default function Home(): React.JSX.Element {
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl sm:text-4xl font-bold text-center mb-4">Our Solution</h2>
           <p className="text-lg sm:text-xl text-text-secondary text-center mb-16 max-w-3xl mx-auto">
-            No forced commitments. Sponsors list first, borrow only when needed. While borrowed, chosen earnings percentage auto-repays.
+            No forced commitments. Users list first, borrow only when needed. While borrowed, chosen earnings percentage auto-repays.
           </p>
           
           <div className="space-y-8 sm:space-y-12">
-            {/* For Sponsors */}
+            {/* For Users */}
             <div className="bg-dark-card border border-primary/20 rounded-2xl p-6 sm:p-8">
-              <h3 className="text-xl sm:text-2xl font-semibold mb-6 text-primary text-center">For Sponsors: No Lock, Just Options</h3>
+              <h3 className="text-xl sm:text-2xl font-semibold mb-6 text-primary text-center">For Users: No Lock, Just Options</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="text-center">
                   <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center mx-auto mb-4">
@@ -458,14 +458,14 @@ export default function Home(): React.JSX.Element {
                     <span className="text-secondary">🏆</span>
                   </div>
                   <h4 className="font-semibold mb-2">Priority Pool</h4>
-                  <p className="text-text-secondary text-sm sm:text-base">First-in-line on all active sponsor repayments across builders, DAOs, and creators. Your deposits get priority claims.</p>
+                  <p className="text-text-secondary text-sm sm:text-base">First-in-line on all active user repayments across builders, DAOs, and creators. Your deposits get priority claims.</p>
                 </div>
                 <div className="text-center">
                   <div className="w-12 h-12 bg-secondary/20 rounded-xl flex items-center justify-center mx-auto mb-4">
                     <span className="text-secondary">📊</span>
                   </div>
                   <h4 className="font-semibold mb-2">Uncorrelated Returns</h4>
-                  <p className="text-text-secondary text-sm sm:text-base">Earn from sponsor economics, not crypto or money market movements.</p>
+                  <p className="text-text-secondary text-sm sm:text-base">Earn from user economics, not crypto or money market movements.</p>
                 </div>
                 <div className="text-center">
                   <div className="w-12 h-12 bg-secondary/20 rounded-xl flex items-center justify-center mx-auto mb-4">
@@ -530,7 +530,7 @@ export default function Home(): React.JSX.Element {
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">True Diversification</h4>
-                    <p className="text-text-secondary text-sm sm:text-base">Returns based on sponsor economy growth, completely separate from crypto and traditional markets.</p>
+                    <p className="text-text-secondary text-sm sm:text-base">Returns based on user economy growth, completely separate from crypto and traditional markets.</p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-4">
@@ -539,7 +539,7 @@ export default function Home(): React.JSX.Element {
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Priority Claims</h4>
-                    <p className="text-text-secondary text-sm sm:text-base">First-in-line for all active sponsor repayments. Built-in risk management through diversified sponsor pools.</p>
+                    <p className="text-text-secondary text-sm sm:text-base">First-in-line for all active user repayments. Built-in risk management through diversified user pools.</p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-4">
@@ -564,7 +564,7 @@ export default function Home(): React.JSX.Element {
           
           {/* Sponsor FAQs */}
           <div className="mb-12">
-            <h3 className="text-xl sm:text-2xl font-semibold mb-8 text-primary">For Sponsors</h3>
+            <h3 className="text-xl sm:text-2xl font-semibold mb-8 text-primary">For Users</h3>
             <div className="space-y-4">
               <div className="bg-dark-card border border-gray-700 rounded-xl">
                 <button
@@ -673,7 +673,7 @@ export default function Home(): React.JSX.Element {
                   onClick={() => toggleFAQ('lp-1')}
                   className="w-full text-left p-4 sm:p-6 flex justify-between items-center hover:bg-gray-800/30 transition-colors"
                 >
-                  <h4 className="text-base sm:text-lg font-semibold pr-4">How do I earn from sponsor earnings?</h4>
+                  <h4 className="text-base sm:text-lg font-semibold pr-4">How do I earn from user earnings?</h4>
                   <svg 
                     className={`w-5 h-5 transform transition-transform flex-shrink-0 ${openFAQs.has('lp-1') ? 'rotate-180' : ''}`}
                     fill="none" 
@@ -686,7 +686,7 @@ export default function Home(): React.JSX.Element {
                 {openFAQs.has('lp-1') && (
                   <div className="px-4 sm:px-6 pb-4 sm:pb-6">
                     <p className="text-text-secondary text-sm sm:text-base">
-                      You deposit USDC which funds sponsor advances. When builders, DAOs, or creators borrow and their earnings flow in, you earn returns as a priority claimant. Your yields come from sponsor repayments, not speculation.
+                      You deposit USDC which funds user advances. When builders, DAOs, or creators borrow and their earnings flow in, you earn returns as a priority claimant. Your yields come from user repayments, not speculation.
                     </p>
                   </div>
                 )}
@@ -697,7 +697,7 @@ export default function Home(): React.JSX.Element {
                   onClick={() => toggleFAQ('lp-2')}
                   className="w-full text-left p-4 sm:p-6 flex justify-between items-center hover:bg-gray-800/30 transition-colors"
                 >
-                  <h4 className="text-base sm:text-lg font-semibold pr-4">What if sponsors don't borrow much?</h4>
+                  <h4 className="text-base sm:text-lg font-semibold pr-4">What if users don't borrow much?</h4>
                   <svg 
                     className={`w-5 h-5 transform transition-transform flex-shrink-0 ${openFAQs.has('lp-2') ? 'rotate-180' : ''}`}
                     fill="none" 
@@ -710,7 +710,7 @@ export default function Home(): React.JSX.Element {
                 {openFAQs.has('lp-2') && (
                   <div className="px-4 sm:px-6 pb-4 sm:pb-6">
                     <p className="text-text-secondary text-sm sm:text-base">
-                      APR varies based on utilization, but we bootstrap early epochs with treasury incentives and protocol fees to maintain target yield ranges. As the platform grows, real sponsor demand from builders, DAOs, and creators drives sustainable returns.
+                      APR varies based on utilization, but we bootstrap early epochs with treasury incentives and protocol fees to maintain target yield ranges. As the platform grows, real user demand from builders, DAOs, and creators drives sustainable returns.
                     </p>
                   </div>
                 )}
@@ -734,7 +734,7 @@ export default function Home(): React.JSX.Element {
                 {openFAQs.has('lp-3') && (
                   <div className="px-4 sm:px-6 pb-4 sm:pb-6">
                     <p className="text-text-secondary text-sm sm:text-base">
-                      Sponsor earnings volatility, platform changes, smart contract bugs, and concentration risk if many participants underperform. You have priority claims and portfolio diversification across multiple sponsors.
+                      Sponsor earnings volatility, platform changes, smart contract bugs, and concentration risk if many participants underperform. You have priority claims and portfolio diversification across multiple users.
                     </p>
                   </div>
                 )}
@@ -878,7 +878,6 @@ export default function Home(): React.JSX.Element {
           /* Prevent any scrollbars */
           overflow-x: hidden !important;
           overflow-y: hidden !important;
-          margin-bottom: 10px;
         }
 
         .word-wheel-inner {

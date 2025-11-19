@@ -4,7 +4,7 @@
 Ship the minimum set of contracts and tooling that turn a Pump.fun creator-fee PDA into a Pendle-style PT/YT pair on Solana. The MVP proves that once Pump approves a Community Takeover (CTO) (or the creator opts in directly), fees are redirected into CreatorVault, a Squads Safe controlled jointly by the creator and attn (2-of-2), which mints Standardized Yield (SY) and splits it into tradable principal (PT) and yield (YT) tokens with basic redemption and analytics.
 
 ## End-to-End Flow
-1. **CTO Hand-Off** – A sponsor (creator, business, or DAO) submits the Pump.fun CTO form nominating the CreatorVault safe (Squads `{creator, attn}` 2-of-2) as the new creator. Pump executes `set_creator` / `set_creator_authority`.
+1. **CTO Hand-Off** – A user (creator, business, or DAO) submits the Pump.fun CTO form nominating the CreatorVault safe (Squads `{creator, attn}` 2-of-2) as the new creator. Pump executes `set_creator` / `set_creator_authority`.
 2. **Fee Custody** – CreatorVault PDA receives all future fees (SOL/USDC). Financing events flip the vault’s `locked` flag via `lock_collateral` (auto-expiring at maturity) so the creator can always call `withdraw_fees` solo when no advance is active. Existing balances are swept via `collectCreatorFee`.
 3. **SY Mint** – Users deposit Pump tokens or raw fees into CreatorVault, receiving SY that represents “1 unit” of that fee stream.
 4. **PT/YT Split** – SY is burned and equal amounts of PT (principal) and YT (yield) SPL tokens are minted for a chosen maturity.

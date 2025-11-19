@@ -92,11 +92,11 @@ This note captures the open work required to provide a first-class Squads safe c
 
 - **Goal:** align the UI copy so solo builders, DAOs, and traditional creators recognise themselves. Adopt “Sponsor (Builder, DAO, Creator)” unless product picks a different umbrella term.
 - **Deliverables:**
- 1. **Route naming:** consider renaming `/creator` to `/sponsor` (or similar). If we keep `/creator` for now, update page headers and breadcrumbs to read “Sponsor Console (Builders, DAOs, Creators)” while documenting the future route change.
+ 1. **Route naming:** consider renaming `/creator` to `/user` (or similar). If we keep `/creator` for now, update page headers and breadcrumbs to read “Sponsor Console (Builders, DAOs, Creators)” while documenting the future route change.
  2. **Component copy sweep:** use `rg "Creator"` across `apps/dapp-prod` and docs to identify hero headers, CTA buttons, checklist items, and tooltips that should switch to the inclusive terminology.
  3. **Tour & welcome modal:** ensure `apps/dapp-prod/app/components/WelcomeGuideModal.tsx` and the onboarding tour ask “Are you a Sponsor (Builder, DAO, Creator)?”.
- 4. **Backend/API schemas:** confirm any responses (`/v1/governance`, `/v1/squads/safes`) that return `creator_wallet` remain backward compatible, and capture follow-up work if we rename fields to `sponsor_wallet`.
-  5. **Button/tooltips:** wherever “Sponsor” appears alone (nav links, CTAs, checklist badges), add `title` or helper copy clarifying “Sponsors include creators, builders, and DAOs with on-chain revenue.”
+ 4. **Backend/API schemas:** confirm any responses (`/v1/governance`, `/v1/squads/safes`) that return `creator_wallet` remain backward compatible, and capture follow-up work if we rename fields to `user_wallet`.
+  5. **Button/tooltips:** wherever “Sponsor” appears alone (nav links, CTAs, checklist badges), add `title` or helper copy clarifying “Users include creators, builders, and DAOs with on-chain revenue.”
   6. **Testing:** add regression cases that check the new copy renders (Playwright snapshots or React Testing Library assertions).
 
 _Please update this document as the devnet flow evolves._

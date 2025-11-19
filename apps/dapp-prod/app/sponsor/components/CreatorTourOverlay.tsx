@@ -142,7 +142,7 @@ const CreatorTourOverlay: React.FC<CreatorTourOverlayProps> = ({
           <div className="relative rounded-xl border border-primary/30 bg-gray-900/95 p-5 text-sm text-gray-100 shadow-2xl">
             <h3 className="text-base font-semibold text-white">Start with your Squads safe</h3>
             <p className="mt-2 text-xs text-gray-300">
-              Flip the Live checklist switch here to spin up your sponsor (creator / builder / DAO) + attn safe.
+              Flip the Live checklist switch here to spin up your user (creator / builder / DAO) + attn safe.
               We&apos;ll unlock advances and auto-sweeps once this step is complete.
             </p>
             <div className="mt-4 flex flex-col gap-2 sm:flex-row">
