@@ -37,7 +37,7 @@ export default function Navigation(): React.JSX.Element {
   };
 
   const handleReset = () => {
-    if (confirm('⚠️ Reset all app data?\n\nThis will clear:\n• All creators and loans\n• All transaction history\n• Your wallet and deposits\n• Pool data\n\nThe page will reload with fresh demo data.')) {
+    if (confirm('⚠️ Reset all app data?\n\nThis will clear:\n• All users and loans\n• All transaction history\n• Your wallet and deposits\n• Pool data\n\nThe page will reload with fresh demo data.')) {
       resetToDefaults();
     }
   };
@@ -212,9 +212,9 @@ export default function Navigation(): React.JSX.Element {
               Leaderboard
             </a>
             <a 
-              href="/creator" 
+              href="/user" 
               className={`transition-colors ${
-                isActive('/creator') 
+                isActive('/user') 
                   ? 'text-primary font-semibold' 
                   : 'text-text-secondary hover:text-primary'
               }`}
@@ -289,9 +289,9 @@ export default function Navigation(): React.JSX.Element {
                 Leaderboard
               </a>
               <a 
-                href="/creator" 
+                href="/user" 
                 className={`px-3 py-2 transition-colors ${
-                  isActive('/creator') 
+                  isActive('/user') 
                     ? 'text-primary font-semibold bg-primary/10 rounded' 
                     : 'text-text-secondary'
                 }`}

@@ -9,7 +9,7 @@ export function middleware(request: NextRequest) {
   const allowedPaths = [
     '/',
     '/leaderboard',
-    '/creator',
+    '/user',
     '/deposit',
     '/_next',
     '/api',
