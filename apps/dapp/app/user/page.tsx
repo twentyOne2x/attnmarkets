@@ -933,9 +933,6 @@ export default function CreatorPage(): React.JSX.Element {
             <div className="bg-dark-card border border-primary/20 rounded-xl p-6">
               {/* COMPACT HEADER with Pool Liquidity */}
               <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h2 className="text-xl font-bold">User Portal</h2>
-                </div>
                 <div className="text-right">
                   <div className="text-sm text-blue-400 font-medium">Pool Liquidity</div>
                   <div className="text-lg font-bold text-blue-400">${(availableLiquidity / 1000).toFixed(0)}K</div>
