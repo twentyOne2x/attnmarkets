@@ -1,7 +1,7 @@
 // apps/dapp/app/leaderboard/page.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Navigation from '../components/Navigation';
 import Tooltip from '../components/Tooltip';
 import { useAppContext } from '../context/AppContext';
@@ -72,28 +72,40 @@ export default function LeaderboardPage(): React.JSX.Element {
 
   // Step 1: Connect wallet only
   const handleConnectWallet = async () => {
+    if (isConnecting) return;
+
     setIsConnecting(true);
     
     try {
-      console.log('🔑 Step 1: Connecting wallet...');
+      if (currentUserWallet) {
+        addNotification({
+          type: 'success',
+          title: 'Wallet Already Connected',
+          message: 'Your wallet is already connected and ready to use.',
+          duration: 2000
+        });
+        return;
+      }
+
       addNotification({
         type: 'processing',
         title: 'Connecting Wallet',
         message: 'Generating wallet address...',
         duration: 1000
       });
+
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       if (!currentUserWallet) {
+        // Deterministic mock wallet address for demo purposes
         const deterministicWallet = '0x1234567890abcdef1234567890abcdef12345678';
         setCurrentUserWallet(deterministicWallet);
-        console.log('🔑 Wallet connected:', deterministicWallet);
         
         addNotification({
           type: 'success',
           title: 'Wallet Connected!',
-          message: 'Ready to sign message and list yourself.',
-          duration: 2000
+          message: 'Wallet is connected. You can now sign a message to list yourself.',
+          duration: 2500
         });
         
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -112,6 +124,29 @@ export default function LeaderboardPage(): React.JSX.Element {
 
   // Step 2: Sign message and list creator
   const handleSignAndList = async () => {
+    if (isListing) return;
+
+    // Guard: require connected wallet
+    if (!currentUserWallet) {
+      addNotification({
+        type: 'error',
+        title: 'Wallet Not Connected',
+        message: 'Please connect your wallet first (Step 1).'
+      });
+      return;
+    }
+
+    // Guard: already listed
+    if (isListed) {
+      addNotification({
+        type: 'success',
+        title: 'Already Listed',
+        message: 'Your wallet is already listed on the leaderboard.',
+        duration: 2500
+      });
+      return;
+    }
+
     setIsListing(true);
     
     try {
@@ -133,20 +168,17 @@ export default function LeaderboardPage(): React.JSX.Element {
       });
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      console.log('📝 Step 2: Signing message and listing creator...');
-      
       const existingCreator = creators.find(c => c.wallet === currentUserWallet);
-      if (!existingCreator) {
+      if (!existingCreator && currentUserWallet) {
         const newCreator = {
           wallet: currentUserWallet,
-          fees7d_usd: 10000, // Default revenues
+          fees7d_usd: 10000, // Default revenues for demo
           beta_pct: 0.15,
           alpha_pct: 0.70,
           gamma_pct: 0.15,
           status: 'listed',
           est_beta_next30d_usd: 10000 * 4.3
         };
-        console.log('Adding new creator to leaderboard:', newCreator);
         addCreatorToList(newCreator);
       }
       
@@ -196,10 +228,10 @@ export default function LeaderboardPage(): React.JSX.Element {
 
   // Calculate LP APR breakdown for detailed tooltip
   const getAPRBreakdown = () => {
-    if (!poolData) return "APR breakdown not available";
+    if (!poolData) return 'APR breakdown not available';
     
     const activeCreators = creators.filter(c => c.activeLoan);
-    if (activeCreators.length === 0) return "No active loans - showing base rate of 8.5%";
+    if (activeCreators.length === 0) return 'No active loans - showing base rate of 8.5%';
     
     const totalBorrowed = activeCreators.reduce((sum, c) => sum + (c.activeLoan?.amount || 0), 0);
     const weightedBorrowerAPR = activeCreators.reduce((sum, c) => {
@@ -241,6 +273,9 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
       </div>
     );
   }
+
+  const canConnectWallet = !isConnecting && !currentUserWallet;
+  const canSignAndList = !isListing && !!currentUserWallet && !isListed;
 
   return (
     <div className="min-h-screen bg-dark text-text-primary">
@@ -311,7 +346,9 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold">User Leaderboard</h1>
-            <p className="text-text-secondary mt-2">Top performing users by revenues generation and borrowing activity</p>
+            <p className="text-text-secondary mt-2">
+              Top performing users by revenues generation and borrowing activity
+            </p>
           </div>
           <a href="/" className="text-text-secondary hover:text-primary transition-colors">
             ← Back to Dashboard
@@ -415,7 +452,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
           
           <div className="overflow-x-auto">
             <table className="w-full">
-            <thead className="bg-gray-800/50">
+              <thead className="bg-gray-800/50">
                 <tr>
                   <th className="text-left py-4 px-6 text-text-secondary font-medium">Rank</th>
                   <th className="text-left py-4 px-6 text-text-secondary font-medium">Creator</th>
@@ -453,7 +490,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
                   </th>
                   <th className="text-left py-4 px-6 text-text-secondary font-medium">Status</th>
                 </tr>
-            </thead>
+              </thead>
               <tbody>
                 {filteredCreators.map((creator, index) => (
                   <tr 
