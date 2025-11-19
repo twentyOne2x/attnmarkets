@@ -231,9 +231,9 @@ export default function Home(): React.JSX.Element {
             Connect your onchain income, get a funding limit, and draw when you need cash. No token sales. Repay automatically from a share of future revenues.
           </p>
           
-          {/* Sponsor vs LP Blocks */}
+          {/* User vs LP Blocks */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16 max-w-5xl mx-auto">
-            {/* Sponsor Block */}
+            {/* User Block */}
             <div className="bg-dark-card border border-primary/20 rounded-2xl p-6 sm:p-8">
               <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <span className="text-primary text-2xl">🚀</span>
@@ -505,7 +505,7 @@ export default function Home(): React.JSX.Element {
           <h2 className="text-3xl sm:text-4xl font-bold text-center mb-16">Why this works</h2>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12">
-            {/* Sponsor Benefits */}
+            {/* User Benefits */}
             <div>
               <h3 className="text-xl sm:text-2xl font-semibold mb-6 text-primary">For apps, DAOs, and creators</h3>
               <div className="space-y-6">
@@ -593,7 +593,7 @@ export default function Home(): React.JSX.Element {
         <div className="max-w-4xl mx-auto">
           <h2 className="text-3xl sm:text-4xl font-bold text-center mb-16">Frequently asked questions</h2>
           
-          {/* Sponsor FAQs */}
+          {/* User FAQs */}
           <div className="mb-12">
             <h3 className="text-xl sm:text-2xl font-semibold mb-8 text-primary">For builders, DAOs, and creators</h3>
             <div className="space-y-4">
@@ -809,7 +809,7 @@ export default function Home(): React.JSX.Element {
               href="https://app.attn.markets/leaderboard"
               className="bg-secondary text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-semibold text-base sm:text-lg hover:bg-secondary/90 transition-all"
             >
-              View Sponsor Leaderboard
+              View User Leaderboard
             </a>
           </div>
           

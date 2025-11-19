@@ -1,7 +1,7 @@
 # Squads Safe Creation Remediation Plan
 
 ## Context
-- Sponsor UI shows request `3144a127-79da-462d-8fb9-45ba343cb53a` stuck in **failed** with `mode: local`, `attempts: 3`, `safe_address: Pending`, and no `status_url`.
+- User UI shows request `3144a127-79da-462d-8fb9-45ba343cb53a` stuck in **failed** with `mode: local`, `attempts: 3`, `safe_address: Pending`, and no `status_url`.
 - Automatic retries keep looping every 5 minutes (next window `+5m`) but never recover because the upstream service is unreachable in `local` mode.
 - Onboarding banner announces an existing safe, preventing new submission while still blocking the tour.
 - Developers have spent days attempting to use the live flow, indicating the mocks & non-cached path are insufficient.

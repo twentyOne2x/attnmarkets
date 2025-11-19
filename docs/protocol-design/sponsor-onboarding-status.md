@@ -1,4 +1,4 @@
-# Sponsor Onboarding Status (Playwright + Mock API)
+# User Onboarding Status (Playwright + Mock API)
 
 ## Overview
 - Updated the user onboarding flow to honour the new Playwright-based test harness.
@@ -14,8 +14,8 @@
 
 ## Expected Behaviour
 - **Tour state**
-  - When a wallet/cluster is detected, `attn.liveSponsorTour::<cluster>::<wallet>` should be written and the live tour banner hidden.
-  - Legacy single-key storage (`attn.liveSponsorTour`) is migrated on both the user page and onboarding component mount.
+  - When a wallet/cluster is detected, `attn.liveUserTour::<cluster>::<wallet>` should be written and the live tour banner hidden.
+  - Legacy single-key storage (`attn.liveUserTour`) is migrated on both the user page and onboarding component mount.
 - **Safe detection**
   - `onSafeDetected` fires at most once per `request_id`.
   - Cached safe metadata from localStorage should populate the onboarding panel without a network round trip.
@@ -24,7 +24,7 @@
   - `pnpm dlx playwright install --with-deps` installs the browsers.
   - `pnpm --filter dapp-prod test` launches the wrapper script, starting the mock API on `3999` and Next.js on `3100`.
   - CI caches Playwright browsers (`~/.cache/ms-playwright`) and runs lint → typecheck → e2e (with `continue-on-error`).
-- **Sponsor page**
+- **User page**
   - Loading splash self-dismisses after 10 s with a retry prompt.
   - When `NEXT_PUBLIC_ATTN_TEST=1`, the loading screen is skipped so Playwright can assert immediately.
 

@@ -934,7 +934,7 @@ export default function CreatorPage(): React.JSX.Element {
               {/* COMPACT HEADER with Pool Liquidity */}
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h2 className="text-xl font-bold">Sponsor Portal</h2>
+                  <h2 className="text-xl font-bold">User Portal</h2>
                 </div>
                 <div className="text-right">
                   <div className="text-sm text-blue-400 font-medium">Pool Liquidity</div>
@@ -1251,9 +1251,9 @@ export default function CreatorPage(): React.JSX.Element {
 
           {/* Side Panel */}
           <div className="space-y-6">
-            {/* Sponsor Leaderboard Preview - Smart Display */}
+            {/* User Leaderboard Preview - Smart Display */}
             <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-              <h3 className="text-lg font-bold mb-4">Sponsor Leaderboard Preview</h3>
+              <h3 className="text-lg font-bold mb-4">User Leaderboard Preview</h3>
               <div className="space-y-3">
                 {previewCreators.map((creator, index) => {
                   // Find this creator's actual rank in the full sorted list

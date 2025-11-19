@@ -1,11 +1,11 @@
-# Sponsor Safe Detection
+# User Safe Detection
 
 This directory houses the user dashboard experience, including the Squads safe onboarding flow and its supporting utilities.
 
 ## Storage keys
 
 Tour dismissal state is persisted per wallet and cluster using keys built by `buildLiveTourStorageKey()`.
-The shape is `attn.liveSponsorTour::<cluster>::<wallet>`. Migrating from the legacy singleton key happens automatically when the onboarding component mounts with a known wallet. Always derive keys through the helper to avoid drift.
+The shape is `attn.liveUserTour::<cluster>::<wallet>`. Migrating from the legacy singleton key happens automatically when the onboarding component mounts with a known wallet. Always derive keys through the helper to avoid drift.
 
 ## Detection lifecycle
 

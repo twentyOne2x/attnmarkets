@@ -135,7 +135,7 @@ test.describe('Creator live onboarding', () => {
     });
 
     await page.goto('/creator');
-    await expect(page.getByRole('heading', { name: /Sponsor Console/i, level: 1 })).toBeVisible({
+    await expect(page.getByRole('heading', { name: /User Console/i, level: 1 })).toBeVisible({
       timeout: 120_000,
     });
 

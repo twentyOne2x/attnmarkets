@@ -310,7 +310,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Sponsor Leaderboard</h1>
+            <h1 className="text-3xl font-bold">User Leaderboard</h1>
             <p className="text-text-secondary mt-2">Top performing users by revenues generation and borrowing activity</p>
           </div>
           <a href="/" className="text-text-secondary hover:text-primary transition-colors">

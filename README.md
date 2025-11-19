@@ -12,7 +12,7 @@
 
 ## TL;DR
 - Tokenising the $2B Solana revenues to bank builders, DAOs, and creators to DeFi.
-- The Sponsor (Builders/DAOs/Creators) get cash advance, loans/corporate bonds, savings account (+4-6% APR from stables/LSTs), credit card lines…
+- The User (Builders/DAOs/Creators) get cash advance, loans/corporate bonds, savings account (+4-6% APR from stables/LSTs), credit card lines…
 - LPs mint `attnUSD` with stable to get yield uncorrelated to market returns sourced from attn products.
 - Dual-control via Squads 2of2 (user+attn), with user withdrawals remaining single-signer while no position is opened.
 - Squads Safe creation live on Devnet.
@@ -41,7 +41,7 @@ With this, the DeFi ecosystem is mature, the US administration is crypto friendl
 ## What We’re Building
 attn.markets tokenises the $2B Solana app revenues into Principal and Yield tokens. 
 
-The Sponsor (creator, business, or DAOs from MetaDAO):
+The User (creator, business, or DAOs from MetaDAO):
 * Creates Squads 2of2 (user+attn) or hooks attn program to existing Safe
    * Non-custodial: withdrawals remain single-signer while no position is opened
 * Point revenues to the Safe (e.g., Pump.fun via CTO request or other launchpad handoffs)
@@ -127,7 +127,7 @@ The above elements are required to increase TVL sustainably, for `attnUSD` to be
 3. **Stable Yield Vault (`attnUSD`)** *(program: `protocol/programs/stable_vault`)*: LPs deposit approved stablecoins (USDC/USDT/USDe/USDC+) via `deposit_stable` to mint `attnUSD`. Keeper sweeps (`sweep_creator_fees`) pull fees from CreatorVault and convert them into the same basket so attnUSD NAV tracks underlying revenues.
 4. **RewardsVault (sAttnUSD)** *(program: `protocol/programs/rewards_vault`)*: Staking layer on top of attnUSD. Stakers call `stake_attnusd` to move attnUSD into the vault and mint `sAttnUSD`, accruing SOL incentives while unstaked attnUSD continues to earn the base NAV growth.
 5. **attnUSD/PT AMM** *(program scaffold: `protocol/programs/amm`)*: The on-chain program currently exposes a `placeholder` entry point; concentrated-liquidity pools for PT↔attnUSD swaps are specced but not yet implemented. Users will eventually sell Yield tranches for upfront attnUSD, with LPs pricing maturities off attnUSD liquidity.
-6. **Sponsor & LP Consoles** *(Next.js apps in `apps/dapp-prod`)*: Guided web + CLI flows with tour + checklists covering Squads setup, wrapping/splitting, withdrawals, and liquidity actions.
+6. **User & LP Consoles** *(Next.js apps in `apps/dapp-prod`)*: Guided web + CLI flows with tour + checklists covering Squads setup, wrapping/splitting, withdrawals, and liquidity actions.
 7. **Indexer & Monitoring** *(crates: `protocol/crates/attn_indexer`, `attn_api`)*: The indexer ingests CreatorVault/Splitter/StableVault/RewardsVault events to serve `/v1/governance`, supply charts, and rewards pages. Alert escalation/AMM feeds will follow once the swap program ships.
 
 ## Onboarding User Flow

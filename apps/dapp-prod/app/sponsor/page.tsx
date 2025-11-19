@@ -45,7 +45,7 @@ interface Notification {
   position: number; // Fixed position in the stack
 }
 
-export default function SponsorPage(): React.JSX.Element {
+export default function UserPage(): React.JSX.Element {
   const {
     creators,
     loading,
@@ -1145,7 +1145,7 @@ export default function SponsorPage(): React.JSX.Element {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold" title="Users include builders, DAOs, and creators with recurring on-chain revenue.">
-              Sponsor Console (Builders, DAOs, Creators)
+              User Console (Builders, DAOs, Creators)
             </h1>
             {currentUserWallet && (
               <div className="text-sm text-text-secondary mt-1">
@@ -1284,7 +1284,7 @@ export default function SponsorPage(): React.JSX.Element {
               {/* COMPACT HEADER with Pool Liquidity */}
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h2 className="text-xl font-bold">Sponsor Console</h2>
+                  <h2 className="text-xl font-bold">User Console</h2>
                 </div>
                 <div className="text-right">
                   <div className="text-sm text-blue-400 font-medium">Pool Liquidity</div>
@@ -1605,9 +1605,9 @@ export default function SponsorPage(): React.JSX.Element {
 
           {/* Side Panel */}
           <div className="space-y-6">
-            {/* Sponsor Leaderboard Preview - Smart Display */}
+            {/* User Leaderboard Preview - Smart Display */}
             <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-              <h3 className="text-lg font-bold mb-4">Sponsor Leaderboard Preview (Builders, DAOs, Creators)</h3>
+              <h3 className="text-lg font-bold mb-4">User Leaderboard Preview (Builders, DAOs, Creators)</h3>
               <div className="space-y-3">
                 {previewCreators.map((creator, index) => {
                   // Find this creator's actual rank in the full sorted list
