@@ -286,7 +286,7 @@ export default function Home(): React.JSX.Element {
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-secondary rounded-full flex-shrink-0"></div>
-                  <span className="text-sm">Composable position you can use across Solana DeFi (YT/PT later)</span>
+                  <span className="text-sm">Composable position you can use across Solana DeFi</span>
                 </div>
               </div>
               <a
