@@ -269,7 +269,7 @@ export class BridgeDataProvider implements DataProvider {
     return {
       tvl_usdc: tvlUsdc,
       epoch_end: epochEnd,
-      creator_earnings_next30d: creatorEarnings,
+      creator_revenues_next30d: creatorEarnings,
     };
   }
 

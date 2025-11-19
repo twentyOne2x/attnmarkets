@@ -54,7 +54,7 @@ export default function CreatorPage(): React.JSX.Element {
     getLoanHistoryForWallet
   } = useAppContext();
   
-  // Initialize weekly earnings from context
+  // Initialize weekly revenues from context
   const [weeklyEarnings, setWeeklyEarnings] = useState<number>(() => {
     const existingCreator = creators.find(c => c.wallet === currentUserWallet);
     return existingCreator?.fees7d_usd || 10000;
@@ -225,7 +225,7 @@ export default function CreatorPage(): React.JSX.Element {
       console.log('🔄 SYNCING CREATOR DATA');
       console.log('Creator found:', {
         wallet: existingCreator.wallet.slice(0,8),
-        earnings: existingCreator.fees7d_usd,
+        revenues: existingCreator.fees7d_usd,
         hasActiveLoan: !!existingCreator.activeLoan,
         activeLoan: existingCreator.activeLoan
       });
@@ -260,19 +260,19 @@ export default function CreatorPage(): React.JSX.Element {
     }
   }, [currentUserWallet, creators]); // Re-run when creators change
 
-  // Load earnings on component mount from context
+  // Load revenues on component mount from context
   useEffect(() => {
     if (!currentUserWallet) return;
     
     const existingCreator = creators.find(c => c.wallet === currentUserWallet);
     if (existingCreator && weeklyEarnings === 10000) {
-      // Only set earnings if we're still at default value
-      console.log('Loading earnings from context on mount:', existingCreator.fees7d_usd);
+      // Only set revenues if we're still at default value
+      console.log('Loading revenues from context on mount:', existingCreator.fees7d_usd);
       setWeeklyEarnings(existingCreator.fees7d_usd);
     }
   }, [currentUserWallet, creators]); // Load once when wallet/creators are available
 
-  // Update borrow percentage when earnings change - only when earnings actually change, not continuously
+  // Update borrow percentage when revenues change - only when revenues actually change, not continuously
   useEffect(() => {
     if (!isUserEditing && weeklyEarnings > 0) {
       const maxBorrowable = weeklyEarnings * 2;
@@ -298,7 +298,7 @@ export default function CreatorPage(): React.JSX.Element {
     }
   }, [weeklyEarnings]); // Only depend on weeklyEarnings, not availableLiquidity or borrowPercentage
 
-  // Update user revenues when weekly earnings change - SIMPLIFIED AND DEBOUNCED
+  // Update user revenues when weekly revenues change - SIMPLIFIED AND DEBOUNCED
   useEffect(() => {
     if (!currentUserWallet || isUserEditing) return;
     
@@ -409,7 +409,7 @@ export default function CreatorPage(): React.JSX.Element {
       addNotification({
         type: 'success',
         title: 'Connected Successfully!',
-        message: 'Your wallet is connected and you can now borrow up to 2 weeks of earnings.',
+        message: 'Your wallet is connected and you can now borrow up to 2 weeks of revenues.',
         duration: 3000
       });
       
@@ -525,7 +525,7 @@ export default function CreatorPage(): React.JSX.Element {
       addNotification({
         type: 'success',
         title: 'Advance Received!',
-        message: `${borrowingTerms.borrowAmount.toLocaleString()} USDC borrowed at ${borrowingTerms.interestRate.toFixed(0)}% APR. Repaying ${borrowingTerms.repaymentRate}% of daily earnings.`
+        message: `${borrowingTerms.borrowAmount.toLocaleString()} USDC borrowed at ${borrowingTerms.interestRate.toFixed(0)}% APR. Repaying ${borrowingTerms.repaymentRate}% of daily revenues.`
       });
       
     } catch (error) {
@@ -786,7 +786,7 @@ export default function CreatorPage(): React.JSX.Element {
   const faqItems = [
     {
       q: "How much can I borrow?",
-      a: "Up to 2 weeks of your proven weekly earnings. If you earn $10k/week, you can borrow up to $20k."
+      a: "Up to 2 weeks of your proven weekly revenues. If you earn $10k/week, you can borrow up to $20k."
     },
     {
       q: "How does the interest rate work?",
@@ -794,15 +794,15 @@ export default function CreatorPage(): React.JSX.Element {
     },
     {
       q: "How do I repay the loan?",
-      a: "Repayments are automatic and daily. Smaller loans (≤50%) = 50% of daily earnings. Medium loans (51-75%) = 75% of earnings. Large loans (76-100%) = 100% of earnings."
+      a: "Repayments are automatic and daily. Smaller loans (≤50%) = 50% of daily revenues. Medium loans (51-75%) = 75% of revenues. Large loans (76-100%) = 100% of revenues."
     },
     {
       q: "How long until I'm paid off?",
       a: "Typically 5-20 days depending on loan size. Larger loans get paid off faster due to higher repayment rates."
     },
     {
-      q: "What if my earnings drop?",
-      a: "Repayments are percentage-based, so they adjust automatically with your actual earnings. Your loan just takes longer to repay."
+      q: "What if my revenues drop?",
+      a: "Repayments are percentage-based, so they adjust automatically with your actual revenues. Your loan just takes longer to repay."
     },
     {
       q: "Can I pay off early?",
@@ -969,7 +969,7 @@ export default function CreatorPage(): React.JSX.Element {
                         ${borrowingTerms.maxBorrowable.toLocaleString()}
                       </div>
                       <div className="text-xs text-text-secondary mt-1">
-                        Borrow up to 2 weeks of your proven earnings
+                        Borrow up to 2 weeks of your proven revenues
                       </div>
                     </div>
                   </div>
@@ -990,7 +990,7 @@ export default function CreatorPage(): React.JSX.Element {
                       />
                     </div>
                     <div className="text-xs text-text-secondary mt-1">
-                      {!currentUserWallet ? 'Connect wallet first to adjust earnings' : 'List yourself first to start borrowing'}
+                      {!currentUserWallet ? 'Connect wallet first to adjust revenues' : 'List yourself first to start borrowing'}
                     </div>
                   </div>
                 )}
@@ -1028,7 +1028,7 @@ export default function CreatorPage(): React.JSX.Element {
                         </div>
                       )}
                     </div>
-                    <Tooltip content={showRepaySection ? "Manage your existing loan and early repayment options." : "Borrow up to 2 weeks of earnings. Higher amounts = higher rates but faster repayment."}>
+                    <Tooltip content={showRepaySection ? "Manage your existing loan and early repayment options." : "Borrow up to 2 weeks of revenues. Higher amounts = higher rates but faster repayment."}>
                       <span className="text-xs text-primary cursor-help">ⓘ</span>
                     </Tooltip>
                   </div>
@@ -1066,7 +1066,7 @@ export default function CreatorPage(): React.JSX.Element {
                               borrowingTerms.repaymentRate === 50 ? 'text-success' : 
                               borrowingTerms.repaymentRate === 75 ? 'text-yellow-400' : 'text-red-400'
                             }`}>
-                              {borrowingTerms.repaymentRate}% of earnings
+                              {borrowingTerms.repaymentRate}% of revenues
                             </span>
                           </div>
                         </div>
@@ -1280,7 +1280,7 @@ export default function CreatorPage(): React.JSX.Element {
                           {creator.status === 'active' || creator.activeLoan
                             ? `Borrowing • Auto-repayment active`
                             : 'Listed • No active advance'
-                          } • ${creator.fees7d_usd.toLocaleString()} 7d earnings
+                          } • ${creator.fees7d_usd.toLocaleString()} 7d revenues
                         </div>
                       </div>
                       <span className={`px-2 py-1 rounded text-xs ${
@@ -1329,7 +1329,7 @@ export default function CreatorPage(): React.JSX.Element {
                               <span>{item.interestRate}% APR</span>
                             )}
                             {item.repaymentRate && (
-                              <span>{item.repaymentRate}% of earnings</span>
+                              <span>{item.repaymentRate}% of revenues</span>
                             )}
                           </div>
                           <span className={`${getStatusColor(item.status)} uppercase`}>

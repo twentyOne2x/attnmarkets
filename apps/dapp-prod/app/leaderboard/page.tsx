@@ -128,7 +128,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold">Sponsor Leaderboard (Builders, DAOs, Creators)</h1>
-            <p className="text-text-secondary mt-2">Top performing users across builders, DAOs, and creators by earnings generation and borrowing activity</p>
+            <p className="text-text-secondary mt-2">Top performing users across builders, DAOs, and creators by revenues generation and borrowing activity</p>
           </div>
           <a href="/" className="text-text-secondary hover:text-primary transition-colors">
             ← Back to Dashboard
@@ -342,7 +342,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
                   <th className="text-left py-4 px-6 text-text-secondary font-medium">Rank</th>
                   <th className="text-left py-4 px-6 text-text-secondary font-medium">Sponsor</th>
                   <th className="text-left py-4 px-6 text-text-secondary font-medium">
-                    <Tooltip content="Total earnings this user (builder, DAO, creator) generated in the last 7 days from their on-chain activity">
+                    <Tooltip content="Total revenues this user (builder, DAO, creator) generated in the last 7 days from their on-chain activity">
                       <span className="cursor-help flex items-center">
                         Weekly Earnings
                         <span className="ml-1 text-xs text-primary">ⓘ</span>
@@ -374,7 +374,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
                     </Tooltip>
                   </th>
                   <th className="text-left py-4 px-6 text-text-secondary font-medium">
-                    <Tooltip content="Percentage of daily earnings being used for loan repayment. Higher rates allow for larger loans but faster repayment.">
+                    <Tooltip content="Percentage of daily revenues being used for loan repayment. Higher rates allow for larger loans but faster repayment.">
                       <span className="cursor-help flex items-center">
                         Repayment Rate
                         <span className="ml-1 text-xs text-primary">ⓘ</span>

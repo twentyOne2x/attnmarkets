@@ -339,7 +339,7 @@ const createDeterministicDemoCreators = (baseCreators: any[]): Creator[] => {
     currentUserHasActiveLoan: false,
     loanBreakdown: creatorsWithLoans.filter(c => c.activeLoan).map(c => ({
       wallet: c.wallet.slice(0, 8) + '...',
-      earnings: c.fees7d_usd,
+      revenues: c.fees7d_usd,
       borrowed: c.activeLoan?.amount,
       utilization: c.activeLoan?.utilizationPct + '%'
     }))
@@ -597,7 +597,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       } else {
         baseCreatorData = {
           wallet: currentUserWallet,
-          fees7d_usd: 10000, // Default earnings
+          fees7d_usd: 10000, // Default revenues
           beta_pct: 0.15,
           alpha_pct: 0.70,
           gamma_pct: 0.15,
@@ -612,7 +612,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       addNotification({
         type: 'success',
         title: 'Successfully Listed!',
-        message: 'You can now borrow up to 2 weeks of earnings.',
+        message: 'You can now borrow up to 2 weeks of revenues.',
         duration: 4000
       });
       
@@ -702,7 +702,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
             const updatedPool = {
               ...poolData,
               tvl_usdc: initialTVL,
-              creator_earnings_next30d: poolData.beta_total_usd_next30d || 29500,
+              creator_revenues_next30d: poolData.beta_total_usd_next30d || 29500,
             };
 
             const seededUserData = {
@@ -777,10 +777,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
               tvl_usdc: poolOverview.tvl_usdc,
               projected_apr: 0,
               epoch_end: poolOverview.epoch_end,
-              creator_earnings_next30d: poolOverview.creator_earnings_next30d,
+              creator_revenues_next30d: poolOverview.creator_revenues_next30d,
             }, normalizedCreators),
             epoch_end: poolOverview.epoch_end,
-            creator_earnings_next30d: poolOverview.creator_earnings_next30d,
+            creator_revenues_next30d: poolOverview.creator_revenues_next30d,
           };
 
           let userPortfolio: UserData | null = null;

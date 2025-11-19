@@ -139,7 +139,7 @@ export default function LeaderboardPage(): React.JSX.Element {
       if (!existingCreator) {
         const newCreator = {
           wallet: currentUserWallet,
-          fees7d_usd: 10000, // Default earnings
+          fees7d_usd: 10000, // Default revenues
           beta_pct: 0.15,
           alpha_pct: 0.70,
           gamma_pct: 0.15,
@@ -153,7 +153,7 @@ export default function LeaderboardPage(): React.JSX.Element {
       addNotification({
         type: 'success',
         title: 'Successfully Listed!',
-        message: 'Message signed and added to leaderboard. You can now borrow up to 2 weeks of earnings.'
+        message: 'Message signed and added to leaderboard. You can now borrow up to 2 weeks of revenues.'
       });
     } catch (error) {
       console.error('Error signing and listing:', error);
@@ -311,7 +311,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold">Sponsor Leaderboard</h1>
-            <p className="text-text-secondary mt-2">Top performing users by earnings generation and borrowing activity</p>
+            <p className="text-text-secondary mt-2">Top performing users by revenues generation and borrowing activity</p>
           </div>
           <a href="/" className="text-text-secondary hover:text-primary transition-colors">
             ← Back to Dashboard
@@ -361,7 +361,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
             <p className="text-2xl font-bold text-primary">{creators.length}</p>
           </div>
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-            <Tooltip content="Users currently borrowing against their future earnings. These active loans generate interest for LP providers.">
+            <Tooltip content="Users currently borrowing against their future revenues. These active loans generate interest for LP providers.">
               <h3 className="text-sm text-text-secondary mb-2 cursor-help flex items-center">
                 Active Borrowers
                 <span className="ml-1 text-xs text-primary">ⓘ</span>
@@ -420,7 +420,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
                   <th className="text-left py-4 px-6 text-text-secondary font-medium">Rank</th>
                   <th className="text-left py-4 px-6 text-text-secondary font-medium">Creator</th>
                   <th className="text-left py-4 px-6 text-text-secondary font-medium">
-                    <Tooltip content="Total earnings this creator generated in the last 7 days from their content/activity">
+                    <Tooltip content="Total revenues this creator generated in the last 7 days from their content/activity">
                       <span className="cursor-help flex items-center">
                         Weekly Earnings
                         <span className="ml-1 text-xs text-primary">ⓘ</span>
@@ -436,7 +436,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
                     </Tooltip>
                   </th>
                   <th className="text-left py-4 px-6 text-text-secondary font-medium">
-                    <Tooltip content="Percentage of daily earnings being used for loan repayment. Higher rates allow for larger loans but faster repayment.">
+                    <Tooltip content="Percentage of daily revenues being used for loan repayment. Higher rates allow for larger loans but faster repayment.">
                       <span className="cursor-help flex items-center">
                         Repayment Rate
                         <span className="ml-1 text-xs text-primary">ⓘ</span>

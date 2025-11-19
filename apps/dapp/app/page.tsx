@@ -112,7 +112,7 @@ Active borrowers: ${activeCreators.length}`;
       <div className="flex-1 max-w-7xl mx-auto px-4 py-8 w-full">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-            <Tooltip content="Total funding available for creators to borrow against their future earnings">
+            <Tooltip content="Total funding available for creators to borrow against their future revenues">
               <h3 className="text-sm text-text-secondary mb-2 cursor-help flex items-center">
                 Available Funding
                 <span className="ml-1 text-xs text-primary">ⓘ</span>
@@ -125,7 +125,7 @@ Active borrowers: ${activeCreators.length}`;
           </div>
 
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-            <Tooltip content="Interest rate for creators borrowing against their future earnings">
+            <Tooltip content="Interest rate for creators borrowing against their future revenues">
               <h3 className="text-sm text-text-secondary mb-2 cursor-help flex items-center">
                 Sponsor Borrowing Rate
                 <span className="ml-1 text-xs text-primary">ⓘ</span>
@@ -339,7 +339,7 @@ Active borrowers: ${activeCreators.length}`;
                   <div className="font-semibold text-primary">
                     ${creator.fees7d_usd.toLocaleString()}
                   </div>
-                  <div className="text-xs text-text-secondary">7d earnings</div>
+                  <div className="text-xs text-text-secondary">7d revenues</div>
                 </div>
               </div>
             ))}

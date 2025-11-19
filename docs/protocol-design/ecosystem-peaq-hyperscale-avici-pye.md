@@ -39,7 +39,7 @@ peaq is a natural **upstream revenue source** for attn.
   - Route that revenue into a CreatorVault (directly on peaq or via a bridge).
   - Wrap into SY, then PT/YT, exactly as for Solana app revenues.
   - Offer:
-    - advances against future machine earnings,
+    - advances against future machine revenues,
     - revenue bonds on device fleets,
     - diversified YT products across many DePIN projects.
 

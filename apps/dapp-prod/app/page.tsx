@@ -248,7 +248,7 @@ Active borrowers: ${activeCreators.length}`;
                 <li>• <strong>Connect your safe or wallet:</strong> stay 2-of-2 with Squads while attn co-signs locks</li>
                 <li>• <strong>Mint Standardized Yield:</strong> split fees into Principal (PT) and Yield (YT) rails</li>
                 <li>• <strong>Choose your product:</strong> autostake fees, sell YT for cash, or finance via PT sales</li>
-                <li>• <strong>Stay in control:</strong> earnings auto-repay advances and you adjust repayment % each epoch</li>
+                <li>• <strong>Stay in control:</strong> revenues auto-repay advances and you adjust repayment % each epoch</li>
               </ul>
             </div>
 
@@ -403,7 +403,7 @@ Active borrowers: ${activeCreators.length}`;
                   <div className="font-semibold text-primary">
                     ${creator.fees7d_usd.toLocaleString()}
                   </div>
-                  <div className="text-xs text-text-secondary">7d earnings</div>
+                  <div className="text-xs text-text-secondary">7d revenues</div>
                 </div>
               </div>
             ))}

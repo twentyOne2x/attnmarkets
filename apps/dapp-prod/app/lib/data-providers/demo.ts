@@ -121,7 +121,7 @@ class DemoDataProvider implements DataProvider {
     return {
       tvl_usdc: BASE_POOL_TVL,
       epoch_end: poolData.epoch_end ?? new Date().toISOString(),
-      creator_earnings_next30d:
+      creator_revenues_next30d:
         poolData.beta_total_usd_next30d ?? normalizedCreators.reduce((sum, c) => sum + c.est_beta_next30d_usd, 0),
     };
   }
@@ -218,7 +218,7 @@ class DemoDataProvider implements DataProvider {
       tvl_usdc: poolOverview.tvl_usdc,
       projected_apr: 0,
       epoch_end: poolOverview.epoch_end,
-      creator_earnings_next30d: poolOverview.creator_earnings_next30d,
+      creator_revenues_next30d: poolOverview.creator_revenues_next30d,
     };
     const apr = calculateLPAPR(poolForCalc, normalizedCreators);
     return {
