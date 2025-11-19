@@ -219,7 +219,7 @@ export default function Navigation(): React.JSX.Element {
                   : 'text-text-secondary hover:text-primary'
               }`}
             >
-              Creators
+              Users
             </a>
             <a 
               href="/deposit" 
@@ -297,7 +297,7 @@ export default function Navigation(): React.JSX.Element {
                 }`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                Creators
+                Users
               </a>
               <a 
                 href="/deposit" 
