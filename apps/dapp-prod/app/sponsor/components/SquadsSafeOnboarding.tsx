@@ -957,7 +957,7 @@ const SquadsSafeOnboarding: React.FC<SquadsSafeOnboardingProps> = ({
       return null;
     }
     if (!creatorWallet) {
-      setNonceError('Enter the sponsor wallet (Builder, DAO, Creator) before requesting a nonce.');
+      setNonceError('Enter the user wallet (Builder, DAO, Creator) before requesting a nonce.');
       return null;
     }
     if (!BASE58_WALLET_REGEX.test(creatorWallet)) {
@@ -1088,7 +1088,7 @@ const SquadsSafeOnboarding: React.FC<SquadsSafeOnboardingProps> = ({
         errors.push('Request a nonce before submitting the safe creation request.');
       }
       if (!signature) {
-        errors.push('Provide the sponsor signature for the nonce.');
+        errors.push('Provide the user signature for the nonce.');
       } else if (!BASE58_SIGNATURE_REGEX.test(signature)) {
         errors.push('Sponsor signature must be base58 encoded.');
       }
@@ -1651,7 +1651,7 @@ const SquadsSafeOnboarding: React.FC<SquadsSafeOnboardingProps> = ({
                 </button>
               </div>
               <p className="mt-2 text-xs text-gray-400">
-                Pump.fun currently supports single-signature payouts. This is the sponsor wallet that co-owns the Squads
+                Pump.fun currently supports single-signature payouts. This is the user wallet that co-owns the Squads
                 safe.
               </p>
             </li>
@@ -1887,7 +1887,7 @@ const SquadsSafeOnboarding: React.FC<SquadsSafeOnboardingProps> = ({
         <div>
           <h2 className="text-xl font-semibold text-white">Squads Safe Onboarding</h2>
           <p className="text-sm text-gray-300">
-            Generate a 2-of-2 safe (sponsor + attn) and capture the request metadata required for Pump.fun CTO
+            Generate a 2-of-2 safe (user + attn) and capture the request metadata required for Pump.fun CTO
             submissions.
           </p>
         </div>
@@ -2115,10 +2115,10 @@ const SquadsSafeOnboarding: React.FC<SquadsSafeOnboardingProps> = ({
       )}
 
       {!safeIsReady && (
-        <form className="space-y-6" data-testid="sponsor-safe-form" onSubmit={handleSubmit}>
+        <form className="space-y-6" data-testid="user-safe-form" onSubmit={handleSubmit}>
         <div className="grid gap-4 md:grid-cols-2">
           <label className="flex flex-col text-sm text-gray-200">
-            Your sponsor wallet (Builder, DAO, Creator)
+            Your user wallet (Builder, DAO, Creator)
             <input
               className="mt-1 rounded-md border border-primary/40 bg-gray-950/60 p-2 text-white placeholder:text-gray-500 focus:border-primary focus:outline-none"
               value={form.creatorWallet}
@@ -2127,7 +2127,7 @@ const SquadsSafeOnboarding: React.FC<SquadsSafeOnboardingProps> = ({
               required
             />
             <span className="mt-1 text-xs text-gray-400">
-              Sponsors default to your connected wallet. <br />
+              Users default to your connected wallet. <br />
               Builders and DAOs can enter any signer that will co-own the Squads safe.<br />
               Pump.fun creators should use the wallet currently receiving fee payouts.
             </span>
@@ -2216,7 +2216,7 @@ const SquadsSafeOnboarding: React.FC<SquadsSafeOnboardingProps> = ({
                 Step 1. Verify and sign your wallet
               </h3>
               <p className={clsx('text-xs', signatureComplete ? 'text-emerald-200/80' : 'text-gray-300')}>
-                We&apos;ll request a one-time nonce from the attn devnet API and sign it with your connected sponsor wallet to prove ownership.
+                We&apos;ll request a one-time nonce from the attn devnet API and sign it with your connected user wallet to prove ownership.
               </p>
             </div>
             <a
@@ -2355,7 +2355,7 @@ const SquadsSafeOnboarding: React.FC<SquadsSafeOnboardingProps> = ({
             <div>
               <h3 className="text-base font-medium text-white">Step 2. Send the Squads safe request</h3>
               <p className="text-xs text-gray-300">
-                This packages your verified wallet into a Squads 2-of-2 request (sponsor + attn). Keep the submission key handy if you need support or have to retry.
+                This packages your verified wallet into a Squads 2-of-2 request (user + attn). Keep the submission key handy if you need support or have to retry.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -2589,7 +2589,7 @@ const SquadsSafeOnboarding: React.FC<SquadsSafeOnboardingProps> = ({
                 <div>
                   <h4 className="text-base font-medium text-white">Governance linkage</h4>
                   <p className="text-xs text-gray-300">
-                    Both sponsor (Builder, DAO, Creator) and attn must sign the message below to associate the safe with the CreatorVault.
+                    Both user (Builder, DAO, Creator) and attn must sign the message below to associate the safe with the CreatorVault.
                   </p>
                 </div>
                 <button

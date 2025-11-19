@@ -10,7 +10,7 @@ This document describes attn’s revenue-bond architecture:
 - How attnUSD (the StableVault share token) is defined, risk-managed, and used.
 - How the protocol separates the **underlying** (SY) from the **numeraire** (USDC/basket vs attnUSD).
 - How the system is presented to:
-  - Retail sponsors (creators, DAOs, apps).
+  - Retail users (creators, DAOs, apps).
   - Liquidity providers (LPs) and yield buyers.
 - Roadmap and rollout phases from internal-only PT/YT to full markets.
 
@@ -22,7 +22,7 @@ The goal is to have a single source of truth for the “revenue bonds + stable v
 
 ### 2.1 Actors
 
-- **Sponsors**  
+- **Users**  
   Creators, DAOs, businesses, or token communities (e.g. Pump.fun CTO winners) who:
   - Receive on-chain revenue streams (fees, creator rewards, DAO income).
   - Want to:
@@ -140,7 +140,7 @@ Two main issuance modes; attn can use both.
 1. **On-demand issuance (default for MVP)**  
    - CreatorVault accrues fees normally.
    - No tranching happens until a **financing** or **structuring** action occurs.
-   - When a sponsor requests an advance/credit, the protocol:
+   - When a user requests an advance/credit, the protocol:
      - Carves out a defined slice of future revenue.
      - Wraps that slice into SY.
      - Calls Splitter to mint PT/YT **for that slice only**.

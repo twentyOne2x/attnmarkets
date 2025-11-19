@@ -1,6 +1,6 @@
 # Revenue Reroute Safeguards
 
-**Goal.** Define how attn mitigates the risk that, after financing against revenues, a sponsor shifts user flow to new contracts or a new token so the pledged revenue PDAs go quiet.
+**Goal.** Define how attn mitigates the risk that, after financing against revenues, a user shifts user flow to new contracts or a new token so the pledged revenue PDAs go quiet.
 
 attn cannot force new revenues to appear. Loss is reduced via per-asset custody, restricted revenue sources, conservative underwriting, fast lockups, collateral, and—where warranted—legal covenants.
 
@@ -17,8 +17,8 @@ attn cannot force new revenues to appear. Loss is reduced via per-asset custody,
 ### Pump.fun (per token; “creator rewards”)
 - **Per-token setting.** “Creator rewards” recipients are set **per token** at launch; claims require the creator signer.
 - **Per-token reassignment.** Later changes (e.g., CTO) are **per token**. There is no wallet-wide default.
-- **Financing implication.** Each financed Pump token must be rotated to a **Squads 2-of-2 Safe** (sponsor+attn) or a **CreatorVault PDA** **before funding**.
-- **Residual risk.** A sponsor can launch a new Pump token and steer activity there. The original token’s creator rewards can decay to zero.
+- **Financing implication.** Each financed Pump token must be rotated to a **Squads 2-of-2 Safe** (user+attn) or a **CreatorVault PDA** **before funding**.
+- **Residual risk.** A user can launch a new Pump token and steer activity there. The original token’s creator rewards can decay to zero.
 
 
 ---
@@ -46,7 +46,7 @@ attn cannot force new revenues to appear. Loss is reduced via per-asset custody,
 
 3) **Debt-first waterfall**
 - While any position is open, set `locked = true`.
-- Route `revenues → principal → interest → residual to sponsor/DAO`.
+- Route `revenues → principal → interest → residual to user/DAO`.
 
 4) **Idempotency and pause**
 - Keeper instructions carry monotonic `operation_id`.
@@ -70,7 +70,7 @@ attn cannot force new revenues to appear. Loss is reduced via per-asset custody,
 - Compute LTV from a TWAP of trailing sweeps; margin call if `LTV > threshold_bps`.
 
 **Reserves**
-- Maintain `reserve_days` (e.g., `7–14`) of revenues in-vault before any sponsor/DAO withdrawal.
+- Maintain `reserve_days` (e.g., `7–14`) of revenues in-vault before any user/DAO withdrawal.
 
 **Collateral ladder**
 - **Stables first.** USDC/USDe/attnUSD at par with conservative haircuts.
@@ -104,7 +104,7 @@ attn cannot force new revenues to appear. Loss is reduced via per-asset custody,
 - **Revenue floor.** 7/30-day average ≥ `floor_bps × baseline_30d`.
 - **Successor assignment.** Any successor token or product router must set the **same Safe/PDA** as recipient within `T` days of first revenue; else default.
 - **Negative pledge.** No new liens on registered revenue PDAs; no reroute; no admin rotation without consent.
-- **Cross-default.** Default under any pledged asset defaults all facilities for the same sponsor/DAO (by Squads membership set or legal entity).
+- **Cross-default.** Default under any pledged asset defaults all facilities for the same user/DAO (by Squads membership set or legal entity).
 - **Make-whole / early termination.** Starvation or early exit requires paying outstanding plus a make-whole fee.
 
 ---
@@ -132,21 +132,21 @@ attn cannot force new revenues to appear. Loss is reduced via per-asset custody,
 - **Information rights.** Deployment hashes and change notices for revenue logic.
 - **Make-whole clause.** Cash equivalent of missed revenues plus penalties on reroute.
 - **Guarantees.** Corporate or personal, depending on size.
-- **On-chain acceptance.** Store `agreement_hash` and `sponsor_id` in vault state; require wallet attestation at opt-in.
+- **On-chain acceptance.** Store `agreement_hash` and `user_id` in vault state; require wallet attestation at opt-in.
 
 ---
 
 ## 8) UX notes
 
-- **Launch UX unchanged.** Sponsors launch on Pump or their usual stack; DAOs keep their Safe.
+- **Launch UX unchanged.** Users launch on Pump or their usual stack; DAOs keep their Safe.
 - **Opt-in per asset.** Rotation/registration occurs per financed token or product.
-- **Automated claiming.** Keeper handles claims/sweeps; sponsor/DAO withdraws only when `locked = false`.
+- **Automated claiming.** Keeper handles claims/sweeps; user/DAO withdraws only when `locked = false`.
 
 ---
 
 ## 9) Residual risk
 
-A sponsor/DAO can still move activity to fresh contracts or a new token. attn cannot compel new revenues. Loss is reduced by seasoning, conservative LTV, reserves, collateral, make-whole, and fast defaults.
+A user/DAO can still move activity to fresh contracts or a new token. attn cannot compel new revenues. Loss is reduced by seasoning, conservative LTV, reserves, collateral, make-whole, and fast defaults.
 
 On Pump specifically, if a creator reassigns rewards away from the Squads/CreatorVault endpoints, we cannot unwind the advance; only pre-positioned collateral (stables, PT, vesting tokens) covers the shortfall.
 
@@ -156,7 +156,7 @@ On Pump specifically, if a creator reassigns rewards away from the Squads/Creato
 
 - Extend `CreatorVault` with:
   - registry of revenue PDAs (stored today as `allowed_fee_accounts`),
-  - `locked`, `reserve_days`, `baseline_30d`, `floor_bps`, `sponsor_id`.
+  - `locked`, `reserve_days`, `baseline_30d`, `floor_bps`, `user_id`.
 - Keeper:
   - enforce `operation_id`, pause gates, per-source accounting.
 - Indexer:

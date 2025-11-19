@@ -118,7 +118,7 @@ The dapp reads the following public environment variables:
 | `ATTN_ENABLE_SQUADS` | Master toggle for the Squads integration (defaults to `0`). |
 | `ATTN_ENABLE_SQUADS_STATUS_SYNC` / `ATTN_API_SQUADS_STATUS_SYNC_ENABLED` | Enable the background status poller when explicitly set to `true`. |
 | `ATTN_KMS_SIGNER_KEY` | Cloud KMS resource path for the attn signer (ed25519) used for backend signatures. |
-| `ATTN_KMS_PAYER_KEY` | Optional Cloud KMS resource path for the sponsored fee payer signer. |
+| `ATTN_KMS_PAYER_KEY` | Optional Cloud KMS resource path for the usered fee payer signer. |
 
 ## Curl quickstart
 

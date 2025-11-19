@@ -185,7 +185,7 @@ Both:
 
 - **Role of forgiveness / policy**
   - Avici integrates policy & social concepts (Trust Score dynamics, Jubilee).
-  - attn focuses on **mechanical revenue waterfalls**: sweeps pay principal/interest before residual to sponsor.
+  - attn focuses on **mechanical revenue waterfalls**: sweeps pay principal/interest before residual to user.
 
 ### 3.4 Relation to attn
 

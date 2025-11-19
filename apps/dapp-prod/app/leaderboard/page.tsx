@@ -128,7 +128,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold">Sponsor Leaderboard (Builders, DAOs, Creators)</h1>
-            <p className="text-text-secondary mt-2">Top performing sponsors across builders, DAOs, and creators by earnings generation and borrowing activity</p>
+            <p className="text-text-secondary mt-2">Top performing users across builders, DAOs, and creators by earnings generation and borrowing activity</p>
           </div>
           <a href="/" className="text-text-secondary hover:text-primary transition-colors">
             ← Back to Dashboard
@@ -159,7 +159,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
                     </span>
                   </div>
                   <p className="mt-2 text-xs text-text-secondary">
-                    Use the wallet adapter so leaderboard stats reflect your sponsor vault (CreatorVault PDA).
+                    Use the wallet adapter so leaderboard stats reflect your user vault (CreatorVault PDA).
                   </p>
                   {!isWalletConnected && (
                     <button
@@ -183,7 +183,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
                   </p>
                   {!hasCreatorVault && (
                     <a
-                      href="/sponsor#squads-setup"
+                      href="/user#squads-setup"
                       className="mt-3 inline-flex items-center justify-center rounded-lg border border-secondary/50 px-3 py-1.5 text-sm font-medium text-secondary hover:border-secondary"
                     >
                       Open Squads setup
@@ -231,7 +231,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
                       className="mt-3 inline-flex items-center justify-center rounded-lg bg-secondary/30 px-3 py-1.5 text-sm font-medium text-secondary hover:bg-secondary/20 disabled:opacity-50"
                       disabled={!isWalletConnected || (isFullyConnected && hasCreatorVault)}
                     >
-                      Sign &amp; list sponsor
+                      Sign &amp; list user
                     </button>
                   )}
                 </div>
@@ -249,7 +249,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
               onChange={(e) => setFilter(e.target.value)}
               className="bg-dark-card border border-gray-600 rounded px-3 py-1 text-sm"
             >
-              <option value="all">All Sponsors (Builders, DAOs, Creators)</option>
+              <option value="all">All Users (Builders, DAOs, Creators)</option>
               <option value="active">Active Only</option>
               <option value="borrowing">Currently Borrowing</option>
               <option value="high-volume">High Volume (&gt;$500/week)</option>
@@ -274,16 +274,16 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-            <Tooltip content="Total number of sponsors (builders, DAOs, creators) who have joined the platform and are available for lending">
+            <Tooltip content="Total number of users (builders, DAOs, creators) who have joined the platform and are available for lending">
               <h3 className="text-sm text-text-secondary mb-2 cursor-help flex items-center">
-                Total Sponsors
+                Total Users
                 <span className="ml-1 text-xs text-primary">ⓘ</span>
               </h3>
             </Tooltip>
             <p className="text-2xl font-bold text-primary">{creators.length}</p>
           </div>
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-            <Tooltip content="Sponsors (builders, DAOs, creators) currently borrowing against their on-chain revenue. These active loans generate interest for LP providers.">
+            <Tooltip content="Users (builders, DAOs, creators) currently borrowing against their on-chain revenue. These active loans generate interest for LP providers.">
               <h3 className="text-sm text-text-secondary mb-2 cursor-help flex items-center">
                 Active Borrowers
                 <span className="ml-1 text-xs text-primary">ⓘ</span>
@@ -292,7 +292,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
             <p className="text-2xl font-bold text-success">{activeBorrowers}</p>
           </div>
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-            <Tooltip content="Total amount currently borrowed by all sponsors. This reduces available liquidity and generates interest for LP providers.">
+            <Tooltip content="Total amount currently borrowed by all users. This reduces available liquidity and generates interest for LP providers.">
               <h3 className="text-sm text-text-secondary mb-2 cursor-help flex items-center">
                 Total Borrowed
                 <span className="ml-1 text-xs text-primary">ⓘ</span>
@@ -303,7 +303,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
             </p>
           </div>
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-            <Tooltip content="Available liquidity for new sponsor loans. This is the pool TVL minus currently borrowed amounts.">
+            <Tooltip content="Available liquidity for new user loans. This is the pool TVL minus currently borrowed amounts.">
               <h3 className="text-sm text-text-secondary mb-2 cursor-help flex items-center">
                 Available Liquidity
                 <span className="ml-1 text-xs text-primary">ⓘ</span>
@@ -342,7 +342,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
                   <th className="text-left py-4 px-6 text-text-secondary font-medium">Rank</th>
                   <th className="text-left py-4 px-6 text-text-secondary font-medium">Sponsor</th>
                   <th className="text-left py-4 px-6 text-text-secondary font-medium">
-                    <Tooltip content="Total earnings this sponsor (builder, DAO, creator) generated in the last 7 days from their on-chain activity">
+                    <Tooltip content="Total earnings this user (builder, DAO, creator) generated in the last 7 days from their on-chain activity">
                       <span className="cursor-help flex items-center">
                         Weekly Earnings
                         <span className="ml-1 text-xs text-primary">ⓘ</span>
@@ -520,7 +520,7 @@ Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
           
           {filteredCreators.length === 0 && (
             <div className="text-center py-12 text-text-secondary">
-              <p>No sponsors match the current filters.</p>
+              <p>No users match the current filters.</p>
             </div>
           )}
         </div>

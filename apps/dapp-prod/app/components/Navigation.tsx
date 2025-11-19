@@ -44,7 +44,7 @@ export default function Navigation(): React.JSX.Element {
   const [livePulseActive, setLivePulseActive] = useState(false);
   const showPendingBadge = isLive && isUserPreviewed && !isUserListed;
   const pendingBannerMessage = 'Leaderboard preview ready — finish your Squads safe to unlock advances.';
-  const sponsorTooltip = 'Sponsors include builders, DAOs, and creators with on-chain revenue.';
+  const userTooltip = 'Users include builders, DAOs, and creators with on-chain revenue.';
 
   // Ensure component is mounted before using context values to prevent hydration mismatches
   useEffect(() => {
@@ -91,7 +91,7 @@ export default function Navigation(): React.JSX.Element {
   };
 
   const handleReset = () => {
-    if (confirm('⚠️ Reset all app data?\n\nThis will clear:\n• All sponsors and loans\n• All transaction history\n• Your wallet and deposits\n• Pool data\n\nThe page will reload with fresh demo data.')) {
+    if (confirm('⚠️ Reset all app data?\n\nThis will clear:\n• All users and loans\n• All transaction history\n• Your wallet and deposits\n• Pool data\n\nThe page will reload with fresh demo data.')) {
       resetToDefaults();
     }
   };
@@ -396,15 +396,15 @@ export default function Navigation(): React.JSX.Element {
               Leaderboard
             </a>
             <a
-              href="/sponsor"
+              href="/user"
               className={`transition-colors ${
-                isActive('/sponsor')
+                isActive('/user')
                   ? 'text-primary font-semibold'
                   : 'text-text-secondary hover:text-primary'
               }`}
-              title={sponsorTooltip}
+              title={userTooltip}
             >
-              Sponsors
+              Users
             </a>
             <a
               href="/deposit"
@@ -490,16 +490,16 @@ export default function Navigation(): React.JSX.Element {
                 Leaderboard
               </a>
               <a 
-                href="/sponsor" 
+                href="/user" 
                 className={`px-3 py-2 transition-colors ${
-                  isActive('/sponsor') 
+                  isActive('/user') 
                     ? 'text-primary font-semibold bg-primary/10 rounded' 
                     : 'text-text-secondary'
                 }`}
                 onClick={() => setIsMobileMenuOpen(false)}
-                title={sponsorTooltip}
+                title={userTooltip}
               >
-                Sponsors
+                Users
               </a>
               <a
                 href="/deposit"

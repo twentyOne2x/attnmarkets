@@ -13,9 +13,9 @@ test.describe('Live Squads safe regression', () => {
   test.skip(!shouldRun, 'Live API environment variables not configured');
 
   test('loads Squads safe status for configured wallet', async ({ page }) => {
-    await page.goto('/sponsor');
+    await page.goto('/user');
 
-    const safeForm = page.getByTestId('sponsor-safe-form');
+    const safeForm = page.getByTestId('user-safe-form');
     await safeForm.waitFor({ state: 'visible', timeout: 120_000 }).catch(() => {});
 
     if (await safeForm.isVisible()) {

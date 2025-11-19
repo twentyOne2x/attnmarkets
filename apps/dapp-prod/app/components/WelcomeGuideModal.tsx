@@ -53,14 +53,14 @@ const WelcomeGuideModal: React.FC<WelcomeGuideModalProps> = ({
             type="button"
             onClick={onChooseSponsor}
             className="group flex flex-col rounded-xl border border-secondary/30 bg-secondary/10 p-4 text-left transition hover:border-secondary/60 hover:bg-secondary/20"
-            title="Sponsors include builders, DAOs, and creators with on-chain revenue."
+            title="Users include builders, DAOs, and creators with on-chain revenue."
           >
-            <span className="text-sm font-semibold text-secondary">I&apos;m a sponsor (Builder, DAO, Creator)</span>
+            <span className="text-sm font-semibold text-secondary">I&apos;m a user (Builder, DAO, Creator)</span>
             <span className="mt-2 text-xs text-secondary/80">
               Connect your wallet, spin up a Squads safe, and route your revenue flows into attn.
             </span>
             <span className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-secondary/70 group-hover:text-secondary">
-              Take me to the sponsor console →
+              Take me to the user console →
             </span>
           </button>
 
@@ -71,7 +71,7 @@ const WelcomeGuideModal: React.FC<WelcomeGuideModalProps> = ({
           >
             <span className="text-sm font-semibold text-primary">I provide liquidity</span>
             <span className="mt-2 text-xs text-primary/80">
-              Deposit USDC, earn vault yield, and monitor sponsor performance (builders, DAOs, creators) in live mode.
+              Deposit USDC, earn vault yield, and monitor user performance (builders, DAOs, creators) in live mode.
             </span>
             <span className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-primary/70 group-hover:text-primary">
               Show me the LP tools →

@@ -17,7 +17,7 @@ export default function RedeemPage(): React.JSX.Element {
             <div className="flex items-center space-x-6">
               <a href="/" className="text-text-secondary hover:text-primary transition-colors">Dashboard</a>
               <a href="/leaderboard" className="text-text-secondary hover:text-primary transition-colors">Leaderboard</a>
-              <a href="/sponsor" className="text-text-secondary hover:text-primary transition-colors">Sponsors</a>
+              <a href="/user" className="text-text-secondary hover:text-primary transition-colors">Users</a>
               <a href="/deposit" className="text-text-secondary hover:text-primary transition-colors">LP</a>
               <button className="bg-primary text-dark px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors">
                 Connect Wallet
@@ -47,7 +47,7 @@ export default function RedeemPage(): React.JSX.Element {
             Withdrawal and yield claiming interface coming soon.
           </p>
           <button
-            onClick={() => alert('Redeem functionality coming soon!\n\nThis will allow LPs to withdraw their USDC deposits and claim accumulated yield from sponsor earnings (builders, DAOs, creators).')}
+            onClick={() => alert('Redeem functionality coming soon!\n\nThis will allow LPs to withdraw their USDC deposits and claim accumulated yield from user earnings (builders, DAOs, creators).')}
             className="bg-success text-dark px-6 py-3 rounded-xl font-semibold hover:bg-success/90 transition-colors"
           >
             Coming Soon

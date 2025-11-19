@@ -244,13 +244,13 @@ Active borrowers: ${activeCreators.length}`;
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6 flex flex-col">
             <h2 className="text-xl font-bold mb-4">Liquidity Provider</h2>
             <p className="text-text-secondary mb-6">
-              Earn yield from sponsor revenues and borrowing interest
+              Earn yield from user revenues and borrowing interest
             </p>
 
             <div className="bg-success/10 border border-success/20 rounded-lg p-4 mb-6 flex-grow">
               <h3 className="text-success font-semibold mb-2">How It Works</h3>
               <ul className="space-y-1 text-sm">
-                <li>• <strong>Deposit USDC:</strong> Fund the liquidity pool for sponsor advances</li>
+                <li>• <strong>Deposit USDC:</strong> Fund the liquidity pool for user advances</li>
                 <li>• <strong>Earn from two sources:</strong> Sponsor trading fees + borrowing interest</li>
                 <li>• <strong>Current APR:</strong> {dashboardData ? dashboardData.projectedAPR.toFixed(1) : '0'}% based on active borrowing</li>
                 <li>• <strong>Withdraw anytime:</strong> Your funds remain liquid and accessible</li>
@@ -297,7 +297,7 @@ Active borrowers: ${activeCreators.length}`;
 
         <div className="bg-dark-card border border-gray-700 rounded-xl p-6 mb-8">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold">Top Earning Sponsors This Week</h2>
+            <h2 className="text-xl font-bold">Top Earning Users This Week</h2>
             <a 
               href="/leaderboard" 
               className="text-primary hover:text-primary/80 text-sm font-medium"

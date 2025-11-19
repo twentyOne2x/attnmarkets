@@ -298,13 +298,13 @@ export default function CreatorPage(): React.JSX.Element {
     }
   }, [weeklyEarnings]); // Only depend on weeklyEarnings, not availableLiquidity or borrowPercentage
 
-  // Update sponsor revenues when weekly earnings change - SIMPLIFIED AND DEBOUNCED
+  // Update user revenues when weekly earnings change - SIMPLIFIED AND DEBOUNCED
   useEffect(() => {
     if (!currentUserWallet || isUserEditing) return;
     
     const existingCreator = creators.find(c => c.wallet === currentUserWallet);
     if (existingCreator && Math.abs(existingCreator.fees7d_usd - weeklyEarnings) > 0.01) {
-      console.log('Updating sponsor revenues in context:', weeklyEarnings);
+      console.log('Updating user revenues in context:', weeklyEarnings);
       
       // Debounce the update to prevent rapid updates
       const timeoutId = setTimeout(() => {
@@ -368,7 +368,7 @@ export default function CreatorPage(): React.JSX.Element {
       addNotification({
         type: 'processing',
         title: 'Setting Up Account',
-        message: 'Adding to sponsor leaderboard...',
+        message: 'Adding to user leaderboard...',
         duration: 800
       });
       await new Promise(resolve => setTimeout(resolve, 800));

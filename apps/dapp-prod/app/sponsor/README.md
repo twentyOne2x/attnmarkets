@@ -1,6 +1,6 @@
 # Sponsor Safe Detection
 
-This directory houses the sponsor dashboard experience, including the Squads safe onboarding flow and its supporting utilities.
+This directory houses the user dashboard experience, including the Squads safe onboarding flow and its supporting utilities.
 
 ## Storage keys
 
