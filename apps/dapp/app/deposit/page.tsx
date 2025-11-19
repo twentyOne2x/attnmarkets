@@ -83,7 +83,7 @@ export default function DepositPage(): React.JSX.Element {
       console.log('🔑 Connecting wallet...');
       addNotification({
         type: 'processing',
-        title: 'Connecting Wallet',
+        title: 'Connecting wallet',
         message: 'Generating wallet address...',
         duration: 1000
       });
@@ -96,8 +96,8 @@ export default function DepositPage(): React.JSX.Element {
         
         addNotification({
           type: 'success',
-          title: 'Wallet Connected!',
-          message: 'Ready to deposit and start earning yield.',
+          title: 'Wallet connected',
+          message: 'Ready to deposit and earn revenue-backed yield.',
           duration: 2000
         });
         
@@ -107,7 +107,7 @@ export default function DepositPage(): React.JSX.Element {
       console.error('Error connecting wallet:', error);
       addNotification({
         type: 'error',
-        title: 'Connection Failed',
+        title: 'Connection failed',
         message: 'Failed to connect wallet'
       });
     } finally {
@@ -120,7 +120,6 @@ export default function DepositPage(): React.JSX.Element {
     if (activeTab === 'deposit') {
       setAmount('5000');
     } else {
-      // For withdraw, start with empty or suggested amount
       setAmount(userPosition.deposited_usdc > 0 ? Math.min(1000, userPosition.deposited_usdc).toString() : '');
     }
   }, [activeTab, userPosition.deposited_usdc]);
@@ -131,7 +130,6 @@ export default function DepositPage(): React.JSX.Element {
   };
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Remove all non-digits (except decimal points)
     const value = e.target.value.replace(/[^\d.]/g, '');
     setAmount(value);
   };
@@ -145,8 +143,7 @@ export default function DepositPage(): React.JSX.Element {
     setIsProcessing(true);
     await new Promise(resolve => setTimeout(resolve, 1500));
     
-    // Use the new depositToPool function which handles both user position and pool TVL
-    // LP history is automatically added inside depositToPool
+    // Update pool + LP position
     depositToPool(depositAmount);
     
     setShowDepositToast(true);
@@ -165,14 +162,11 @@ export default function DepositPage(): React.JSX.Element {
     setIsProcessing(true);
     await new Promise(resolve => setTimeout(resolve, 1500));
     
-    // Use the new withdrawFromPool function which handles both user position and pool TVL
-    // LP history is automatically added inside withdrawFromPool
     withdrawFromPool(withdrawAmount);
     
     setShowWithdrawToast(true);
     setTimeout(() => setShowWithdrawToast(false), 1500);
     
-    // Reset amount after withdrawal
     const remainingBalance = userPosition.deposited_usdc - withdrawAmount;
     setAmount(remainingBalance > 0 ? Math.min(1000, remainingBalance).toString() : '');
     setIsProcessing(false);
@@ -215,35 +209,35 @@ export default function DepositPage(): React.JSX.Element {
     if (!poolData) return "APR breakdown not available";
     
     const activeCreators = creators.filter(c => c.activeLoan);
-    if (activeCreators.length === 0) return "No active loans - showing base rate of 8.5%";
+    if (activeCreators.length === 0) return "No active revenue-backed positions – showing base rate.";
     
-    const totalBorrowed = activeCreators.reduce((sum, c) => sum + (c.activeLoan?.amount || 0), 0);
+    const totalBorrowedLocal = activeCreators.reduce((sum, c) => sum + (c.activeLoan?.amount || 0), 0);
     const weightedBorrowerAPR = activeCreators.reduce((sum, c) => {
       const loanAmount = c.activeLoan?.amount || 0;
-      const weight = loanAmount / totalBorrowed;
+      const weight = loanAmount / totalBorrowedLocal;
       const borrowerAPR = c.activeLoan?.interestRate || 65;
       return sum + (borrowerAPR * weight);
     }, 0);
     
-    const utilization = totalBorrowed / poolData.tvl_usdc;
+    const utilization = totalBorrowedLocal / poolData.tvl_usdc;
     const protocolTakeRate = 0.90;
     
-    return `LP APR Calculation:
+    return `LP APR calculation
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Formula: Weighted Borrower APR × Utilization × Protocol Take Rate
+Formula: Weighted borrower APR × utilisation × protocol take rate
 
-• Weighted Borrower APR: ${weightedBorrowerAPR.toFixed(1)}%
-  (Average rate across ${activeCreators.length} active loans)
+• Weighted borrower APR: ${weightedBorrowerAPR.toFixed(1)}%
+  (average across ${activeCreators.length} active revenue-backed advances)
 
-• Pool Utilization: ${(utilization * 100).toFixed(1)}%
-  ($${totalBorrowed.toLocaleString()} borrowed / $${poolData.tvl_usdc.toLocaleString()} TVL)
+• Pool utilisation: ${(utilization * 100).toFixed(1)}%
+  ($${totalBorrowedLocal.toLocaleString()} borrowed / $${poolData.tvl_usdc.toLocaleString()} TVL)
 
-• Protocol Take Rate: 90%
-  (LPs receive 90% of borrowing interest)
+• Protocol take rate: 90%
+  (LPs receive 90% of interest and fees)
 
-Final LP APR: ${currentAPR.toFixed(1)}%
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Higher utilization = higher LP returns`;
+Resulting LP APR: ${currentAPR.toFixed(1)}%
+
+Higher utilisation → higher revenue-backed yield for LPs, within risk and concentration limits.`;
   };
 
   if (loading) {
@@ -251,7 +245,7 @@ Higher utilization = higher LP returns`;
       <div className="min-h-screen bg-dark text-text-primary flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 bg-gradient-to-r from-primary to-secondary rounded-lg mx-auto mb-4"></div>
-          <p>Loading interface...</p>
+          <p>Loading LP vault interface...</p>
         </div>
       </div>
     );
@@ -325,10 +319,10 @@ Higher utilization = higher LP returns`;
         <div className="fixed top-20 right-8 z-[9999] bg-primary/20 border border-primary/30 text-primary px-6 py-4 rounded-lg shadow-xl animate-fade-in-out">
           <div className="flex items-center space-x-2">
             <div>
-              <div className="font-semibold">Deposit Successful!</div>
+              <div className="font-semibold">Deposit successful</div>
               <div className="text-sm opacity-90">
-                ${parseFloat(amount || '0').toLocaleString()} USDC added to yield pool. 
-                Earning {currentAPR.toFixed(1)}% APR from creator activity.
+                ${parseFloat(amount || '0').toLocaleString()} USDC added to the simulated revenue pool. 
+                Current indicative LP APR: {currentAPR.toFixed(1)}% from revenue-backed positions.
               </div>
             </div>
           </div>
@@ -339,10 +333,10 @@ Higher utilization = higher LP returns`;
         <div className="fixed top-20 right-8 z-[9999] bg-secondary/20 border border-secondary/30 text-secondary px-6 py-4 rounded-lg shadow-xl animate-fade-in-out">
           <div className="flex items-center space-x-2">
             <div>
-              <div className="font-semibold">Withdrawal Complete!</div>
+              <div className="font-semibold">Withdrawal complete</div>
               <div className="text-sm opacity-90">
-                ${parseFloat(amount || '0').toLocaleString()} USDC withdrawn. 
-                Remaining: ${Math.max(0, userPosition.deposited_usdc - parseFloat(amount || '0')).toLocaleString()} USDC.
+                ${parseFloat(amount || '0').toLocaleString()} USDC withdrawn from the revenue pool. 
+                Remaining simulated deposit: ${Math.max(0, userPosition.deposited_usdc - parseFloat(amount || '0')).toLocaleString()} USDC.
               </div>
             </div>
           </div>
@@ -354,11 +348,13 @@ Higher utilization = higher LP returns`;
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Yield Pool</h1>
-            <p className="text-text-secondary mt-2">Earn yield from users revenues and borrowing interest</p>
+            <h1 className="text-3xl font-bold">attnUSD-style vault (LP side)</h1>
+            <p className="text-text-secondary mt-2">
+              Deposit stablecoins into a simulated revenue-backed pool and see how attnUSD-style yield behaves over time.
+            </p>
           </div>
           <a href="/" className="text-text-secondary hover:text-primary transition-colors">
-            ← Back to Dashboard
+            ← Back to dashboard
           </a>
         </div>
 
@@ -391,7 +387,7 @@ Higher utilization = higher LP returns`;
             </div>
 
             <h2 className="text-xl font-bold mb-6">
-              {activeTab === 'deposit' ? 'Deposit USDC' : 'Withdraw USDC'}
+              {activeTab === 'deposit' ? 'Deposit USDC into the revenue pool' : 'Withdraw USDC from the revenue pool'}
             </h2>
             
             <div className="space-y-4">
@@ -420,7 +416,7 @@ Higher utilization = higher LP returns`;
                 </div>
                 {!currentUserWallet && (
                   <div className="text-xs text-text-secondary mt-1">
-                    Connect wallet to {activeTab === 'deposit' ? 'deposit and earn yield' : 'withdraw funds'}
+                    Connect a wallet to deposit into, or withdraw from, the simulated attnUSD revenue pool.
                   </div>
                 )}
               </div>
@@ -428,25 +424,25 @@ Higher utilization = higher LP returns`;
               {/* Current Position */}
               {userPosition.deposited_usdc > 0 && currentUserWallet && (
                 <div className="bg-gray-800/50 rounded-lg p-4">
-                  <h3 className="font-semibold mb-2">Your Current Position</h3>
+                  <h3 className="font-semibold mb-2">Your current LP position</h3>
                   <div className="space-y-1 text-sm">
                     <div className="flex justify-between">
-                      <span>Deposited:</span>
+                      <span>Deposited principal:</span>
                       <span className="font-mono">${userPosition.deposited_usdc.toLocaleString()} USDC</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Est. Monthly Yield:</span>
+                      <span>Est. monthly yield:</span>
                       <span className="font-mono text-success">${userPosition.estimated_yield.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Current APR:</span>
+                      <span>Current revenue-backed APR:</span>
                       <span className="font-mono text-success">{currentAPR.toFixed(1)}%</span>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* APR Display with Enhanced Tooltip */}
+              {/* APR Display */}
               <div className="bg-success/10 border border-success/20 rounded-lg p-4">
                 <div className="flex justify-between items-center mb-2">
                   <Tooltip content={getAPRBreakdown()}>
@@ -460,14 +456,14 @@ Higher utilization = higher LP returns`;
                   </span>
                 </div>
                 <div className="text-xs text-text-secondary">
-                  From creator trading fees and borrowing interest • {((totalBorrowed / (poolData?.tvl_usdc || 1)) * 100).toFixed(1)}% pool utilization
+                  Yield comes from interest and fees on revenue-backed advances and credit lines, minus losses and costs • {(poolData ? ((totalBorrowed / poolData.tvl_usdc) * 100) : 0).toFixed(1)}% pool utilisation
                 </div>
               </div>
 
               {/* Projected Earnings */}
               {activeTab === 'deposit' && amount && parseFloat(amount) > 0 && currentUserWallet && (
                 <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
-                  <h3 className="text-primary font-semibold mb-2">Projected Earnings</h3>
+                  <h3 className="text-primary font-semibold mb-2">Projected earnings</h3>
                   <div className="space-y-1 text-sm">
                     <div className="flex justify-between">
                       <span>Monthly:</span>
@@ -488,14 +484,14 @@ Higher utilization = higher LP returns`;
               {/* Withdrawal Impact */}
               {activeTab === 'withdraw' && amount && parseFloat(amount) > 0 && parseFloat(amount) <= userPosition.deposited_usdc && currentUserWallet && (
                 <div className="bg-secondary/10 border border-secondary/20 rounded-lg p-4">
-                  <h3 className="text-secondary font-semibold mb-2">After Withdrawal</h3>
+                  <h3 className="text-secondary font-semibold mb-2">After withdrawal</h3>
                   <div className="space-y-1 text-sm">
                     <div className="flex justify-between">
-                      <span>Remaining:</span>
+                      <span>Remaining principal:</span>
                       <span className="font-mono">${(userPosition.deposited_usdc - parseFloat(amount)).toLocaleString()} USDC</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>New Monthly Yield:</span>
+                      <span>New monthly yield:</span>
                       <span className="font-mono">${calculateMonthlyYield(userPosition.deposited_usdc - parseFloat(amount)).toFixed(2)} USDC</span>
                     </div>
                   </div>
@@ -508,7 +504,7 @@ Higher utilization = higher LP returns`;
                   disabled={isConnecting}
                   className="w-full py-3 rounded-xl font-semibold text-lg transition-colors bg-primary text-dark hover:bg-primary/90 disabled:opacity-50"
                 >
-                  {isConnecting ? 'Connecting...' : 'Connect Wallet to Start'}
+                  {isConnecting ? 'Connecting...' : 'Connect wallet to participate as LP'}
                 </button>
               ) : (
                 <button
@@ -542,32 +538,32 @@ Higher utilization = higher LP returns`;
           <div className="space-y-6">
             {/* Pool Stats */}
             <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-              <h3 className="text-lg font-bold mb-4">Pool Statistics</h3>
+              <h3 className="text-lg font-bold mb-4">Revenue pool statistics</h3>
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <span className="text-text-secondary">Total Pool Size</span>
+                  <span className="text-text-secondary">Total pool size</span>
                   <span className="font-mono">${poolData ? (poolData.tvl_usdc / 1000).toFixed(0) : '250'}K</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-text-secondary">Available Liquidity</span>
+                  <span className="text-text-secondary">Available liquidity for new advances</span>
                   <span className="font-mono text-primary">
                     ${(availableLiquidity / 1000).toFixed(0)}K
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-text-secondary">Total Borrowed</span>
+                  <span className="text-text-secondary">Total borrowed against revenues</span>
                   <span className="font-mono text-secondary">
                     ${(totalBorrowed / 1000).toFixed(0)}K
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-text-secondary">Pool Utilization</span>
+                  <span className="text-text-secondary">Pool utilisation</span>
                   <span className="font-mono text-accent">
                     {poolData ? ((totalBorrowed / poolData.tvl_usdc) * 100).toFixed(1) : '0.0'}%
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-text-secondary">Active Borrowers</span>
+                  <span className="text-text-secondary">Active revenue-backed borrowers</span>
                   <span className="font-mono text-accent">
                     {creators.filter(c => c.activeLoan).length}
                   </span>
@@ -586,16 +582,16 @@ Higher utilization = higher LP returns`;
 
             {/* LP Position History */}
             <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-              <h3 className="text-lg font-bold mb-4">LP Position History</h3>
+              <h3 className="text-lg font-bold mb-4">LP position history</h3>
               {!currentUserWallet ? (
                 <div className="text-center py-6 text-text-secondary">
-                  <div className="font-medium">Connect wallet first</div>
-                  <div className="text-sm">Your transaction history will appear here after connecting</div>
+                  <div className="font-medium">Connect a wallet first</div>
+                  <div className="text-sm">Your deposits and withdrawals will appear here once connected.</div>
                 </div>
               ) : userLPHistory.length === 0 ? (
                 <div className="text-center py-6 text-text-secondary">
                   <div className="font-medium">No position history</div>
-                  <div className="text-sm">Your deposits and withdrawals will appear here</div>
+                  <div className="text-sm">Your LP activity will show here as you interact with the pool.</div>
                 </div>
               ) : (
                 <div className="space-y-2 max-h-80 overflow-y-auto">
@@ -626,7 +622,7 @@ Higher utilization = higher LP returns`;
         </div>
         
         <div className="text-center text-xs text-text-secondary mt-8 opacity-60">
-          * All values shown are simulated for demonstration purposes
+          * All values shown are simulated for demonstration purposes; they illustrate how revenue-backed credit and attnUSD-style yield could behave, not live production terms.
         </div>
       </div>
       
