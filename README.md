@@ -12,7 +12,7 @@
 
 ## TL;DR
 - Tokenising the $2B Solana revenues to bank builders, DAOs, and creators to DeFi.
-- The User (Builders/DAOs/Creators) get cash advance, loans/corporate bonds, savings account (+4-6% APR from stables/LSTs), credit card lines…
+- Users (Builders/DAOs/Creators) get cash advance, loans/corporate bonds, savings account (+4-6% APR from stables/LSTs), credit card lines… backed by their onchain revenues
 - LPs mint `attnUSD` with stable to get yield uncorrelated to market returns sourced from attn products.
 - Dual-control via Squads 2of2 (user+attn), with user withdrawals remaining single-signer while no position is opened.
 - Squads Safe creation live on Devnet.
