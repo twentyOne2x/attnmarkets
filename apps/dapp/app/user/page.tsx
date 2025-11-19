@@ -1,4 +1,4 @@
-// apps/dapp/app/creator/page.tsx
+// apps/dapp/app/user/page.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -355,7 +355,7 @@ export default function CreatorPage(): React.JSX.Element {
       // Step 1: Connect wallet
       addNotification({
         type: 'processing',
-        title: 'Connecting Wallet',
+        title: 'Connecting wallet',
         message: 'Waiting for wallet approval...',
         duration: 1000
       });
@@ -367,8 +367,8 @@ export default function CreatorPage(): React.JSX.Element {
       // Step 2: Automatically list the creator
       addNotification({
         type: 'processing',
-        title: 'Setting Up Account',
-        message: 'Adding to user leaderboard...',
+        title: 'Setting up revenue account',
+        message: 'Adding your earnings to the revenue leaderboard...',
         duration: 800
       });
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -388,7 +388,7 @@ export default function CreatorPage(): React.JSX.Element {
       // Small delay before setting borrow percentage
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Set default borrow percentage to 50% to show the loan terms
+      // Set default borrow percentage to 50% to show the advance terms
       const maxBorrowable = weeklyEarnings * 2;
       const currentLiquidity = getAvailableLiquidity();
       const desiredAmount = maxBorrowable * 0.5;
@@ -408,8 +408,8 @@ export default function CreatorPage(): React.JSX.Element {
       
       addNotification({
         type: 'success',
-        title: 'Connected Successfully!',
-        message: 'Your wallet is connected and you can now borrow up to 2 weeks of revenues.',
+        title: 'Revenue account ready',
+        message: 'Your wallet is connected and your earnings can now back revenue advances.',
         duration: 3000
       });
       
@@ -417,7 +417,7 @@ export default function CreatorPage(): React.JSX.Element {
       console.error('Error connecting wallet:', error);
       addNotification({
         type: 'error',
-        title: 'Connection Failed',
+        title: 'Connection failed',
         message: 'Failed to connect wallet. Please try again.'
       });
       setIsTransitioning(false);
@@ -432,40 +432,40 @@ export default function CreatorPage(): React.JSX.Element {
     
     try {
       // Step 1: Validating request
-      const step1Id = addNotification({
+      addNotification({
         type: 'processing',
-        title: 'Processing Advance',
-        message: 'Validating advance request...',
+        title: 'Pricing advance',
+        message: 'Validating advance request against your earnings...',
         persistent: true,
         duration: 800
       });
       await new Promise(resolve => setTimeout(resolve, 800));
       
       // Step 2: Checking liquidity
-      const step2Id = addNotification({
+      addNotification({
         type: 'processing',
-        title: 'Processing Advance',
-        message: 'Checking pool liquidity...',
+        title: 'Checking pool capacity',
+        message: 'Checking available liquidity for revenue-backed positions...',
         persistent: true,
         duration: 600
       });
       await new Promise(resolve => setTimeout(resolve, 600));
       
       // Step 3: Confirming terms
-      const step3Id = addNotification({
+      addNotification({
         type: 'processing',
-        title: 'Processing Advance',
-        message: 'Confirming loan terms...',
+        title: 'Confirming terms',
+        message: 'Finalising revenue share and APR...',
         persistent: true,
         duration: 700
       });
       await new Promise(resolve => setTimeout(resolve, 700));
       
       // Step 4: Processing transaction
-      const step4Id = addNotification({
+      addNotification({
         type: 'processing',
-        title: 'Processing Advance',
-        message: 'Processing advance transaction...',
+        title: 'Processing advance',
+        message: 'Simulating advance transaction...',
         persistent: true,
         duration: 900
       });
@@ -473,10 +473,10 @@ export default function CreatorPage(): React.JSX.Element {
       
       console.log('Starting borrow process for wallet:', currentUserWallet);
       
-      // CRITICAL: Ensure creator is listed BEFORE taking loan
+      // Ensure creator is listed BEFORE taking advance
       const existingCreator = creators.find(c => c.wallet === currentUserWallet);
       if (!existingCreator) {
-        console.log('Creator not found in array, adding them first before loan');
+        console.log('Creator not found in array, adding them first before advance');
         const newCreator = {
           wallet: currentUserWallet,
           fees7d_usd: weeklyEarnings,
@@ -501,10 +501,10 @@ export default function CreatorPage(): React.JSX.Element {
         daysRemaining: borrowingTerms.daysToRepay
       };
       
-      console.log('Adding loan to creator:', currentUserWallet, loanData);
+      console.log('Adding advance to creator:', currentUserWallet, loanData);
       const result = addCreatorLoan(currentUserWallet, loanData);
       if (!result.success) {
-        throw new Error(result.message || 'Failed to process loan');
+        throw new Error(result.message || 'Failed to process advance');
       }
       
       // Set up simulation for repayment demo
@@ -519,13 +519,13 @@ export default function CreatorPage(): React.JSX.Element {
         daysElapsed: 0
       });
 
-      console.log('Loan process completed successfully');
+      console.log('Advance process completed successfully');
       
       // Add success notification
       addNotification({
         type: 'success',
-        title: 'Advance Received!',
-        message: `${borrowingTerms.borrowAmount.toLocaleString()} USDC borrowed at ${borrowingTerms.interestRate.toFixed(0)}% APR. Repaying ${borrowingTerms.repaymentRate}% of daily revenues.`
+        title: 'Advance opened',
+        message: `${borrowingTerms.borrowAmount.toLocaleString()} USDC advanced at ${borrowingTerms.interestRate.toFixed(0)}% APR, repaid from ${borrowingTerms.repaymentRate}% of daily revenues.`
       });
       
     } catch (error) {
@@ -533,7 +533,7 @@ export default function CreatorPage(): React.JSX.Element {
       addNotification({
         type: 'error',
         title: 'Error',
-        message: error instanceof Error ? error.message : 'Failed to process loan'
+        message: error instanceof Error ? error.message : 'Failed to process advance'
       });
     } finally {
       setIsBorrowing(false);
@@ -546,30 +546,30 @@ export default function CreatorPage(): React.JSX.Element {
     
     try {
       // Step 1: Calculating payment
-      const step1Id = addNotification({
+      addNotification({
         type: 'processing',
-        title: 'Processing Repayment',
-        message: 'Calculating repayment amount...',
+        title: 'Processing repayment',
+        message: 'Calculating repayment against your remaining balance...',
         persistent: true,
         duration: 700
       });
       await new Promise(resolve => setTimeout(resolve, 700));
       
       // Step 2: Processing payment
-      const step2Id = addNotification({
+      addNotification({
         type: 'processing',
-        title: 'Processing Repayment',
-        message: 'Processing payment transaction...',
+        title: 'Processing repayment',
+        message: 'Simulating payment transaction...',
         persistent: true,
         duration: 800
       });
       await new Promise(resolve => setTimeout(resolve, 800));
       
       // Step 3: Updating loan status
-      const step3Id = addNotification({
+      addNotification({
         type: 'processing',
-        title: 'Processing Repayment',
-        message: 'Updating loan status...',
+        title: 'Updating position',
+        message: 'Updating advance status...',
         persistent: true,
         duration: 500
       });
@@ -583,7 +583,7 @@ export default function CreatorPage(): React.JSX.Element {
         setSimulatedLoan(null);
         setShowRepaySection(false);
 
-        // Add to loan history via context - NO DISCOUNT FIELD
+        // Add to loan history via context
         addLoanHistoryItem({
           type: 'full_payoff',
           amount: loanDetails.earlyPaymentTotal || 0,
@@ -602,19 +602,18 @@ export default function CreatorPage(): React.JSX.Element {
           totalPaidFromEarlyRepayments: simulatedLoan.totalPaidFromEarlyRepayments + repaymentAmount
         });
         
-        // Update the actual loan in context with remaining amount, but keep it proportional
+        // Update the actual position in context with remaining amount
         const remainingDays = Math.max(1, Math.ceil(newTotalOwed / simulatedLoan.dailyRepayment));
         const updatedLoanData = {
-          amount: newTotalOwed, // Remaining amount for pool liquidity calculation
-          maxBorrowable: simulatedLoan.originalAmount * 2, // Keep original max
+          amount: newTotalOwed,
+          maxBorrowable: simulatedLoan.originalAmount * 2,
           utilizationPct: borrowPercentage,
-          dailyRepaymentRate: simulatedLoan.repaymentRate, // Keep original rate
-          interestRate: simulatedLoan.interestRate, // Keep original rate
+          dailyRepaymentRate: simulatedLoan.repaymentRate,
+          interestRate: simulatedLoan.interestRate,
           daysRemaining: remainingDays
         };
         addCreatorLoan(currentUserWallet, updatedLoanData);
 
-        // Add to loan history via context - NO DISCOUNT FIELD
         addLoanHistoryItem({
           type: 'early_payment',
           amount: repaymentAmount,
@@ -626,10 +625,10 @@ export default function CreatorPage(): React.JSX.Element {
       // Add success notification
       addNotification({
         type: 'success',
-        title: earlyRepayAmount === 100 ? 'Loan Paid Off Successfully!' : 'Payment Processed!',
+        title: earlyRepayAmount === 100 ? 'Advance fully repaid' : 'Repayment processed',
         message: earlyRepayAmount === 100 
-          ? 'You can now open new advances.'
-          : `${(loanDetails.earlyPaymentTotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC payment processed.`
+          ? 'This advance is now closed. Future revenues are unencumbered again.'
+          : `${(loanDetails.earlyPaymentTotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC early payment processed.`
       });
       
     } catch (error) {
@@ -696,29 +695,26 @@ export default function CreatorPage(): React.JSX.Element {
       dailyRepayment
     });
     
-    // FIXED: Calculate early payment with proper interest tracking
+    // Early payment with interest discount
     if (earlyRepayAmount > 0) {
       const repaymentPortion = earlyRepayAmount / 100;
       const totalRepaymentAmount = remainingBalance * repaymentPortion;
       
-      // Key insight: Track how much interest has been paid vs remains
       const totalInterestInLoan = originalTotalInterest;
-      const dailyInterestRate = totalInterestInLoan / (originalTotalOwed / dailyRepayment); // interest per day
+      const dailyInterestRate = totalInterestInLoan / (originalTotalOwed / dailyRepayment);
       const interestPaidFromDailyPayments = daysElapsed * dailyInterestRate;
       const remainingInterestFromOriginalLoan = Math.max(0, totalInterestInLoan - interestPaidFromDailyPayments);
       
-      // The remaining balance contains: remaining principal + remaining interest
+      const totalRemaining = originalAmount + remainingInterestFromOriginalLoan - Math.max(0, totalPaidFromDailyPayments - interestPaidFromDailyPayments);
       const actualRemainingPrincipal = originalAmount - Math.max(0, totalPaidFromDailyPayments - interestPaidFromDailyPayments);
       const actualRemainingInterest = remainingInterestFromOriginalLoan;
       
-      // Split the repayment proportionally
-      const totalRemaining = actualRemainingPrincipal + actualRemainingInterest;
       if (totalRemaining > 0) {
-        const interestRatio = actualRemainingInterest / totalRemaining;
+        const interestRatio = actualRemainingInterest / (actualRemainingPrincipal + actualRemainingInterest);
         const interestToRepay = totalRepaymentAmount * interestRatio;
         const principalToRepay = totalRepaymentAmount - interestToRepay;
         
-        // 5% discount applies ONLY to the interest portion
+        // Discount applies only to interest portion
         const discountAmount = interestToRepay * 0.05;
         const discountedInterest = interestToRepay * 0.95;
         const totalEarlyPayment = principalToRepay + discountedInterest;
@@ -736,7 +732,6 @@ export default function CreatorPage(): React.JSX.Element {
           totalOwed,
           originalTotalInterest,
           interestRate,
-          // Additional fields for early payment breakdown
           earlyPaymentPrincipal: principalToRepay,
           earlyPaymentInterest: interestToRepay,
           earlyPaymentDiscount: discountAmount,
@@ -773,11 +768,9 @@ export default function CreatorPage(): React.JSX.Element {
     const currentUserCreator = creators.find(c => c.wallet === currentUserWallet);
     
     if (currentUserCreator && !topTwo.some(c => c.wallet === currentUserWallet)) {
-      // Add current user if they're not in top 2
       return [...topTwo, currentUserCreator];
     }
     
-    // If user is in top 2 or not listed, just show top 3
     return sortedCreators.slice(0, 3);
   };
 
@@ -785,37 +778,37 @@ export default function CreatorPage(): React.JSX.Element {
 
   const faqItems = [
     {
-      q: "How much can I borrow?",
-      a: "Up to 2 weeks of your proven weekly revenues. If you earn $10k/week, you can borrow up to $20k."
+      q: "How much can I borrow against my revenues?",
+      a: "In this demo, you can simulate up to ~2 weeks of provable weekly revenues. If you earn $10k/week, you can model advances up to ~$20k."
     },
     {
-      q: "How does the interest rate work?",
-      a: "Interest rates are 50-90% APR (annualized). For short-term loans of 1-3 weeks, this translates to roughly 1-5% total interest depending on loan size and duration."
+      q: "How does the APR work?",
+      a: "Rates are shown as annualised APR (typically in a 50–90% band). For short, 5–20 day revenue advances this usually translates to roughly 1–5% total cost, depending on slice size and duration."
     },
     {
-      q: "How do I repay the loan?",
-      a: "Repayments are automatic and daily. Smaller loans (≤50%) = 50% of daily revenues. Medium loans (51-75%) = 75% of revenues. Large loans (76-100%) = 100% of revenues."
+      q: "How do I repay an advance?",
+      a: "Repayments are automatic and daily. Smaller slices (≤50%) use 50% of daily revenues, medium slices (51–75%) use 75%, and large slices (76–100%) use 100% of daily revenues until the target amount is collected."
     },
     {
-      q: "How long until I'm paid off?",
-      a: "Typically 5-20 days depending on loan size. Larger loans get paid off faster due to higher repayment rates."
+      q: "How long until the advance is paid off?",
+      a: "Typically 5–20 days depending on how large a share of revenues you sell. Larger slices repay faster because a higher % of daily earnings goes to repayment."
     },
     {
       q: "What if my revenues drop?",
-      a: "Repayments are percentage-based, so they adjust automatically with your actual revenues. Your loan just takes longer to repay."
+      a: "Repayments are percentage-based, so they adjust with actual revenues. If income drops, the advance simply takes longer to amortise instead of forcing a fixed cash payment."
     },
     {
       q: "Can I pay off early?",
-      a: "Yes! You get a 5% discount on the interest portion of any early repayment, whether partial or full payoff."
+      a: "Yes. You can prepay part or all of the remaining balance. In this demo we show a 5% discount on the interest portion of any early repayment to reflect typical early-payoff economics."
     }
   ];
 
   const formatLoanHistoryType = (type: string) => {
     switch (type) {
-      case 'loan': return 'Advance Taken';
-      case 'repayment': return 'Auto Repayment';
-      case 'early_payment': return 'Early Payment';
-      case 'full_payoff': return 'Full Payoff';
+      case 'loan': return 'Advance opened';
+      case 'repayment': return 'Auto repayment';
+      case 'early_payment': return 'Early payment';
+      case 'full_payoff': return 'Advance fully repaid';
       default: return type;
     }
   };
@@ -830,7 +823,6 @@ export default function CreatorPage(): React.JSX.Element {
   };
 
   const getTypeIcon = (type: string) => {
-    // Removed icons for more professional appearance
     return '';
   };
 
@@ -839,7 +831,7 @@ export default function CreatorPage(): React.JSX.Element {
       <div className="min-h-screen bg-dark text-text-primary flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 bg-gradient-to-r from-primary to-secondary rounded-lg mx-auto mb-4"></div>
-          <p>Loading creator interface...</p>
+          <p>Loading revenue account...</p>
         </div>
       </div>
     );
@@ -847,13 +839,12 @@ export default function CreatorPage(): React.JSX.Element {
 
   return (
     <div className="min-h-screen bg-dark text-text-primary">
-      {/* Fixed Notification Stack Container - UPDATED with proper spacing */}
+      {/* Fixed Notification Stack Container */}
       <div className="fixed top-20 right-8 z-[9999] w-80">
         {notifications
-          .sort((a, b) => a.position - b.position) // Sort by creation order
+          .sort((a, b) => a.position - b.position)
           .map((notification, visualIndex) => {
-          // Use visual index for compact stacking, but keep original position for z-index
-          const topPosition = visualIndex * 110; // Increased to 110px spacing to prevent overlap
+          const topPosition = visualIndex * 110;
           
           return (
             <div
@@ -866,9 +857,9 @@ export default function CreatorPage(): React.JSX.Element {
                   : 'bg-blue-500/20 border-blue-500/40 text-blue-400'
               } px-6 py-4 rounded-lg shadow-xl backdrop-blur-sm`}
               style={{
-                top: `${topPosition}px`, // Position based on current visual order
-                zIndex: 9999 - notification.position, // Z-index based on creation order (newer on top)
-                opacity: Math.max(0.85, 1 - (visualIndex * 0.08)), // Slight fade for depth
+                top: `${topPosition}px`,
+                zIndex: 9999 - notification.position,
+                opacity: Math.max(0.85, 1 - (visualIndex * 0.08)),
               }}
             >
               <div className="flex items-center space-x-3">
@@ -915,7 +906,7 @@ export default function CreatorPage(): React.JSX.Element {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold">User Portal</h1>
+            <h1 className="text-3xl font-bold">Revenue Account & Advances</h1>
             {currentUserWallet && (
               <div className="text-sm text-text-secondary mt-1">
                 Wallet: <span className="font-mono">{currentUserWallet?.slice(0, 8)}...{currentUserWallet?.slice(-4)}</span>
@@ -923,7 +914,7 @@ export default function CreatorPage(): React.JSX.Element {
             )}
           </div>
           <a href="/" className="text-text-secondary hover:text-primary transition-colors">
-            ← Back to Dashboard
+            ← Back to dashboard
           </a>
         </div>
 
@@ -934,18 +925,18 @@ export default function CreatorPage(): React.JSX.Element {
               {/* COMPACT HEADER with Pool Liquidity */}
               <div className="flex justify-between items-start mb-6">
                 <div className="text-right">
-                  <div className="text-sm text-blue-400 font-medium">Pool Liquidity</div>
+                  <div className="text-sm text-blue-400 font-medium">Available credit capacity</div>
                   <div className="text-lg font-bold text-blue-400">${(availableLiquidity / 1000).toFixed(0)}K</div>
                 </div>
               </div>
 
               <div className="space-y-6">
-                {/* COMPACT EARNINGS INPUT - Two columns when listed */}
+                {/* Earnings input */}
                 {isListed ? (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-text-secondary mb-2">
-                        Weekly Earnings (USDC)
+                        Weekly onchain revenues (USDC)
                       </label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-secondary font-mono">$</span>
@@ -960,20 +951,20 @@ export default function CreatorPage(): React.JSX.Element {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-text-secondary mb-2">
-                        Available to Borrow
+                        Indicative capacity (max advance)
                       </label>
                       <div className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-base font-mono text-primary">
                         ${borrowingTerms.maxBorrowable.toLocaleString()}
                       </div>
                       <div className="text-xs text-text-secondary mt-1">
-                        Borrow up to 2 weeks of your proven revenues
+                        Roughly up to ~2 weeks of provable revenues in this demo
                       </div>
                     </div>
                   </div>
                 ) : (
                   <div>
                     <label className="block text-sm font-medium text-text-secondary mb-2">
-                      Your Weekly Earnings (USDC)
+                      Your weekly onchain revenues (USDC)
                     </label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-text-secondary font-mono">$</span>
@@ -987,7 +978,7 @@ export default function CreatorPage(): React.JSX.Element {
                       />
                     </div>
                     <div className="text-xs text-text-secondary mt-1">
-                      {!currentUserWallet ? 'Connect wallet first to adjust revenues' : 'List yourself first to start borrowing'}
+                      {!currentUserWallet ? 'Connect a wallet first to sync or edit revenues.' : 'List your revenue account first to start simulating advances.'}
                     </div>
                   </div>
                 )}
@@ -998,7 +989,7 @@ export default function CreatorPage(): React.JSX.Element {
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-4">
                       <h3 className="text-primary font-semibold">
-                        {showRepaySection ? 'Loan Management' : 'Available to Borrow'}
+                        {showRepaySection ? 'Position management' : 'Revenue advance simulator'}
                       </h3>
                       {isListed && (
                         <div className="flex bg-gray-700 rounded-lg p-1">
@@ -1010,7 +1001,7 @@ export default function CreatorPage(): React.JSX.Element {
                                 : 'text-text-secondary hover:text-white'
                             }`}
                           >
-                            Borrow
+                            Advance
                           </button>
                           <button
                             onClick={() => setShowRepaySection(true)}
@@ -1020,20 +1011,19 @@ export default function CreatorPage(): React.JSX.Element {
                                 : 'text-text-secondary hover:text-white'
                             }`}
                           >
-                            Repay {!hasActiveLoan && !simulatedLoan && '(Demo)'}
+                            Repay {(!hasActiveLoan && !simulatedLoan) && '(demo)'}
                           </button>
                         </div>
                       )}
                     </div>
-                    <Tooltip content={showRepaySection ? "Manage your existing loan and early repayment options." : "Borrow up to 2 weeks of revenues. Higher amounts = higher rates but faster repayment."}>
+                    <Tooltip content={showRepaySection ? "Manage your open revenue advance and early repayment options." : "Trade a slice of the next 1–3 weeks of revenues for cash now. Larger slices repay faster but at a higher APR."}>
                       <span className="text-xs text-primary cursor-help">ⓘ</span>
                     </Tooltip>
                   </div>
 
                   {!showRepaySection ? (
-                    // Borrow Section
+                    // Advance section
                     <>
-                      {/* Borrow Amount Slider */}
                       <div className="mb-16">
                         <BorrowSlider
                           value={borrowPercentage}
@@ -1047,9 +1037,9 @@ export default function CreatorPage(): React.JSX.Element {
                       
                       {/* Interest Rate and Repayment Rate */}
                       {borrowPercentage > 0 && isListed && (
-                        <div className={`p-3 bg-gray-700/30 rounded-lg text-sm`}>
+                        <div className="p-3 bg-gray-700/30 rounded-lg text-sm">
                           <div className="flex justify-between items-center mb-2">
-                            <span>Interest Rate:</span>
+                            <span>Indicative APR:</span>
                             <span className={`font-semibold text-xl ${
                               borrowingTerms.interestRate <= 60 ? 'text-success' : 
                               borrowingTerms.interestRate <= 75 ? 'text-yellow-400' : 'text-red-400'
@@ -1058,7 +1048,7 @@ export default function CreatorPage(): React.JSX.Element {
                             </span>
                           </div>
                           <div className="flex justify-between items-center">
-                            <span>Daily repayment rate:</span>
+                            <span>Daily repayment share:</span>
                             <span className={`font-semibold text-base ${
                               borrowingTerms.repaymentRate === 50 ? 'text-success' : 
                               borrowingTerms.repaymentRate === 75 ? 'text-yellow-400' : 'text-red-400'
@@ -1069,11 +1059,11 @@ export default function CreatorPage(): React.JSX.Element {
                         </div>
                       )}
                       
-                      {/* Loan Terms */}
+                      {/* Advance terms */}
                       {borrowPercentage > 0 && isListed && (
-                        <div className={`mt-4 p-3 bg-gray-800/30 rounded-lg text-sm space-y-2`}>
+                        <div className="mt-4 p-3 bg-gray-800/30 rounded-lg text-sm space-y-2">
                           <div className="flex justify-between">
-                            <span>Daily Repayment:</span>
+                            <span>Daily repayment:</span>
                             <span className="font-medium">${borrowingTerms.dailyRepayment.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           </div>
                           <div className="flex justify-between text-primary">
@@ -1081,11 +1071,11 @@ export default function CreatorPage(): React.JSX.Element {
                             <span className="font-medium">{borrowingTerms.daysToRepay} days</span>
                           </div>
                           <div className="flex justify-between text-text-secondary">
-                            <span>Total amount to repay:</span>
+                            <span>Total to repay (principal + fees):</span>
                             <span className="font-medium">${borrowingTerms.totalOwed.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           </div>
                           <div className="flex justify-between text-success">
-                            <span>Total interest:</span>
+                            <span>Total cost (simulated):</span>
                             <span className="font-medium">${(borrowingTerms.totalOwed - borrowingTerms.borrowAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           </div>
                         </div>
@@ -1096,11 +1086,11 @@ export default function CreatorPage(): React.JSX.Element {
                     <div className="space-y-4">
                       {!hasActiveLoan && !simulatedLoan ? (
                         <div className="text-center py-8 text-text-secondary">
-                          <div className="font-medium">No Active Loan</div>
-                          <div className="text-sm">Borrow first to see repayment options, or use demo mode</div>
+                          <div className="font-medium">No active advance</div>
+                          <div className="text-sm">Open an advance first to see repayment options, or use demo mode.</div>
                           <button
                             onClick={() => {
-                              // Set up demo loan for repayment testing - start fresh
+                              // Demo loan
                               setSimulatedLoan({
                                 originalAmount: 15000,
                                 interestRate: 65,
@@ -1109,30 +1099,30 @@ export default function CreatorPage(): React.JSX.Element {
                                 totalPaidFromEarlyRepayments: 0,
                                 dailyRepayment: 1071.43,
                                 repaymentRate: 75,
-                                daysElapsed: 0 // Start demo from day 0
+                                daysElapsed: 0
                               });
                             }}
                             className="mt-3 px-4 py-2 bg-primary/20 text-primary rounded-lg text-sm hover:bg-primary/30 transition-colors"
                           >
-                            Try Demo Repayment
+                            Try demo repayment
                           </button>
                         </div>
                       ) : (
                         <>
-                          {/* Current Loan Status */}
+                          {/* Current position status */}
                           <div className="bg-gray-800/30 rounded-lg p-4 text-sm">
                             <div className="flex justify-between text-text-secondary mb-2">
-                              <span>Original loan amount:</span>
+                              <span>Original advance amount:</span>
                               <span className="font-mono font-medium">${loanDetails.originalAmount.toLocaleString()}</span>
                             </div>
                             <div className="flex justify-between text-text-secondary mb-2">
-                              <span>Total interest:</span>
+                              <span>Total interest (simulated):</span>
                               <span className="font-mono font-medium">
                                 ${loanDetails.originalTotalInterest.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({loanDetails.interestRate.toFixed(0)}% APR)
                               </span>
                             </div>
                             <div className="flex justify-between text-text-secondary mb-2">
-                              <span>Total paid so far:</span>
+                              <span>Total repaid so far:</span>
                               <span className="font-mono font-medium">${loanDetails.totalPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                             <div className="flex justify-between text-primary font-medium mb-2">
@@ -1140,7 +1130,7 @@ export default function CreatorPage(): React.JSX.Element {
                               <span className="font-mono font-semibold">${loanDetails.remainingBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                             <div className="flex justify-between text-text-secondary">
-                              <span>Days until paid off:</span>
+                              <span>Days until fully repaid:</span>
                               <span className="font-mono font-medium">{loanDetails.daysRemaining} days</span>
                             </div>
                           </div>
@@ -1149,7 +1139,7 @@ export default function CreatorPage(): React.JSX.Element {
                           {loanDetails.remainingBalance > 0 && (
                             <div className="border-t border-primary/20 pt-3">
                               <div className="flex items-center justify-between mb-2">
-                                <span className="text-base font-medium">Early Repayment</span>
+                                <span className="text-base font-medium">Early repayment</span>
                               </div>
                               
                               <div className="mb-12">
@@ -1164,19 +1154,19 @@ export default function CreatorPage(): React.JSX.Element {
                               {earlyRepayAmount > 0 && (
                                 <div className="pt-2 border-t border-gray-600 space-y-2 text-sm">
                                   <div className="flex justify-between text-primary font-medium">
-                                    <span>Total to pay:</span>
+                                    <span>Total to pay now:</span>
                                     <span className="font-semibold">
                                       ${loanDetails.earlyPaymentTotal?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0'}
                                       {loanDetails.earlyPaymentInterest && loanDetails.earlyPaymentInterest > 0 && (
                                         <span className="text-text-secondary font-normal text-xs ml-1">
-                                          (incl. ${loanDetails.earlyPaymentInterest?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} interest)
+                                          (incl. ${loanDetails.earlyPaymentInterest?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} interest before discount)
                                         </span>
                                       )}
                                     </span>
                                   </div>
                                   {earlyRepayAmount < 100 && (
                                     <div className="flex justify-between text-yellow-400">
-                                      <span>Days until paid off after early payment:</span>
+                                      <span>Days remaining after early repayment:</span>
                                       <span className="font-medium">{loanDetails.daysRemainingAfterEarlyPayment} days</span>
                                     </div>
                                   )}
@@ -1197,7 +1187,7 @@ export default function CreatorPage(): React.JSX.Element {
                     disabled={isConnecting || isTransitioning}
                     className="w-full py-3 rounded-xl font-semibold transition-all bg-primary text-dark hover:bg-primary/90 disabled:opacity-50"
                   >
-                    {isConnecting || isTransitioning ? 'Setting up...' : 'Connect Wallet'}
+                    {isConnecting || isTransitioning ? 'Setting up revenue account...' : 'Connect wallet & set up revenue account'}
                   </button>
                 ) : showRepaySection ? (
                   <button
@@ -1212,14 +1202,14 @@ export default function CreatorPage(): React.JSX.Element {
                     }`}
                   >
                     {isRepaying
-                      ? 'Processing Payment...'
+                      ? 'Processing repayment...'
                       : loanDetails.remainingBalance === 0
-                      ? 'Loan already paid off'
+                      ? 'Advance already fully repaid'
                       : earlyRepayAmount === 0
                       ? 'Select amount to repay'
                       : earlyRepayAmount === 100 
-                      ? `Pay Off Loan Completely ($${loanDetails.earlyPaymentTotal?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0'} USDC)`
-                      : `Make Early Payment ($${loanDetails.earlyPaymentTotal?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0'} USDC)`
+                      ? `Repay advance in full ($${loanDetails.earlyPaymentTotal?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0'} USDC)`
+                      : `Make early payment ($${loanDetails.earlyPaymentTotal?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0'} USDC)`
                     }
                   </button>
                 ) : (
@@ -1231,14 +1221,14 @@ export default function CreatorPage(): React.JSX.Element {
                     }`}
                   >
                     {isBorrowing 
-                      ? 'Processing Transaction...' 
+                      ? 'Processing advance...' 
                       : hasActiveLoan
-                      ? 'Repay existing loan first'
+                      ? 'Repay existing advance first'
                       : borrowPercentage === 0
-                      ? 'Select amount to borrow'
+                      ? 'Select revenue slice to sell'
                       : !canBorrow
-                      ? 'Insufficient liquidity'
-                      : `Borrow $${borrowingTerms.borrowAmount.toLocaleString()} at ${borrowingTerms.interestRate.toFixed(0)}% APR`
+                      ? 'Insufficient pool liquidity'
+                      : `Open advance for $${borrowingTerms.borrowAmount.toLocaleString()} at ${borrowingTerms.interestRate.toFixed(0)}% APR`
                     }
                   </button>
                 )}
@@ -1248,12 +1238,11 @@ export default function CreatorPage(): React.JSX.Element {
 
           {/* Side Panel */}
           <div className="space-y-6">
-            {/* User Leaderboard Preview - Smart Display */}
+            {/* Revenue Leaderboard Preview */}
             <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-              <h3 className="text-lg font-bold mb-4">User Leaderboard Preview</h3>
+              <h3 className="text-lg font-bold mb-4">Revenue leaderboard preview</h3>
               <div className="space-y-3">
                 {previewCreators.map((creator, index) => {
-                  // Find this creator's actual rank in the full sorted list
                   const actualRank = sortedCreators.findIndex(c => c.wallet === creator.wallet) + 1;
                   
                   return (
@@ -1275,8 +1264,8 @@ export default function CreatorPage(): React.JSX.Element {
                         </div>
                         <div className="text-xs text-text-secondary">
                           {creator.status === 'active' || creator.activeLoan
-                            ? `Borrowing • Auto-repayment active`
-                            : 'Listed • No active advance'
+                            ? `Advance open • auto-repayment active`
+                            : 'Listed revenue account • no active advance'
                           } • ${creator.fees7d_usd.toLocaleString()} 7d revenues
                         </div>
                       </div>
@@ -1292,7 +1281,7 @@ export default function CreatorPage(): React.JSX.Element {
                 })}
                 <div className="pt-2">
                   <a href="/leaderboard" className="text-primary hover:text-primary/80 text-sm">
-                    View full leaderboard →
+                    View full revenue leaderboard →
                   </a>
                 </div>
               </div>
@@ -1300,11 +1289,11 @@ export default function CreatorPage(): React.JSX.Element {
 
             {/* Loan History */}
             <div className="bg-gray-800/30 border border-gray-700 rounded-xl p-6">
-              <h3 className="text-lg font-bold mb-4">Loan History</h3>
+              <h3 className="text-lg font-bold mb-4">Advance & repayment history</h3>
               {userLoanHistory.length === 0 ? (
                 <div className="text-center py-6 text-text-secondary">
-                  <div className="font-medium">No loan history</div>
-                  <div className="text-sm">Your transactions will appear here</div>
+                  <div className="font-medium">No history yet</div>
+                  <div className="text-sm">Your advances and repayments will appear here.</div>
                 </div>
               ) : (
                 <div className="space-y-2 max-h-80 overflow-y-auto">
@@ -1342,9 +1331,9 @@ export default function CreatorPage(): React.JSX.Element {
           </div>
         </div>
 
-        {/* FAQ Section - Full Width at Bottom */}
+        {/* FAQ Section */}
         <div className="mt-12 bg-gray-800/30 border border-gray-700 rounded-xl p-8">
-          <h2 className="text-2xl font-bold mb-6 text-center">Frequently Asked Questions</h2>
+          <h2 className="text-2xl font-bold mb-6 text-center">Revenue advances – frequently asked questions</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {faqItems.map((faq, index) => (
               <div key={index} className="border border-gray-600 rounded-lg">
@@ -1414,7 +1403,6 @@ export default function CreatorPage(): React.JSX.Element {
           border-right: 2px solid rgba(59, 130, 246, 0.3);
         }
 
-        /* Notification animations - slide in from right, stay in fixed position */
         .notification-item {
           animation: slideInFromRight 0.3s ease-out;
         }

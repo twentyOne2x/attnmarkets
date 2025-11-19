@@ -71,7 +71,7 @@ export default function Dashboard(): React.JSX.Element {
     if (!dashboardData) return "APR breakdown not available";
     
     const activeCreators = creators.filter(c => c.activeLoan);
-    if (activeCreators.length === 0) return "No active loans - showing base rate";
+    if (activeCreators.length === 0) return "No active revenue positions – showing base rate.";
     
     const totalBorrowed = activeCreators.reduce((sum, c) => sum + (c.activeLoan?.amount || 0), 0);
     const weightedBorrowerAPR = activeCreators.reduce((sum, c) => {
@@ -99,7 +99,7 @@ Active borrowers: ${activeCreators.length}`;
       <div className="min-h-screen bg-dark text-text-primary flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 bg-gradient-to-r from-primary to-secondary rounded-lg mx-auto mb-4"></div>
-          <p>Loading dashboard...</p>
+          <p>Loading revenue dashboard...</p>
         </div>
       </div>
     );
@@ -112,29 +112,29 @@ Active borrowers: ${activeCreators.length}`;
       <div className="flex-1 max-w-7xl mx-auto px-4 py-8 w-full">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-            <Tooltip content="Total funding available for creators to borrow against their future revenues">
+            <Tooltip content="Total liquidity currently available to back revenue advances and credit lines.">
               <h3 className="text-sm text-text-secondary mb-2 cursor-help flex items-center">
-                Available Funding
+                Available Liquidity
                 <span className="ml-1 text-xs text-primary">ⓘ</span>
               </h3>
             </Tooltip>
             <p className="text-3xl font-bold text-primary">
               ${dashboardData ? (dashboardData.availableFunding / 1000).toFixed(0) : '250'}K
             </p>
-            <p className="text-xs text-success mt-1">Ready to borrow</p>
+            <p className="text-xs text-success mt-1">Ready to fund revenue-backed positions</p>
           </div>
 
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-            <Tooltip content="Interest rate for creators borrowing against their future revenues">
+            <Tooltip content="Indicative APR for projects and creators borrowing against their onchain revenues.">
               <h3 className="text-sm text-text-secondary mb-2 cursor-help flex items-center">
-                User Borrowing Rate
+                Borrower APR
                 <span className="ml-1 text-xs text-primary">ⓘ</span>
               </h3>
             </Tooltip>
             <p className="text-3xl font-bold text-secondary">
               {dashboardData ? dashboardData.creatorBorrowRate.toFixed(1) : '70'}%
             </p>
-            <p className="text-xs text-text-secondary mt-1">APR for borrowers</p>
+            <p className="text-xs text-text-secondary mt-1">APR for revenue advances and credit lines</p>
           </div>
 
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
@@ -148,14 +148,14 @@ Active borrowers: ${activeCreators.length}`;
               {dashboardData ? dashboardData.projectedAPR.toFixed(1) : '0'}%
             </p>
             <p className="text-xs text-text-secondary mt-1">
-              {dashboardData ? `${dashboardData.utilization.toFixed(1)}% utilization` : 'From creator activity'}
+              {dashboardData ? `${dashboardData.utilization.toFixed(1)}% utilization of revenue pool` : 'From revenue-backed positions'}
             </p>
           </div>
 
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-            <Tooltip content="Percentage of the pool currently being borrowed by creators. Higher utilization increases LP returns.">
+            <Tooltip content="Percentage of the revenue pool currently locked in open advances and credit lines. Higher utilisation generally increases LP returns, within risk limits.">
               <h3 className="text-sm text-text-secondary mb-2 cursor-help flex items-center">
-                Pool Utilization
+                Pool Utilisation
                 <span className="ml-1 text-xs text-primary">ⓘ</span>
               </h3>
             </Tooltip>
@@ -168,30 +168,28 @@ Active borrowers: ${activeCreators.length}`;
           </div>
         </div>
 
-        {/* REMOVED: Pool Utilization Section - moved to top cards */}
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* User Section - NOW ON LEFT */}
+          {/* Project / Creator side */}
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6 flex flex-col">
-            <h2 className="text-xl font-bold mb-4">User Portal</h2>
+            <h2 className="text-xl font-bold mb-4">Revenue Account & Advances</h2>
             <p className="text-text-secondary mb-6">
-              Get cash backed by your User (Builder, DAO, Creator) revenues, keep your token upside
+              Route protocol or creator earnings into a revenue account and fund work directly from income instead of selling your own token.
             </p>
 
             <div className="bg-secondary/10 border border-secondary/20 rounded-lg p-4 mb-6 flex-grow">
-              <h3 className="text-secondary font-semibold mb-2">How It Works</h3>
+              <h3 className="text-secondary font-semibold mb-2">How it works</h3>
               <ul className="space-y-1 text-sm">
-                <li>• <strong>List for free:</strong> Get on leaderboard with 0% commitment</li>
-                <li>• <strong>Get instant quotes:</strong> See your funding potential immediately</li>
-                <li>• <strong>Only pay when borrowing:</strong> Earnings auto-repay while advance is active</li>
-                <li>• <strong>Keep full control:</strong> No equity given up, adjust repayment % each epoch</li>
+                <li>• <strong>Set up a revenue account:</strong> Point your protocol revenues or creator rewards into attn with no upfront commitment.</li>
+                <li>• <strong>Simulate funding capacity:</strong> See how much non-dilutive funding your recent revenues can support.</li>
+                <li>• <strong>Repay from income:</strong> When an advance or line is open, an agreed share of revenues auto-repays it first.</li>
+                <li>• <strong>Keep your token upside:</strong> No extra token emissions or OTC deals; you keep governance and supply.</li>
               </ul>
             </div>
 
             {/* Current User Status Display */}
             {currentUserCreator && (
               <div className="bg-gray-800/50 rounded-lg p-4 mb-4">
-                <h3 className="font-semibold mb-2">Your Creator Status</h3>
+                <h3 className="font-semibold mb-2">Your Revenue Account</h3>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span>Status:</span>
@@ -202,17 +200,17 @@ Active borrowers: ${activeCreators.length}`;
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Weekly Earnings:</span>
+                    <span>Revenues (last 7d):</span>
                     <span className="font-mono text-success">${currentUserCreator.fees7d_usd.toLocaleString()}</span>
                   </div>
                   {currentUserCreator.activeLoan && (
                     <>
                       <div className="flex justify-between">
-                        <span>Active Loan:</span>
+                        <span>Open advance:</span>
                         <span className="font-mono text-secondary">${currentUserCreator.activeLoan.amount.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Interest Rate:</span>
+                        <span>Effective APR:</span>
                         <span className="font-mono text-yellow-400">{currentUserCreator.activeLoan.interestRate.toFixed(0)}% APR</span>
                       </div>
                     </>
@@ -227,51 +225,51 @@ Active borrowers: ${activeCreators.length}`;
                 className="block w-full bg-secondary text-white py-3 rounded-xl font-semibold text-center hover:bg-secondary/90 transition-colors"
               >
                 {currentUserCreator 
-                  ? (currentUserCreator.activeLoan ? 'Manage Loan' : 'Get Advance Quote')
-                  : 'Get Advance Quote'
+                  ? (currentUserCreator.activeLoan ? 'Manage Revenue Position' : 'Request Advance Quote')
+                  : 'Request Advance Quote'
                 }
               </a>
               <a 
                 href="/leaderboard" 
                 className="block w-full bg-gray-700 text-text-primary py-3 rounded-xl font-semibold text-center hover:bg-gray-600 transition-colors"
               >
-                {currentUserCreator ? 'View My Ranking' : 'List Me on Leaderboard'}
+                {currentUserCreator ? 'View my revenue ranking' : 'List my revenue account'}
               </a>
             </div>
           </div>
 
-          {/* LP Section - NOW ON RIGHT with Position Display */}
+          {/* LP Section */}
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6 flex flex-col">
-            <h2 className="text-xl font-bold mb-4">Liquidity Provider</h2>
+            <h2 className="text-xl font-bold mb-4">Liquidity Providers & attnUSD</h2>
             <p className="text-text-secondary mb-6">
-              Earn yield from user revenues and borrowing interest
+              Deposit stablecoins to back revenue accounts and earn revenue-backed yield similar to holding attnUSD.
             </p>
 
             <div className="bg-success/10 border border-success/20 rounded-lg p-4 mb-6 flex-grow">
-              <h3 className="text-success font-semibold mb-2">How It Works</h3>
+              <h3 className="text-success font-semibold mb-2">How it works</h3>
               <ul className="space-y-1 text-sm">
-                <li>• <strong>Deposit USDC:</strong> Fund the liquidity pool for user advances</li>
-                <li>• <strong>Earn from two sources:</strong> User trading fees + borrowing interest</li>
-                <li>• <strong>Current APR:</strong> {dashboardData ? dashboardData.projectedAPR.toFixed(1) : '0'}% based on active borrowing</li>
-                <li>• <strong>Withdraw anytime:</strong> Your funds remain liquid and accessible</li>
+                <li>• <strong>Provide stablecoins:</strong> Fund the pool that backs advances and credit lines for apps, DAOs, creators, and networks.</li>
+                <li>• <strong>Earn revenue-backed yield:</strong> Yield comes from interest and fees on those positions, minus losses and costs.</li>
+                <li>• <strong>Current indicative APR:</strong> {dashboardData ? dashboardData.projectedAPR.toFixed(1) : '0'}% based on active utilisation.</li>
+                <li>• <strong>Redeem on demand:</strong> Enter and exit subject to pool liquidity; this demo treats funds as liquid.</li>
               </ul>
             </div>
 
             {/* LP Position Display */}
             {userPosition.deposited_usdc > 0 && (
               <div className="bg-gray-800/50 rounded-lg p-4 mb-4">
-                <h3 className="font-semibold mb-2">Your LP Position</h3>
+                <h3 className="font-semibold mb-2">Your Position in the Revenue Pool</h3>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
-                    <span>Deposited:</span>
+                    <span>Deposited principal:</span>
                     <span className="font-mono text-primary">${userPosition.deposited_usdc.toLocaleString()} USDC</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Est. Monthly Yield:</span>
+                    <span>Est. monthly yield (simulated):</span>
                     <span className="font-mono text-success">${userPosition.estimated_yield.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Current APR:</span>
+                    <span>Current revenue-backed APR:</span>
                     <span className="font-mono text-success">{dashboardData ? dashboardData.projectedAPR.toFixed(1) : '0'}%</span>
                   </div>
                 </div>
@@ -283,13 +281,13 @@ Active borrowers: ${activeCreators.length}`;
                 href="/deposit" 
                 className="block w-full bg-primary text-dark py-3 rounded-xl font-semibold text-center hover:bg-primary/90 transition-colors"
               >
-                {userPosition.deposited_usdc > 0 ? 'Manage Position' : 'Deposit & Earn'}
+                {userPosition.deposited_usdc > 0 ? 'Manage LP position' : 'Deposit to revenue pool'}
               </a>
               <a 
                 href="/leaderboard" 
                 className="block w-full bg-gray-700 text-text-primary py-3 rounded-xl font-semibold text-center hover:bg-gray-600 transition-colors"
               >
-                View Creator Performance
+                View revenue performance
               </a>
             </div>
           </div>
@@ -297,12 +295,12 @@ Active borrowers: ${activeCreators.length}`;
 
         <div className="bg-dark-card border border-gray-700 rounded-xl p-6 mb-8">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold">Top Earning Users This Week</h2>
+            <h2 className="text-xl font-bold">Top Revenue Accounts This Week</h2>
             <a 
               href="/leaderboard" 
               className="text-primary hover:text-primary/80 text-sm font-medium"
             >
-              View All →
+              View full leaderboard →
             </a>
           </div>
 
@@ -329,8 +327,8 @@ Active borrowers: ${activeCreators.length}`;
                     </div>
                     <div className="text-xs text-text-secondary">
                       {creator.activeLoan
-                        ? `Active loan: $${creator.activeLoan.amount.toLocaleString()} at ${creator.activeLoan.interestRate.toFixed(0)}% APR`
-                        : 'Listed (no active loan)'
+                        ? `Open advance: $${creator.activeLoan.amount.toLocaleString()} at ${creator.activeLoan.interestRate.toFixed(0)}% APR`
+                        : 'Listed (no active advance)'
                       }
                     </div>
                   </div>
@@ -352,7 +350,7 @@ Active borrowers: ${activeCreators.length}`;
       </div>
       <footer className="border-t border-gray-800 bg-dark-card/40">
         <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-[11px] text-text-secondary">
-          <span>attn.markets</span>
+          <span>attn.markets – banking the internet of revenue</span>
           <div className="flex items-center gap-3">
             <a
               href="https://x.com/attndotmarkets"
