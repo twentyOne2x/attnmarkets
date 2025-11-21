@@ -8,7 +8,7 @@ import Navigation from './components/Navigation';
 import Tooltip from './components/Tooltip';
 import { useAppContext } from './context/AppContext';
 import WelcomeGuideModal from './components/WelcomeGuideModal';
-import { LIVE_TOUR_STORAGE_PREFIX } from './user/constants';
+import { LIVE_TOUR_STORAGE_PREFIX } from './sponsor/constants';
 
 interface DashboardData {
   totalTVL: number;
