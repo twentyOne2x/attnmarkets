@@ -182,18 +182,17 @@ export default function Home(): React.JSX.Element {
           <div className="text-lg text-text-secondary mb-4">Revenue bank for apps, DAOs, and creators on Solana</div>
           
           <h1
-            className={`text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold mb-8 transition-all duration-1000 ${
+            className={`mt-8 sm:mt-10 text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold mb-8 leading-[1.05] sm:leading-[1.1] transition-all duration-1000 ${
               isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
             }`}
-            style={{ overflow: 'hidden' }}
           >
-            <span className="gradient-text block mb-4">Get funding from your income</span>
-            <div
-              className="text-2xl sm:text-5xl lg:text-6xl xl:text-7xl text-white inline-flex items-center justify-center"
-              style={{ overflow: 'hidden' }}
-            >
-              <span>backed by your</span>
-              <div className="word-wheel-container mx-3 sm:mx-6">
+            <span className="gradient-text block pb-[0.12em] mb-4 sm:mb-6">
+              Get funding backed by
+            </span>
+
+            <div className="text-2xl sm:text-5xl lg:text-6xl xl:text-7xl text-white inline-flex items-center justify-center pb-[0.2em]">
+              <span>your</span>
+              <div className="word-wheel-container mx-3 sm:mx-6 overflow-hidden">
                 <div
                   className="word-wheel-inner"
                   style={{
@@ -201,32 +200,31 @@ export default function Home(): React.JSX.Element {
                   }}
                 >
                   {(() => {
-                    const displayArray: string[] = [];
-                    const totalWords = rotatingWords.length * 6;
+                    const displayArray: string[] = []
+                    const totalWords = rotatingWords.length * 6
                     for (let i = 0; i < totalWords; i++) {
-                      displayArray.push(rotatingWords[i % rotatingWords.length]);
+                      displayArray.push(rotatingWords[i % rotatingWords.length])
                     }
                     return displayArray.map((word, index) => {
-                      const distance = Math.abs(index - currentWordIndex);
-                      const isActive = index === currentWordIndex;
-                      const isAdjacent = distance === 1;
+                      const distance = Math.abs(index - currentWordIndex)
+                      const isActive = index === currentWordIndex
+                      const isAdjacent = distance === 1
                       return (
                         <div
                           key={`${word}-${index}`}
                           className={`wheel-word ${isActive ? 'active' : isAdjacent ? 'adjacent' : ''}`}
-                          style={{ overflow: 'hidden' }}
                         >
                           {word}
                         </div>
-                      );
-                    });
+                      )
+                    })
                   })()}
                 </div>
               </div>
               <span>revenues</span>
             </div>
           </h1>
-          
+
           <p className="text-lg sm:text-xl text-text-secondary mb-12 max-w-3xl mx-auto">
             Connect your onchain income, get a funding limit, and draw when you need cash. No token sales. Repay automatically from a share of future revenues.
           </p>
