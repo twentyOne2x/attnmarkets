@@ -187,7 +187,7 @@ export default function Home(): React.JSX.Element {
             }`}
           >
             <span className="gradient-text block pb-[0.12em] mb-4 sm:mb-6">
-              Get funding backed by
+              Get a credit line backed by
             </span>
 
             <div className="text-2xl sm:text-5xl lg:text-6xl xl:text-7xl text-white inline-flex items-center justify-center pb-[0.2em]">
@@ -226,7 +226,7 @@ export default function Home(): React.JSX.Element {
           </h1>
 
           <p className="text-lg sm:text-xl text-text-secondary mb-12 max-w-3xl mx-auto">
-            Connect your onchain income, get a funding limit, and draw when you need cash. No token sales. Repay automatically from a share of future revenues.
+            Connect your onchain income, get a financing limit, and draw when you need cash. No token sales. Repay automatically from a share of future revenues.
           </p>
           
           {/* User vs LP Blocks */}
@@ -237,7 +237,7 @@ export default function Home(): React.JSX.Element {
                 <span className="text-primary text-2xl">🚀</span>
               </div>
               <h3 className="text-xl sm:text-2xl font-semibold mb-4 text-primary">For builders, DAOs, and creators</h3>
-              <p className="text-base sm:text-lg font-medium mb-6">Turn recurring income into a funding tool</p>
+              <p className="text-base sm:text-lg font-medium mb-6">Turn recurring income into a financing tool</p>
               <p className="text-text-secondary mb-8 text-sm sm:text-base">
                 Get a revenue-backed limit first. Only when you open an advance or draw on a line do repayments start, directly from your incoming revenues.
               </p>
@@ -300,7 +300,7 @@ export default function Home(): React.JSX.Element {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 max-w-4xl mx-auto mb-16">
             <div className="bg-dark-card border border-gray-700 rounded-xl p-3 sm:p-4 card-hover">
               <div className="text-lg sm:text-xl font-mono font-semibold text-primary mb-1">$100K</div>
-              <div className="text-xs sm:text-sm text-text-secondary">Simulated available funding</div>
+              <div className="text-xs sm:text-sm text-text-secondary">Simulated available financing</div>
             </div>
             <div className="bg-dark-card border border-gray-700 rounded-xl p-3 sm:p-4 card-hover">
               <div className="text-lg sm:text-xl font-mono font-semibold text-secondary mb-1">$250K</div>
@@ -383,14 +383,14 @@ export default function Home(): React.JSX.Element {
       {/* Problem Section */}
       <section id="problem" className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl sm:text-4xl font-bold text-center mb-12">The funding gap</h2>
+          <h2 className="text-3xl sm:text-4xl font-bold text-center mb-12">The financing gap</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 mb-12">
             <div className="bg-dark-card border border-red-500/20 rounded-xl p-6 sm:p-8">
               <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center mb-4">
                 <span className="text-red-400 text-2xl">⚡</span>
               </div>
               <h3 className="text-lg sm:text-xl font-semibold mb-4 text-red-400">
-                Onchain revenues exist, but don&apos;t behave like a funding asset
+                Onchain revenues exist, but don&apos;t behave like a financing asset
               </h3>
               <p className="text-text-secondary text-sm sm:text-base">
                 For most apps, DAOs, and creators, income lands in generic wallets, gets mixed with treasury and speculation, and isn&apos;t wired into clear rules for who gets paid when or how it can back credit.
@@ -422,7 +422,7 @@ export default function Home(): React.JSX.Element {
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl sm:text-4xl font-bold text-center mb-4">Our solution</h2>
           <p className="text-lg sm:text-xl text-text-secondary text-center mb-16 max-w-3xl mx-auto">
-            A revenue account for your onchain business, revenue-backed funding rails on top, and attnUSD for LPs on the other side.
+            A revenue account for your onchain business, revenue-backed financing rails on top, and attnUSD for LPs on the other side.
           </p>
           
           <div className="space-y-8 sm:space-y-12">
@@ -512,9 +512,9 @@ export default function Home(): React.JSX.Element {
                     <span className="text-primary text-sm">🚫</span>
                   </div>
                   <div>
-                    <h4 className="font-semibold mb-2">Non-dilutive, revenue-based funding</h4>
+                    <h4 className="font-semibold mb-2">Non-dilutive, revenue-based financing</h4>
                     <p className="text-text-secondary text-sm sm:text-base">
-                      You use income, not governance tokens, as the primary funding asset. Users keep their exposure; your community sees that revenues, not dumps, fund the roadmap.
+                      You use income, not governance tokens, as the primary financing asset. Users keep their exposure; your community sees that revenues, not dumps, fund the roadmap.
                     </p>
                   </div>
                 </div>
@@ -791,7 +791,7 @@ export default function Home(): React.JSX.Element {
       {/* CTA Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold mb-6">Ready to explore revenue-backed funding?</h2>
+          <h2 className="text-3xl sm:text-4xl font-bold mb-6">Ready to explore revenue-backed financing?</h2>
           <p className="text-lg sm:text-xl text-text-secondary mb-12 max-w-2xl mx-auto">
             Connect your address, see what your revenues can support, and decide later if and when you want to borrow or deploy capital.
           </p>
@@ -812,7 +812,7 @@ export default function Home(): React.JSX.Element {
           </div>
           
           <div className="mt-8 text-xs sm:text-sm text-text-secondary">
-            Connect revenues → See limits → Activate only when you need funding
+            Connect revenues → See limits → Activate only when you need financing
           </div>
         </div>
       </section>

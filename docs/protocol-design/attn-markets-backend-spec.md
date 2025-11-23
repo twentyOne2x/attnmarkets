@@ -87,7 +87,7 @@ attnmarkets/
   - `initialize_stable_vault { accepted_stable_mints[], conversion_strategy, admin, emergency_admin, keeper_authority }`
   - `deposit_stable { stable_vault, user, stable_mint, amount }` – mints attnUSD shares at current NAV.
   - `redeem_attnusd { stable_vault, user, shares }` – burns shares and returns stables.
-  - `sweep_creator_fees { stable_vault, creator_vault, rewards_pool, fee_accounts[], operation_id }` – splits SOL between RewardsVault funding (CPI `fund_rewards`) and stable conversions, updates pending SOL/NAV using the configured `sol_rewards_bps`; replay-safe via `operation_id`.
+  - `sweep_creator_fees { stable_vault, creator_vault, rewards_pool, fee_accounts[], operation_id }` – splits SOL between RewardsVault financing (CPI `fund_rewards`) and stable conversions, updates pending SOL/NAV using the configured `sol_rewards_bps`; replay-safe via `operation_id`.
   - `process_conversion { stable_vault, swap_accounts[], operation_id }` – optional asynchronous SOL→stable swap executor (Jupiter) with replay guard.
   - `set_conversion_strategy`, `set_rewards_split`, `update_admin`, `update_emergency_admin`, `update_keeper_authority`, `toggle_pause`.
 - **Events**
@@ -202,7 +202,7 @@ attnmarkets/
 
 ## Keeper Service
 - Cron-style runner (Rust or Typescript) invoking `collect_fees`, `sweep_creator_fees(operation_id)`, `rewards_vault::fund_rewards(operation_id)`, and `process_conversion(operation_id)` while vaults are unpaused.
-- Implements exponential backoff + idempotency by signature/slot/`operation_id` to avoid double funding; skips work if governance pauses a vault.
+- Implements exponential backoff + idempotency by signature/slot/`operation_id` to avoid double financing; skips work if governance pauses a vault.
 - Emits Prometheus metrics and writes audit rows to `reward_events` with keeper identity.
 - Will later manage AMM rebalances once pools live.
 
@@ -229,7 +229,7 @@ attnmarkets/
 - [✅] `attn_client` crate with program bindings and helpers *(StableVault + Rewards modules live; AMM bindings pending).*
 - [✅] `attn_indexer` service ingesting events and populating Postgres *(SQLx pipeline with checkpoints/pagination; production load testing pending).*
 - [✅] `attn_api` service exposing REST endpoints *(pagination, ETags, /readyz, CORS configured; auth toggle outstanding).*
-- [✅] `attn_cli` commands for CTO logging, wrap/split/redeem, rewards staking/funding *(AMM ops pending).*
+- [✅] `attn_cli` commands for CTO logging, wrap/split/redeem, rewards staking/financing *(AMM ops pending).*
 - [✅] Localnet E2E script exercising wrap→split→stake→fund→claim flows.
 - [ ] Devnet deployment scripts + environment configuration (.env, keypairs).
 - [ ] Keeper service deployment + alerting.

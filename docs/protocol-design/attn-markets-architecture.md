@@ -104,7 +104,7 @@ PT, attnUSD, and sAttnUSD trade/settle across pools; indexer + SDK expose state 
 - **StableVault → RewardsVault**
   - `fund_rewards`: CPI invoked inside `sweep_creator_fees` to route the SOL rewards slice.
 - **StableVault → CreatorVault**
-  - `sweep_creator_fees`: Pulls fees from CreatorVault fee vaults, splitting SOL between RewardsVault funding and stable conversions using an `operation_id` for idempotent keeper retries.
+  - `sweep_creator_fees`: Pulls fees from CreatorVault fee vaults, splitting SOL between RewardsVault financing and stable conversions using an `operation_id` for idempotent keeper retries.
 - **AMM → Others**
   - Pools reference PT/YT/attnUSD mints but do not require CPI to CreatorVault; they use standard token program instructions.
 

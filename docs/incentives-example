@@ -2,7 +2,7 @@
 
 Link: https://pump.fun/profile/A5RH5EVEkUnEfpWvz7b94NqzsforWk63mLcujoXVKiHs?tab=coins
 
-This page sketches how attn could detect high-earning Pump.fun creators on-chain and surface instant, personalised funding offers.
+This page sketches how attn could detect high-earning Pump.fun creators on-chain and surface instant, personalised financing offers.
 
 The concrete example here is the creator address `A5RH5EVEkUnEfpWvz7b94NqzsforWk63mLcujoXVKiHs`, which (over the last month window on Pump.fun):
 
@@ -25,7 +25,7 @@ This is exactly the profile of a creator who should see:
 
 For creators like this, attn wants to show:
 
-- **Instant preview of credit capacity** (e.g. “based on your last 10 days of creator rewards, you could access up to $20k in short-dated funding”).  
+- **Instant preview of credit capacity** (e.g. “based on your last 10 days of creator rewards, you could access up to $20k in short-dated financing”).  
 - **Simple products**:
   - 30-day revenue advances backed by future creator rewards.  
   - Small revolving lines that refill as new rewards land.  
@@ -80,7 +80,7 @@ For the address `A5RH5…`:
 
 So the UI can safely say something like:
 
-> “Based on your recent rewards, you are pre-qualified for up to **$25,000** in short-dated funding, automatically repaid from creator rewards.”
+> “Based on your recent rewards, you are pre-qualified for up to **$25,000** in short-dated financing, automatically repaid from creator rewards.”
 
 ---
 
@@ -108,7 +108,7 @@ Example offer for `A5RH5…`:
 In the interface, this is presented as:
 
 - slider: “share of next 30 days rewards” (20–35%),  
-- slider: “size of upfront funding”, capped by risk limits,  
+- slider: “size of upfront financing”, capped by risk limits,  
 - live readout of:
   - max monthly repayment share,  
   - projected completion date.
@@ -139,7 +139,7 @@ This is still implemented as a set of short-dated advance positions under the ho
    - Surface a non-intrusive CTA:
      - e.g. DM / reply from an attn account on X, or an in-app Pump.fun banner (if ever possible).  
    - Example message:
-     - “You earned $113.9k in Pump.fun creator rewards this month. Route your creator rewards to an attn revenue account and unlock up to $25k in short-dated funding, auto-repaid from future rewards.”
+     - “You earned $113.9k in Pump.fun creator rewards this month. Route your creator rewards to an attn revenue account and unlock up to $25k in short-dated financing, auto-repaid from future rewards.”
 
 3. **One-click setup**  
    - Creator lands on attn:  

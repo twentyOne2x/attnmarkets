@@ -52,7 +52,7 @@ Ship the minimum set of contracts and tooling that turn a Pump.fun creator-fee P
 ### 4. Stable Yield Vault (`attnUSD`)
 - Custodies aggregated creator fees and LP deposits; converts the non-reward SOL slice into protocol-selected stablecoins (USDC/USDT/USDe) via Jupiter.
 - Mints `attnUSD`, a yield-bearing stablecoin whose returns accrue via NAV (no manual claim).
-- Maintains share index so deposits/withdrawals remain fair; `sweep_creator_fees` reads the configured `sol_rewards_bps`, emits Rewards funding via CPI (before conversions), and requires an `operation_id` for keeper idempotency. `process_conversion` also takes `operation_id`.
+- Maintains share index so deposits/withdrawals remain fair; `sweep_creator_fees` reads the configured `sol_rewards_bps`, emits Rewards financing via CPI (before conversions), and requires an `operation_id` for keeper idempotency. `process_conversion` also takes `operation_id`.
 - Tracks governance + keeper state: `authority_seed`, `keeper_authority`, `admin`, `emergency_admin`, `paused`, `pending_sol_lamports`, accepted mint list.
 - Core instructions: `initialize_stable_vault`, `deposit_stable`, `redeem_attnusd`, `sweep_creator_fees(operation_id)`, `process_conversion(operation_id)`, `set_conversion_strategy`, `toggle_pause`.
 - Emits events for fee sweeps (`CreatorFeesSwept { operation_id, sol_rewards_bps, last_sweep_id }`) and conversions so indexer tracks NAV changes and idempotency.
@@ -136,7 +136,7 @@ Ship the minimum set of contracts and tooling that turn a Pump.fun creator-fee P
 | ✅ | Indexer ingestion for fees, rewards, NAV with paginated API. | Backend/Data |
 | ✅ | RewardsVault staking pool (stake/unstake/claim/fund, property tests). | Protocol Eng |
 | 🟡 | Frontend: wrap/split flow, portfolio + rewards dashboard wired to API. | Frontend |
-| 🟡 | Keeper daemon for rewards funding (Pump.fun `collect_fees` CPI backlog). | DevOps |
+| 🟡 | Keeper daemon for rewards financing (Pump.fun `collect_fees` CPI backlog). | DevOps |
 | ✅ | PT redemption logic (post-maturity), state cleanup. | Protocol Eng |
 | ❌ | AMM v0 design + implementation (fork Pendle math). | Protocol Eng |
 | ❌ | Redemption UI (claim YT, redeem PT). Notifications. | Frontend |

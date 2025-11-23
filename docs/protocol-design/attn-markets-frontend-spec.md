@@ -137,7 +137,7 @@
   - `GET /v1/markets/{id}` – detailed metrics, charts data.
   - `GET /v1/portfolio/{wallet}` – user positions, accrued yield, maturities.
   - `GET /v1/attnusd` – supply, APY, conversion history.
-  - `GET /v1/rewards` – rewards funding/claim events (paginated).
+  - `GET /v1/rewards` – rewards financing/claim events (paginated).
   - `GET /v1/rewards/{pool}` – pool detail (paginated events, totals).
   - `GET /v1/governance` – CreatorVault, StableVault, RewardsVault admin/pause snapshots (feed pause banner + tooltips).
   - `GET /v1/cto-status/{pumpToken}` – optional pump CTO tracking (if stored off-chain).

@@ -71,9 +71,9 @@ There are two relevant faces of “Hyperscale”:
 
 ### 2.1 What Hyperscale does
 
-- **Web3 funding:**  
-  - “Ultra-fast funding” for early Web3 projects.
-  - Crypto-native teams can apply in ~15 minutes and receive a funding decision within days.:contentReference[oaicite:7]{index=7}  
+- **Web3 financing:**  
+  - “Ultra-fast financing” for early Web3 projects.
+  - Crypto-native teams can apply in ~15 minutes and receive a financing decision within days.:contentReference[oaicite:7]{index=7}  
 
 - **Hedge fund / investment arm:**  
   - AI-driven hedge fund leveraging data to allocate capital.:contentReference[oaicite:8]{index=8}  
@@ -93,7 +93,7 @@ Hyperscale is a potential **downstream capital partner** for attn:
 - **As an investor in attn**
   - attn is infra + fixed-income for app/creator revenues.
   - Hyperscale invests in exactly such crypto infra and protocols.
-  - They can provide seed or growth funding, plus portfolio synergies.
+  - They can provide seed or growth financing, plus portfolio synergies.
 
 - **As a systematic LP / yield buyer**
   - attn creates YT and PT tranches across many revenue streams.
