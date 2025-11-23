@@ -180,9 +180,10 @@ Active borrowers: ${activeCreators.length}`;
               <h3 className="text-secondary font-semibold mb-2">How it works</h3>
               <ul className="space-y-1 text-sm">
                 <li>• <strong>Set up a revenue account:</strong> Point your protocol revenues or creator rewards into attn with no upfront commitment.</li>
-                <li>• <strong>Simulate funding capacity:</strong> See how much non-dilutive funding your recent revenues can support.</li>
-                <li>• <strong>Repay from income:</strong> When an advance or line is open, an agreed share of revenues auto-repays it first.</li>
-                <li>• <strong>Keep your token upside:</strong> No extra token emissions or OTC deals; you keep governance and supply.</li>
+                <li>• <strong>See your credit limit:</strong> attn estimates how much financing your recent revenues can support.</li>
+                <li>• <strong>Draw when needed:</strong> Open an advance or a revolving line in one transaction.</li>
+                <li>• <strong>Repay from income:</strong> While a position is open, an agreed share of revenues auto-repays it first.</li>
+                <li>• <strong>No token dilution:</strong> No emissions or OTC deals; you keep governance and supply.</li>
               </ul>
             </div>
 

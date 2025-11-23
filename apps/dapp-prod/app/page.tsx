@@ -176,7 +176,7 @@ Active borrowers: ${activeCreators.length}`;
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-            <Tooltip content="Total funding available for users to borrow against their on-chain revenue">
+            <Tooltip content="Total financing available for users to borrow against their on-chain revenue">
               <h3 className="text-sm text-text-secondary mb-2 cursor-help flex items-center">
                 Available Funding
                 <span className="ml-1 text-xs text-primary">ⓘ</span>

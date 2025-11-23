@@ -14,7 +14,7 @@ deployments or roll new vaults.
 
 > `rewards_vault` and `splitter` require ~3.1 SOL each for the upgradeable buffer. If
 > the wallet drops below that threshold, top it up via the devnet faucet or an
-> auxiliary funding wallet before redeploying.
+> auxiliary financing wallet before redeploying.
 > If Anchor errors while recreating the IDL account (already in use), re-run the
 > deploy with `anchor deploy --program-name rewards_vault --no-idl`.
 
@@ -65,7 +65,7 @@ cargo run -p attn_cli -- --url https://api.devnet.solana.com \
   --creator-vault F59VzNTJzwLHhEAMXdgcFSG7BAomEE9v2HthgERryV3G \
   --attn-mint 8sU4UNFCr4bVN79XDfKZuZGMUhSj6CvyCBQMETwkdzEv \
   --reward-bps 100 \
-  --allowed-funder <funding_wallet>
+  --allowed-funder <financing_wallet>
 
 cargo run -p attn_cli -- --url https://api.devnet.solana.com \
   rewards derive --creator-vault F59VzNTJzwLHhEAMXdgcFSG7BAomEE9v2HthgERryV3G
@@ -101,7 +101,7 @@ cargo run -p attn_cli -- --url https://api.devnet.solana.com rewards claim --cre
   can top up the deployer, —complete their CAPTCHA flow with
   `J4PNQ4BgbM5pJs8gkvfoDufaKQe8QdWZ9afTJLAGPZns` as the address.
 - Closing unused token accounts and demo mints returns rent (~0.002 SOL each). That’s
-  helpful for cleanup but not a substitute for buffer funding.
+  helpful for cleanup but not a substitute for buffer financing.
 
 Document any new program IDs, mints, or vault PDAs here as the devnet environment
 evolves.

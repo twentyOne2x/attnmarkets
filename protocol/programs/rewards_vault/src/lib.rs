@@ -1177,7 +1177,7 @@ mod tests {
 
     proptest! {
         #[test]
-        fn funding_vs_claims(actions in prop::collection::vec(action_strategy(), 1..64)) {
+        fn financing_vs_claims(actions in prop::collection::vec(action_strategy(), 1..64)) {
             let mut sim = Sim::new();
             for action in actions {
                 match action {

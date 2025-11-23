@@ -75,7 +75,7 @@ $ATTN_CLI split --market "$SPLIT_MARKET_ID" --amount "$WRAP_AMOUNT"
 
 $ATTN_CLI rewards stake --creator-vault "$CREATOR_VAULT" --attn-mint "$ATTN_MINT" --amount "$WRAP_AMOUNT"
 
-echo "💸 Funding rewards"
+echo "💸 financing rewards"
 solana transfer --allow-unfunded-recipient --with-compute-unit-price 1 "$REWARDS_ALLOWED_FUNDER" 1 >/dev/null
 $ATTN_CLI rewards fund --creator-vault "$CREATOR_VAULT" --amount 1000000 >/dev/null
 $ATTN_CLI rewards claim --creator-vault "$CREATOR_VAULT" >/dev/null

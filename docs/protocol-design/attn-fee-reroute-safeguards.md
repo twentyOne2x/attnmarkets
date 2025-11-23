@@ -17,7 +17,7 @@ attn cannot force new revenues to appear. Loss is reduced via per-asset custody,
 ### Pump.fun (per token; “creator rewards”)
 - **Per-token setting.** “Creator rewards” recipients are set **per token** at launch; claims require the creator signer.
 - **Per-token reassignment.** Later changes (e.g., CTO) are **per token**. There is no wallet-wide default.
-- **Financing implication.** Each financed Pump token must be rotated to a **Squads 2-of-2 Safe** (user+attn) or a **CreatorVault PDA** **before funding**.
+- **Financing implication.** Each financed Pump token must be rotated to a **Squads 2-of-2 Safe** (user+attn) or a **CreatorVault PDA** **before financing**.
 - **Residual risk.** A user can launch a new Pump token and steer activity there. The original token’s creator rewards can decay to zero.
 
 
@@ -37,7 +37,7 @@ attn cannot force new revenues to appear. Loss is reduced via per-asset custody,
 
 1) **Authority rotation (per asset)**
 - For Pump tokens, set the creator to **Squads 2-of-2** or a **CreatorVault PDA** before any advance/loan.
-- For DAO projects, ensure the **DAO Safe** is the admin/payee for product routers before funding.
+- For DAO projects, ensure the **DAO Safe** is the admin/payee for product routers before financing.
 - Withdrawals remain single-signer when `locked = false`.
 
 2) **Hard revenue sources**
