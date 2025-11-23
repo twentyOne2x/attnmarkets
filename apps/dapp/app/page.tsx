@@ -222,7 +222,7 @@ Active borrowers: ${activeCreators.length}`;
 
             <div className="space-y-3">
               <a 
-                href="/creator" 
+                href="/user" 
                 className="block w-full bg-secondary text-white py-3 rounded-xl font-semibold text-center hover:bg-secondary/90 transition-colors"
               >
                 {currentUserCreator 
