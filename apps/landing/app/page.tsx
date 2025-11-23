@@ -179,7 +179,7 @@ export default function Home(): React.JSX.Element {
       {/* Hero Section */}
       <section id="hero" className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
-          <div className="text-lg text-text-secondary mb-4">Revenue bank for apps, DAOs, and creators on Solana</div>
+          <div className="text-lg text-text-secondary mb-4">Revenue-backed credit lines on Solana</div>
           
           <h1
             className={`mt-8 sm:mt-10 text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold mb-8 leading-[1.05] sm:leading-[1.1] transition-all duration-1000 ${
@@ -873,7 +873,7 @@ export default function Home(): React.JSX.Element {
             </div>
           </div>
           <div className="text-center text-text-secondary text-xs sm:text-sm mt-8">
-            © 2025 attn.markets. Revenue bank for apps, DAOs, and creators on Solana.
+            © 2025 attn.markets. Revenue-backed credit lines on Solana.
           </div>
         </div>
       </footer>
