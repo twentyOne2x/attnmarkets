@@ -344,7 +344,7 @@ export default function Home(): React.JSX.Element {
               </div>
               <h3 className="text-lg sm:text-xl font-semibold mb-4">Connect revenues & get a limit</h3>
               <p className="text-text-secondary mb-4 text-sm sm:text-base">
-                Point your creator rewards or protocol fees to a revenue account and let attn estimate safe advance and credit line limits from your history.
+                Point your creator rewards or protocol fees to a revenue account, and let attn estimate your advance and credit-line limits from your revenue history.
               </p>
               <div className="bg-gray-800/30 rounded-lg p-3 text-xs sm:text-sm">
                 Connect income → Get limits → No obligation until you borrow
@@ -488,7 +488,7 @@ export default function Home(): React.JSX.Element {
                   </div>
                   <h4 className="font-semibold mb-2">Composability over time</h4>
                   <p className="text-text-secondary text-sm sm:text-base">
-                    As PT/YT rails open up, you can choose between diversified attnUSD exposure or specific revenue positions and structured strategies.
+                      As more rails open up, you can choose between diversified attnUSD exposure or specific revenue positions and structured strategies.
                   </p>
                 </div>
               </div>
@@ -554,7 +554,7 @@ export default function Home(): React.JSX.Element {
                   <div>
                     <h4 className="font-semibold mb-2">Exposure to real cashflows</h4>
                     <p className="text-text-secondary text-sm sm:text-base">
-                      attnUSD is backed by marked PT/YT positions and stablecoins. You see what drives yield and where credit risk sits, rather than guessing behind emissions.
+                      attnUSD is backed by revenue-backed positions and stablecoins. You see what drives yield and where credit risk sits, rather than guessing behind emissions.
                     </p>
                   </div>
                 </div>
@@ -725,7 +725,7 @@ export default function Home(): React.JSX.Element {
                 {openFAQs.has('lp-1') && (
                   <div className="px-4 sm:px-6 pb-4 sm:pb-6">
                     <p className="text-text-secondary text-sm sm:text-base">
-                      attnUSD is a USD-denominated share of a vault that holds a basket of stablecoins plus PT/YT positions backed by project revenues. Your yield comes from interest and fees on those revenue-backed positions and any underlying base yield, net of losses and costs.
+                      attnUSD is a USD-denominated share of a vault that holds a basket of stablecoins plus revenue-backed advances and credit lines. Your yield comes from interest and fees on those positions and any underlying base yield, net of losses and costs.
                     </p>
                   </div>
                 )}
