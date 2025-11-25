@@ -21,7 +21,7 @@
 ## Why now
 * Solana app revenues = $1.72B annually. (30d annualised, [DeFiLlama](https://defillama.com/app-revenue/chains))
 
-* Pump.fun creator rewards = $300M annually. (30d annualised, [revenues.wtf](https://revenues.wtf))
+* Pump.fun creator rewards = $300M annually. (30d annualised, [earnings.wtf](https://earnings.wtf))
    * The Web2 creator economy alone pays $30B annually to its creators (YouTube [$23B](https://blog.youtube/inside-youtube/2024-letter-from-neal/), OnlyFans [$5.32B](https://www.upmarket.co/blog/onlyfans-official-revenue-net-profit-creator-and-subscriber-data-updated-september-2024/), TikTok [$1.5B](https://www.fxcintel.com/research/press-releases/new-data-analysis-shows-tiktok-takes-77-cut-of-gift-payments-sent-to-creators), Twitch [$1B](https://blog.twitch.tv/en/2024/01/10/a-difficult-update-about-our-workforce/))
 
 -> These $2B miss out on the entire DeFi ecosystem
