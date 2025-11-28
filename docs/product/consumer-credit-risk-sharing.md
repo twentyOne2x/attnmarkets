@@ -10,7 +10,34 @@ Focus:
 
 ---
 
-## 1. Why start with watches (Patek, Rolex, RM) and 3-month BNPL
+## 1. Web2 BNPL baseline (how risk usually works)
+
+In most Web2 BNPL schemes:
+
+- The **merchant is paid upfront in full** (minus a merchant discount fee).
+- The **BNPL provider holds consumer credit and fraud risk** and collects instalments over time.
+- The merchant pays a **take rate** (often higher than card interchange) to fund:
+  - expected credit losses,
+  - operating costs,
+  - and BNPL provider margin.
+
+Examples (for reference in implementation, not for marketing copy):
+
+- Many BNPL providers describe that they:
+  - run credit checks,
+  - pay merchants upfront,
+  - and **often assume all credit and fraud risk** while charging the merchant a fee  
+    (see e.g. checkout.com’s explainer on BNPL economics: [Checkout.com](https://www.checkout.com/resources/learn/buy-now-pay-later-explained)).
+- Klarna-style merchant docs emphasise that merchants are paid quickly and Klarna handles instalments, collections, and defaults while charging a merchant fee  
+  (see e.g. business overviews like [Klarna for Business](https://www.klarna.com/business/)).
+- Affirm-style merchant docs emphasise that the merchant is paid upfront, and Affirm manages consumer repayment and related credit risk in exchange for a merchant discount rate  
+  (see e.g. [Affirm for merchants](https://www.affirm.com/business)).
+
+attn’s watch BNPL integration should mirror this **“merchant gets paid, BNPL engine carries consumer risk”** pattern where it makes sense, but also allow variants where the retailer keeps some first-loss exposure.
+
+---
+
+## 2. Why start with watches (Patek, Rolex, RM) and 3-month BNPL
 
 Luxury watches are a good pilot vertical:
 
@@ -34,18 +61,18 @@ Ticket goal:
 
 ---
 
-## 2. Price anchors – Patek 5711, Rolex Submariner, Richard Mille
+## 3. Price anchors – Patek 5711, Rolex Submariner, Richard Mille
 
 We pick concrete, recognisable references as **anchors**, using current secondary-market data from watch-analytics and dealer sites. Prices below are approximate late-2025 secondary ranges, not AD retail, and meant only as **modelling levels**.
 
-### 2.1 Patek Philippe – Nautilus 5711/1A
+### 3.1 Patek Philippe – Nautilus 5711/1A
 
 - Reference: **Patek Philippe Nautilus 5711/1A-010** (steel, blue dial).
 - Original retail (when in production): ≈\$34,890.  
-  Source: [WatchCharts](https://watchcharts.com/watch/patek-philippe/5711-1a-010).
+  Source: [WatchCharts 5711 reference page](https://watchcharts.com/watch/patek-philippe/5711-1a-010).
 - Current secondary “market value” and listing ranges:
   - WatchCharts “estimated market value” for 5711/1A sits around **\$100k+**.  
-    [WatchCharts 5711 index](https://watchcharts.com/).
+    [WatchCharts Patek index](https://watchcharts.com/brand/patek-philippe).
   - Large dealers (e.g. Bob’s Watches) and Chrono24 show many standard blue-dial 5711/1A pieces asking roughly **\$90,000–\$140,000** depending on year, condition, and set (box/papers).  
     [Bob’s 5711 guide](https://www.bobswatches.com/), [Chrono24 5711 listings](https://www.chrono24.com/patekphilippe/ref-5711-1a-010.htm).
 
@@ -54,7 +81,7 @@ We pick concrete, recognisable references as **anchors**, using current secondar
 - Treat a “typical” 5711/1A as **\$100k–\$120k** ticket.
 - For examples, use **\$100k** as a clean round figure.
 
-### 2.2 Rolex – Submariner (modern steel)
+### 3.2 Rolex – Submariner (modern steel)
 
 - Iconic line: **Rolex Submariner**, especially modern steel ceramic-bezel refs:
   - No-date: 124060.
@@ -72,7 +99,7 @@ We pick concrete, recognisable references as **anchors**, using current secondar
 - “Standard steel Sub” as **\$12k–\$15k** ticket.
 - For examples, use **\$15k** as round number.
 
-### 2.3 Richard Mille – RM 011 / RM 11-03 / RM 35-02
+### 3.3 Richard Mille – RM 011 / RM 11-03 / RM 35-02
 
 Richard Mille has many limited references; we use the “iconic” chronograph / sports cluster as modelling anchors:
 
@@ -83,7 +110,7 @@ Richard Mille has many limited references; we use the “iconic” chronograph /
 Indicative secondary-market levels:
 
 - Brand-wide average on WatchCharts is roughly **\$268k per RM**.  
-  [WatchCharts brand page](https://watchcharts.com/brand/richard-mille).
+  [WatchCharts Richard Mille brand page](https://watchcharts.com/brand/richard-mille).
 - RM 011:
   - Chrono24 shows many RM 011 pieces listed from **\$150k+** up to **\$300k–\$600k+** for rarer editions.  
     [Chrono24 RM 011 listings](https://www.chrono24.com/richardmille/rm-011--mod1340.htm).
@@ -104,7 +131,7 @@ Indicative secondary-market levels:
 
 ---
 
-## 3. Roles and exposures
+## 4. Roles and exposures
 
 - **Retailer (watch shop)**:
   - Sells watches, offers BNPL at checkout.
@@ -126,9 +153,9 @@ Indicative secondary-market levels:
 
 ---
 
-## 4. Baseline: retailer holds 100% consumer risk, attn only funds B2B
+## 5. Baseline: retailer holds 100% consumer risk, attn only funds B2B
 
-### 4.1 Setup
+### 5.1 Setup
 
 - Retailer offers 3-month BNPL to customers.
 - Retailer bears all **consumer default / fraud** risk.
@@ -148,11 +175,11 @@ This is a “minimal integration” option: no change to attn risk stack, easy t
 
 ---
 
-## 5. Shared risk: retailer + attn share consumer default risk
+## 6. Shared risk: retailer + attn share consumer default risk
 
 Goal: allow retailer to **offload part of the consumer risk**, but keep strong alignment.
 
-### 5.1 Notation
+### 6.1 Notation
 
 For a given BNPL **pool** (e.g. all watch BNPL contracts originated in a month):
 
@@ -168,14 +195,16 @@ For a given BNPL **pool** (e.g. all watch BNPL contracts originated in a month):
   \[
   N = \sum_i EAD_i
   \]
+  where \(N\) is the total **exposure at default** across all BNPL contracts.
 - **Expected loss** on the pool:  
   \[
   EL = \sum_i PD_i \cdot LGD_i \cdot EAD_i
   \]
+  where \(EL\) is the modelled **expected loss** in currency units.
 - **Loss random variable**:  
   \(L\) denotes the realised loss on the pool (unknown ex-ante; we model its distribution).
 
-### 5.2 Three-tranche structure
+### 6.2 Three-tranche structure
 
 We can structure risk as three layers on \(N\):
 
@@ -203,7 +232,7 @@ We can structure risk as three layers on \(N\):
      where \(\alpha_{\text{MEZ}}\) might be, for example, 10–20%.
    - attn absorbs losses in the band:
      \[
-     \max(0, L - F) \quad \text{up to} \quad M
+     \max(0, \min(L - F, M))
      \]
    - Economics:
      - This tranche is higher risk than senior, lower than pure first-loss.
@@ -231,7 +260,7 @@ Tranche waterfall for realised loss \(L\):
 3. Senior:  
    \(\text{Loss}_{\text{senior}} = \max(L - F - M, 0)\).
 
-### 5.3 How much risk each party holds
+### 6.3 How much risk each party holds
 
 - Retailer first-loss **percentage of pool**: \(\alpha_{\text{FL}}\).
 - attn mezzanine **percentage of pool**: \(\alpha_{\text{MEZ}}\).
@@ -251,11 +280,11 @@ We choose \(\alpha_{\text{FL}}, \alpha_{\text{MEZ}}\) so that:
 
 ---
 
-## 6. Case 3: attn (and partners) take 100% consumer risk
+## 7. Case 3: attn (and partners) take 100% consumer risk
 
 In some scenarios, retailers may want **zero consumer risk**.
 
-### 6.1 Structure
+### 7.1 Structure
 
 - Retailer sells watch at price \(P\).
 - At checkout, BNPL contract is originated into an SPV / pool.
@@ -272,14 +301,14 @@ Risk profile:
     - full tranche stack (first-loss + mezz + senior), or
     - some part plus external investors.
 - To avoid **misaligned incentives**, retailer must:
-  - retain some risk **indirectly** (see Section 8),
+  - retain some risk **indirectly** (see Section 9),
   - or face strong contractual and reputational penalties for bad origination.
 
 This is essentially **buy-now-pay-later factoring** of consumer receivables.
 
 ---
 
-## 7. Numerical examples (3-month BNPL)
+## 8. Numerical examples (3-month BNPL)
 
 Assume:
 
@@ -287,7 +316,7 @@ Assume:
 - No interest charged to customer (0% BNPL) – retailer pays discount/fee.
 - Assume negligible recovery (conservative), so LGD ≈ 100% if default, after fees.
 
-### 7.1 Example A – Rolex Submariner (~\$15k)
+### 8.1 Example A – Rolex Submariner (~\$15k)
 
 - Watch: modern steel Rolex Submariner (e.g. 126610LN).
 - Ticket: \(P = \$15{,}000\).
@@ -323,11 +352,7 @@ If the consumer fully defaults (no recovery):
 - attn mezz loss: \(\min(\max(15,000 - 1,500, 0), 2,250) = 2,250\).
 - Senior loss: \(15,000 - 1,500 - 2,250 = \$11,250\).
 
-In practice, we would rarely let senior take this much risk on a **single** exposure; real pools would have many contracts and loss rates well below 100%. But the example shows:
-
-- Retailer holds **10% first-loss**.
-- attn holds **15% mezz**.
-- Senior/insured layer holds **75%**.
+In practice, senior risk would be diversified across many contracts and vintages; this single-contract view is only for intuition.
 
 #### Case A3 – attn (and partners) take 100% risk
 
@@ -338,7 +363,9 @@ In practice, we would rarely let senior take this much risk on a **single** expo
 
 Retailer’s consumer loss exposure: **0%**.
 
-### 7.2 Example B – Patek Nautilus 5711 (~\$100k)
+---
+
+### 8.2 Example B – Patek Nautilus 5711 (~\$100k)
 
 - Watch: Patek Philippe Nautilus 5711/1A-010.
 - Ticket: \(P = \$100{,}000\) (modelling a mid-range current secondary value).
@@ -363,15 +390,16 @@ For one 5711-equivalent exposure:
 - \(M = 20\% \cdot 100{,}000 = \$20{,}000\).
 - \(S = 70\% \cdot 100{,}000 = \$70{,}000\).
 
-Loss outcomes:
+Loss outcomes if consumer fully defaults:
 
-- If consumer fully defaults (no recovery):
-  - Retailer loss: \$10k.
-  - attn loss: \$20k.
-  - Senior loss: \$70k.
-- If only 10% of this exposure (equivalently 10% of a large pool) defaults:
-  - Expected loss pool-wide ≈\$10k,
-  - Entirely absorbed by retailer first-loss.
+- Retailer loss: \$10k.
+- attn loss: \$20k.
+- Senior loss: \$70k.
+
+If only 10% of this exposure (equivalently 10% of a large pool) defaults:
+
+- Pool-level expected loss ≈\$10k,
+- Entirely absorbed by retailer first-loss.
 
 #### Case B3 – attn (and partners) take 100% risk
 
@@ -379,7 +407,9 @@ Loss outcomes:
 - SPV/attn holds full consumer receivable.
 - Retailer consumer credit risk: 0%.
 
-### 7.3 Example C – Richard Mille (~\$300k) and high-ticket up to \$1m
+---
+
+### 8.3 Example C – Richard Mille (~\$300k) and high-ticket up to \$1m
 
 - Watch: Richard Mille RM 011 / RM 11-03 / RM 35-02 style piece.
 - Ticket: \(P = \$300{,}000\) (modelling a mid-range RM).  
@@ -410,7 +440,7 @@ If consumer fully defaults:
 - attn loss: \$75k (25%).
 - Senior loss: \$195k (65%).
 
-For pool-level modelling, we choose \(\alpha_{\text{FL}}, \alpha_{\text{MEZ}}\) so that:
+For pool-level modelling, choose \(\alpha_{\text{FL}}, \alpha_{\text{MEZ}}\) so that:
 
 - Typical loss rates (\(EL/N\)) are safely inside retailer + attn tranches.
 - Senior tranche sees a very small probability of loss.
@@ -422,11 +452,11 @@ For a very high-end RM or similar piece at **\$1,000,000**:
 - Retailer sells the watch with 3-month BNPL.
 - SPV/attn pays retailer \$1m upfront (less discount).
 - Full consumer risk sits in the SPV structure.
-- Risk is distributed via tranches (F/M/S) and potentially hedged (see Section 9).
+- Risk is distributed via tranches (F/M/S) and potentially hedged (see Section 10).
 
 ---
 
-## 8. Guardrails against retailer “dumping bad customers” on attn
+## 9. Guardrails against retailer “dumping bad customers” on attn
 
 If attn takes **significant or 100%** consumer risk, we need to prevent retailers from:
 
@@ -457,7 +487,7 @@ Mitigations:
        - shrinks the retailer’s BNPL capacity, or
        - increases required first-loss share, or
        - suspends them altogether.
-   - This mimics how Web2 BNPL providers adjust merchant terms based on performance.
+   - Mirrors how Web2 BNPL providers adjust merchant terms based on performance.
 
 4. **Monitoring and covenants**
 
@@ -477,7 +507,7 @@ Mitigations:
 
 ---
 
-## 9. How attn can hedge or redistribute consumer BNPL risk
+## 10. How attn can hedge or redistribute consumer BNPL risk
 
 If attn takes significant consumer risk (mezz or full stack), hedging / distribution options include:
 
@@ -528,7 +558,7 @@ If attn takes significant consumer risk (mezz or full stack), hedging / distribu
 
 ---
 
-## 10. Summary comparison table – who holds the consumer risk?
+## 11. Summary comparison table – who holds the consumer risk?
 
 For a single BNPL transaction (e.g. 3-month BNPL for a \$100k Nautilus 5711):
 
@@ -549,7 +579,7 @@ For a **\$300k RM** or **\$1m** ticket, the same table applies; only the absolut
 
 ---
 
-## 11. Where this sits in attn’s product roadmap
+## 12. Where this sits in attn’s product roadmap
 
 - Early phases:
   - Focus on **B2B credit** to protocols, platforms, and services (RPCs, wallets, infra, etc.).
