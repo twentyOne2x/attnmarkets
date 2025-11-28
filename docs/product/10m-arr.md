@@ -1,410 +1,481 @@
-# attn.markets TVL, ARR & Verticals  
-_MetaDAO treasuries, Pump.fun creator flows, and borrower pricing (6–8–12%)_
+# attn ARR & TVL Path – Pump.fun, MetaDAO, B2B
 
-This note reframes the TVL / ARR plan to:
+Goal: make the TVL and ARR ceiling less hand-wavy by:
 
-- Respect borrower pricing bands of roughly **6% / 8% / 12% APR** (Tier A/B/C).
-- Add **Pump.fun** as a short-tenor, cash-advance vertical.
-- Clarify **cash-advance vs revolving line pricing**.
-- Show what a **$10m ARR** target realistically implies.
-- Address distribution concerns vs Avici, Krak, etc.
+- treating **Pump.fun creator rewards** as a dedicated cash-advance + autostaking wedge,
+- adding **MetaDAO-style treasury-backed facilities**,
+- layering **B2B revenue-backed credit** and **high-ticket BNPL (watches)**,
+- and showing concrete paths to **$1m** and **$10m** protocol ARR.
 
 ---
 
-## 1. Pricing guardrails
+## 1. Core assumptions and notation
 
-You want to keep borrower headline pricing in a sane band, not 18%+.
+### 1.1 Global notation
 
-Assume three risk tiers at facility level:
+- \( R_{\text{pump}} \): annual Pump.fun creator rewards ([earnings.wtf)](https://earnings.wtf):  
+  - baseline \( R_{\text{pump}}^{\text{base}} = \$150m \)  
+  - upside \( R_{\text{pump}}^{\text{max}} = \$300m \)
+- \( s \): share of that flow financed via attn cash advances (0–1).
+- \( f \): **flat factor fee** on each advance (e.g. 0.10 = 10%).
+- \( \alpha_{\text{margin}} \): protocol share of gross credit revenue after LP yield + expected losses.  
+  Working assumption: \( \alpha_{\text{margin}} \approx 35\% \)  
+  (in line with a book where borrowers pay ~9–10% blended, LPs earn ~4–5%, losses ~1–2%).
 
-- **Tier A (best)** – 6% APR target  
-- **Tier B (mid)** – 8% APR target  
-- **Tier C (riskier tail)** – 12% APR target  
+For staking:
 
-This is for:
+- \( B_{\text{idle}} \): average idle balance sitting in a revenue account.
+- \( y_{\text{SOL}} \): base SOL staking yield (assume 6%).
+- \( \alpha_{\text{stake}} \): protocol take rate on staking yield (assume 8%).
 
-- RCAs (cash advances) with **30–120 day** effective tenors.
-- RRCLs (revolving credit lines) where utilisation over the year gives a similar IRR.
+For MetaDAO-like facilities:
 
-For **very short-tenor micro-advances** (e.g. 7–14 days to Pump.fun creators):
+- \( N_{\text{meta}} \): number of projects using attn credit.
+- \( T \): average treasury per project (assume \$1m).
+- \( \lambda_{\text{LTV}} \): credit limit as % of treasury (assume 20%).
+- \( u \): average utilisation of the limit (assume 50%).
+- \( r_b \): borrower APR on the line (assume 10%).
 
-- You quote **flat fees** rather than headline APR (e.g. 0.5–1.5% on a 7–14 day bridge).
-- Internally, you still monitor **annualised IRR** and keep the **portfolio average** in the 6–12% band.
-- Individual micro-advances can annualise higher, but the *book* should not drift into predatory territory.
+For B2B:
 
-LP side:
+- \( N_{\text{b2b}} \): number of B2B clients.
+- \( E_{\text{b2b}} \): average outstanding per client.
 
-- Target stablecoins → **4–6% net** after losses, depending on vault and tenor.
-- This implies an attn “spread” on deployed credit of **~2–5%** (borrower APR minus LP yield), depending on segment.
+For watches BNPL:
 
-If average borrower APR ≈ 9–10% and average LP yield ≈ 4–5%, then:
+- \( W \): annual financed volume of watches.
+- \( \phi_{\text{BNPL}} \): merchant fee as % of ticket (assume 6%; within typical BNPL merchant fees of roughly 2–8%).
 
-- Protocol spread ≈ **4–5% on average deployed credit**.
-
-This is what we use below to back out ARR vs TVL.
-
----
-
-## 2. MetaDAO: treasury-driven credit is small but real
-
-For MetaDAO-type cohorts:
-
-- Typical fundraise: **$500k–$2m** into a **Squads treasury**.
-- Typical burn: **$40k–$100k/month**.
-- 12–18 months of runway is common.
-
-Even if revenues are **zero** early on, the treasury + burn constraints in Squads give you a controlled environment to lend against:
-
-- You know:
-  - current balance,
-  - burn,
-  - available runway,
-  - that funds are gated by governed spending rules.
-
-A conservative treasury-backed line per project:
-
-- Let:
-  - \( B \) = treasury balance (e.g. $1m),
-  - \( \text{burn} \) = monthly burn (e.g. $60k),
-  - runway = \( B / \text{burn} \) (≈ 16.7 months),
-  - haircut × LTV on “excess runway” = e.g. 0.2 (20%).
-
-Example:
-
-- \( B = 1\,000\,000 \), \( \text{burn} = 60\,000 \), 12-month minimum runway:
-  - excess runway months ≈ 4.7,
-  - excess dollars ≈ \( 4.7 \times 60\,000 \approx 282\,000 \),
-  - capacity at 20% haircut×LTV ≈ **$56k** per project.
-
-If you stretch to a bit less conservative (as in your earlier rough maths):
-
-- Straight 0.2 × 12-month burn = \( 0.2 \times 12 \times 60\,000 \approx 144\,000 \) capacity.
-
-Realistic range:
-
-- **$50k–$150k** per MetaDAO project, depending on:
-  - treasury level,
-  - runway constraints,
-  - how aggressive you are.
-
-If:
-
-- 100 MetaDAO projects,
-- 50% of them actively use lines,
-- average utilisation = 50% of capacity,
-
-then with e.g. $100k capacity per project you get:
-
-- Effective deployed per project ≈ $50k,
-- Deployed across 50 projects ≈ **$2.5m**.
-
-Even if you are more aggressive and get to:
-
-- 100 projects × \$100k deployed = **$10m**,
-
-that is still **small** in absolute TVL terms. So MetaDAO treasury-backed credit is **useful but not enough** alone.
+All dollar amounts below are quoted as **$Xk / $Xm**.
 
 ---
 
-## 3. Pump.fun creator revenues: cash-advance wedge
+## 2. Pump.fun creator cash advances
 
-### 3.1 What Pump.fun pays creators (order of magnitude)
+### 2.1 Cash-advance mechanics
 
-Mechanics:
+For Pump.fun, treat credit as **invoice-style cash advances** against near-term creator rewards:
 
-- Pump.fun charges **1% swap fee** on trades and a listing fee when tokens “graduate”.   
-- A portion of the fee (often quoted as **0.05–0.3% of trading volume**) is shared with creators/streamers.   
+- Borrower: creator with **already-accrued or very near-term** Pump.fun rewards.
+- Advance: attn buys a slice of those rewards at a **flat factor fee** \( f \) (5–15%).
+- Tenor: short (days–weeks), but the fee is **non-annualised**, like merchant cash advances.
 
-Empirical numbers:
+Core formulas:
 
-- TokenDispatch reported Pump.fun distributing **$3m to creators in three weeks** early in the revenue-share program.   
-- Axios later reported that creators have claimed **$21m in fees in a single week** at peak activity.   
+- **Financed volume per year**  
+  \[
+  V_{\text{pump}} = R_{\text{pump}} \cdot s
+  \]
+- **Gross factor revenue per year**  
+  \[
+  G_{\text{pump}} = V_{\text{pump}} \cdot f
+  \]
+- **Protocol ARR from factor fees**  
+  \[
+  \Pi_{\text{pump, factor}} = \alpha_{\text{margin}} \cdot G_{\text{pump}}
+  \]
 
-Rough implication:
+Where \(\alpha_{\text{margin}}\) is the share that ends up as protocol revenue (rest = LP yield + expected loss + ops).
 
-- Even if that $21m/week is a spike, it shows that creator rewards can be at **hundreds of millions per year** on a run-rate basis (e.g. 50–200m+ annualised is plausible, depending on volume regime).
+### 2.2 Do 5–15% flat factor rates make sense?
 
-So your “~$300m annualised” mental model is not crazy as a *growth scenario*; current public data suggests:
+In Web2, **merchant cash advances (MCAs)** charge:
 
-- “Steady-state” / normalised might be **$50–200m/year**,
-- Peak regimes can be **$1b+ annualised** if the $21m/week level is sustained.
+- **factor rates** typically in the **1.1–1.5** range (10–50% fees on the advance), not annualised,  
+- on terms of a few months to a year, yielding **effective APRs that can easily exceed 40–100+%**.  
 
-### 3.2 How much of that can attn reasonably finance?
-
-Let:
-
-- \( R_{\text{year}} \) = annual creator rewards (USD) actually flowing onchain.
-- Suppose effective \( R_{\text{year}} \) ≈ **$150m** as a conservative mid-case.
-
-Define:
-
-- \( f_{\text{penetration}} \): fraction of all creator rewards that ever get financed via attn (e.g. 10–30%).
-- \( T \): average advance tenor (days) – for Pump.fun you expect **very short**, e.g. 7–30 days.
-
-If an advance is basically “I sell the next \(T\) days of my creator rewards”, then average outstanding notional is:
+Using the usual APR approximation for a flat fee:
 
 \[
-\text{Outstanding} \approx f_{\text{penetration}} \cdot R_{\text{year}} \cdot \frac{T}{365}
+\text{APR} \approx f \cdot \frac{365}{\text{tenor (days)}}
 \]
 
 Examples:
 
-1. **Low penetration, very short tenor**  
-   - \( R_{\text{year}} = 150m \)  
-   - \( f_{\text{penetration}} = 10\% \)  
-   - \( T = 7 \) days  
-   ⇒ Outstanding ≈ \( 0.1 \times 150m \times 7/365 \approx \$2.9m \).
+- 10% factor over 30 days ⇒ APR ≈ \(0.10 \cdot \frac{365}{30} \approx 122\%\).
+- 5% factor over 60 days ⇒ APR ≈ \(0.05 \cdot \frac{365}{60} \approx 30\%\).
+- 10% factor over 90 days ⇒ APR ≈ \(0.10 \cdot \frac{365}{90} \approx 41\%\).
 
-2. **Moderate penetration, 30-day tenor**  
-   - \( f_{\text{penetration}} = 20\% \), \( T = 30 \)  
-   ⇒ Outstanding ≈ \( 0.2 \times 150m \times 30/365 \approx \$2.5m \).
+So:
 
-3. **Aggressive penetration, 30-day tenor, higher R**  
-   - \( R_{\text{year}} = 300m \), \( f_{\text{penetration}} = 30\% \), \( T = 30 \)  
-   ⇒ Outstanding ≈ \( 0.3 \times 300m \times 30/365 \approx \$7.4m \).
+- **Envelope 5–15% factor is realistic** for high-risk, short-tenor advances (similar to MCAs).
+- To avoid predatory optics:
+  - stay at the **low end of the band (5–8%)** for tenors ≲60 days,
+  - reserve **10–15%** for:
+    - longer tenors (60–90 days) or
+    - extremely volatile / high-risk creators.
 
-Conclusion:
+You can also publish the **effective APR bands** in docs to keep it honest, even if the UI speaks in flat fees.
 
-- Even with aggressive adoption, **Pump.fun cash advances are likely a single-digit-millions TVL vertical** on Solana.  
-- But they are **short-tenor, high-turnover** and can be **high-yield** within your 6–12% APR band, so they punch above their weight in ARR relative to TVL.
+### 2.3 Pump.fun: profits from factor fees alone
 
----
+Baseline:  
+\( R_{\text{pump}}^{\text{base}} = \$150m \), \( \alpha_{\text{margin}} = 35\% \).
 
-## 4. Product shape: cash advances vs lines (and pricing)
+Illustrative combinations:
 
-### 4.1 Cash advances (RCAs) – per YT / per invoice
+| Share of Pump flow financed \(s\) | Factor fee \(f\) | Financed volume \(V_{\text{pump}}\) | Gross factor revenue \(G_{\text{pump}}\) | Protocol share (35%) \(\Pi_{\text{pump, factor}}\) |
+|----------------------------------|------------------|--------------------------------------|------------------------------------------|----------------------------------------------------|
+| 5%                               | 5%               | \$7.5m                               | \$0.38m                                  | \$0.13m                                            |
+| 5%                               | 10%              | \$7.5m                               | \$0.75m                                  | \$0.26m                                            |
+| 10%                              | 10%              | \$15m                                | \$1.50m                                  | \$0.53m                                            |
+| 20%                              | 10%              | \$30m                                | \$3.00m                                  | \$1.05m                                            |
+| 20%                              | 15%              | \$30m                                | \$4.50m                                  | \$1.57m                                            |
 
-Use case:
+So **Pump cash advances alone** can plausibly contribute between **\$0.1m–\$1.5m+** of protocol ARR depending on penetration and factor.
 
-- A Pump.fun or creator economy user sells a **slice of future creator rewards** (a YT strip) for cash today.
-- A MetaDAO project sells a **specific invoice / revenue event** (e.g. a launchpad payout, a campaign payout).
-
-Characteristics:
-
-- Short tenor (7–60 days typical; 90 max for safer names).
-- Self-liquidating from that specific stream.
-- Lumpy and episodic.
-
-Pricing guideline:
-
-- Aim for **effective APR in 8–12% band** for “normal” deals.
-- Express to users as **simple fee** on the notional, based on tenor:
-
-  - 30-day Tier B advance at 8% APR → fee ≈ 8% × 30/365 ≈ **0.66%**.
-  - 30-day Tier C advance at 12% APR → fee ≈ 12% × 30/365 ≈ **0.99%**.
-
-For very short advances (e.g. 7 days), fee can look small in absolute terms but large annualised:
-
-- 7-day advance with 0.25% fee → APR ≈ 0.25% × 365/7 ≈ 13%.  
-- You can set internal guardrails like:
-  - “For tenors < 14 days we cap fee so that implied APR ≤ 15–18%, unless explicitly justified.”
-
-You can *optionally* charge slightly higher fee percentages on **one-off RCAs** vs longer, reusable lines (see below), while still keeping APR within or near the 6–12% band on typical tenors.
-
-### 4.2 Revolving lines (RRCLs) – across multiple YTs / months
-
-Use case:
-
-- A MetaDAO project or more mature protocol with recurring revenue wants a **reusable line**.
-- A top Pump.fun creator with sustained volume wants a **rolling limit** based on trailing rewards (not just one token).
-
-Characteristics:
-
-- Limit \( L_{\max} \) sized via your Section 3.4 logic (stressed revenue, utilisation, horizon).
-- Utilisation floats over time; each draw behaves like a small RCA slice.
-- Better names, more data, more diversification → treat as lower risk than one-off RCAs.
-
-Pricing guideline:
-
-- Tier A line: **6% APR** target.
-- Tier B line: **8% APR**.
-- Tier C line: **10–12% APR** (but try to reserve 12% for genuinely noisy, risky books).
-
-Borrowers get:
-
-- Better pricing for sticking to a relationship product (line) and routing multiple YTs / revenue streams into it.
-- A simpler UX: “Your line is 100k at 8% APR; here’s your monthly minimum if fully drawn.”
-
-You still structure each draw as an internal YT slice (for Exponent/PT–YT bookkeeping), but user sees a single line product.
-
-### 4.3 Relative pricing: “higher %” on one-off RCAs
-
-Putting it together:
-
-- **One-off RCAs**:
-  - Slightly higher fee per unit time,
-  - Very flexible, per-stream,
-  - Good for Pump.fun bursts, single campaigns, invoices.
-
-- **RRCLs**:
-  - Better APR,
-  - Require more history, K-factors (tier A/B), and more robust revenue streams,
-  - Good for MetaDAO cohort, more mature apps, multi-month creator income.
-
-This matches your intuition: **sell a single YT slice → more expensive; aggregate into a revolving facility → cheaper**.
+Note: this is **before** staking fee revenue on idle balances.
 
 ---
 
-## 5. ARR math: what does $10m look like?
+## 3. Pump.fun autostaking fee
 
-Assume you keep average **borrower APR ≈ 9–10%**, LPs get **4–5%**, and attn’s net spread is:
+Assume:
 
-- Protocol spread ≈ **4–5%** on average deployed credit.
+- creator rewards accumulate in attn revenue accounts,
+- idle SOL (or SOL-denominated assets) is automatically staked at **6% base yield**,
+- attn takes **8% of the yield** as a fee (creator keeps 92%).
 
-Then:
+Protocol staking fee rate:
 
-- \( \text{ARR}_{\text{attn}} \approx \text{Deployed} \times \text{spread} \).
+\[
+\alpha_{\text{stake}} \cdot y_{\text{SOL}} = 0.08 \cdot 0.06 = 0.0048 \; (0.48\% \text{ per year})
+\]
 
-To reach **$10m ARR** to attn on a stable basis:
+For an average idle balance \( B_{\text{idle}} \):
 
-- If spread = 4% → need **$250m** average deployed.
-- If spread = 5% → need **$200m** average deployed.
-
-Given MetaDAO + Pump.fun alone are unlikely to exceed **$20–30m** deployed in the near term, you should think of:
-
-- **Phase 1** – prove product/credit with:
-  - MetaDAO cohort (treasury-backed + early revenue),
-  - Pump.fun + similar creator flows (short-tenor RCAs),
-  - a few other Solana-native revenue verticals (DEX fees, infra).
-
-  Realistic target: **$10–30m deployed**, yielding **$0.4–1.5m ARR** at 4–5% spread.
-
-- **Phase 2** – expand to:
-  - EVM projects via wrapped attn vaults,
-  - B2B SaaS-like revenues,
-  - card/BNPL platforms as B2B borrowers (entity-level credit behind their consumer products).
-
-  Target: **$50–100m deployed**, **$2–5m ARR** to attn.
-
-- **Phase 3** – if you become the default revenue-credit engine across ecosystems:
-  - Dozens of major protocols / platforms integrating attn as wholesale lender.
-  - Aggregated deployed **$200m+**, enabling **$8–10m+ ARR**.
-
-The key point: **$10m ARR** is a Phase-3 outcome that requires **being plugged into multiple big revenue pipes**, not just MetaDAO and Pump.fun.
-
----
-
-## 6. Distribution and competition vs Avici, Krak, etc.
-
-You are correctly worried that:
-
-- Avici, Krak, and other neobanks / card players might **build their own credit** for their primary users.
-- attn risks becoming **“last resort lender”** if those platforms vertically integrate credit.
-
-There are three answers here:
-
-### 6.1 Pick verticals where they are unlikely to compete directly
-
-- **MetaDAO**:
-  - Onchain governance, Squads treasuries, Futarchy, etc.  
-  - This is idiosyncratic; a Kraken or Avici is unlikely to build “MetaDAO-specific revenue + treasury credit” infra.
-
-- **Pump.fun** and similar high-velocity onchain creator flows:
-  - Regulatory and reputational risk is high, as Le Monde and others have noted .  
-  - Many retail-facing neobanks may not want direct exposure to this segment.
-  - You can be a **specialist, risk-aware lender** here, with narrow, well-defined exposure limits.
-
-- **Narrow B2B ecosystems**:
-  - RPCs, infra providers, wallets with clear onchain revenue PDAs.
-  - This is bespoke, small but high-margin. Generalist neobanks are unlikely to bother.
-
-If you anchor yourself in these “weird but high-signal” segments first, you become **the default specialist**.
-
-### 6.2 Offer to be the wholesale engine, not the UX
-
-Position attn as:
-
-- A **B2B revenue-credit rail** under Avici/Krak/Slash, not a competing consumer app.
+\[
+\Pi_{\text{pump, stake}} = 0.0048 \cdot B_{\text{idle}}
+\]
 
 Examples:
 
-- Avici / Krak can:
-  - Keep all **consumer credit risk** (overdrafts, personal lines) for now.
-  - Use attn only for **entity-level credit** to:
-    - high-trust DAOs,
-    - fintech partners,
-    - ecosystem projects whose onchain revenue attn underwrites.
+| Average idle balance \(B_{\text{idle}}\) | Protocol staking fee (0.48% p.a.) |
+|------------------------------------------|-----------------------------------|
+| \$25m                                    | \$0.12m                           |
+| \$50m                                    | \$0.24m                           |
+| \$100m                                   | \$0.48m                           |
+| \$150m                                   | \$0.72m                           |
 
-- You provide:
-  - limit sizing,
-  - coverage tests,
-  - PT/YT and attnUSD infrastructure,
-  - backstop capital.
+Interpretation:
 
-They get:
-
-- An **off-balance-sheet** way to offer deeper credit to key B2B / community partners without re-building your infra.
-
-You can further sweeten distribution with:
-
-- Revenue-sharing on spread or protocol fees.
-- White-label endpoints (“/revenue-credit-limit”) so they never need to show attn branding.
-
-### 6.3 Make attnUSD a useful asset *for them*
-
-If attnUSD is:
-
-- A credible, low-vol, revenue-backed USD share token,
-- With open analytics and short average duration,
-
-then:
-
-- Avici-style DAOs, Krak treasury desks, MetaDAO treasuries etc. can:
-  - hold attnUSD as a **yield sleeve**,
-  - or use it as **collateral** elsewhere,
-  - which creates pull for your product.
-
-Distribution then looks like:
-
-- “We will underwrite your key B2B partners’ revenues”  
-  + “You can park excess treasury or savings in attnUSD with known duration and risk.”
-
-This is closer to **wholesale funding + structured credit** than retail lending; that is a harder segment for those teams to internalise, and therefore more defensible for you.
+- Under your simplifying assumption (“rewards idle on wallet”), **Pump.autostake alone** can comfortably be a **\$0.2m–\$0.7m** ARR wedge.
+- In practice, idle balances will be lower than full yearly flow, so these are **upper-ish bounds**; but even at \$50m average idle you get **\$0.24m ARR**.
 
 ---
 
-## 7. How hard to push Pump.fun, practically?
+## 4. MetaDAO-style treasury-backed facilities
 
-Given the numbers:
+Here, attn lends against **treasury + governed burn discipline**, not just revenue.
 
-- Creator rewards already in **tens to hundreds of millions per year**.
-- Realistic outstanding capacity for you, at modest penetration, is **low- to mid-single-digit millions**.
+Assumptions (per project):
 
-Pump.fun should be treated as:
+- Treasury \( T = \$1m \).
+- Credit limit \( L = \lambda_{\text{LTV}} \cdot T \), with \( \lambda_{\text{LTV}} = 20\% \) ⇒ \( L = \$200k \).
+- Average utilisation \( u = 50\% \) ⇒ average outstanding \( E = u \cdot L = \$100k \).
+- Borrower APR \( r_b = 10\% \).
+- Protocol share of interest \( \alpha_{\text{margin}} = 35\% \).
 
-- A **high-velocity, high-visibility wedge** into the creator economy:
-  - lots of small RCAs,
-  - fast data feedback,
-  - good story (“we advance against live revenue, not vibes”).
+Per project:
 
-- Not the entire business:
-  - Even an aggressive Pump.fun vertical probably tops out at **$5–10m deployed** without over-concentration and regulatory headaches.
+- **Outstanding**: \( E = \$100k \).
+- **Gross interest per year**: \( E \cdot r_b = \$10k \).
+- **Protocol revenue per year**:  
+  \[
+  \Pi_{\text{meta, per}} = \alpha_{\text{margin}} \cdot E \cdot r_b
+  = 0.35 \cdot \$10k = \$3.5k
+  \]
 
-Product shape there:
+For \( N_{\text{meta}} \) projects:
 
-- **Primary**: very short-tenor RCAs against specific upcoming rewards:
-  - durations 7–30 days,
-  - fee schedule consistent with 8–12% APR equivalent on 30–90d,
-  - internal cap on ultra-short APR.
+- Total outstanding:  
+  \[
+  E_{\text{meta, total}} = N_{\text{meta}} \cdot E
+  \]
+- Protocol ARR:  
+  \[
+  \Pi_{\text{meta}} = N_{\text{meta}} \cdot \Pi_{\text{meta, per}}
+  \]
 
-- **Secondary**: for a few top-tier, long-running creators:
-  - a small **RRCL** sized off trailing 90–180 days of rewards,
-  - at 6–8% APR,
-  - with tight utilisation and line size caps.
+Examples:
 
-This gets you:
+| \(N_{\text{meta}}\) | Total outstanding \(E_{\text{meta, total}}\) | Gross interest | Protocol ARR (35%) |
+|---------------------|----------------------------------------------|----------------|--------------------|
+| 30                  | \$3.0m                                       | \$0.30m        | \$0.11m            |
+| 50                  | \$5.0m                                       | \$0.50m        | \$0.18m            |
+| 100                 | \$10.0m                                      | \$1.00m        | \$0.35m            |
+| 200                 | \$20.0m                                      | \$2.00m        | \$0.70m            |
+| 300                 | \$30.0m                                      | \$3.00m        | \$1.05m            |
 
-- Useful TVL + ARR,
-- A clean narrative (“we bank real onchain income, even in chaotic segments”),
-- Without needing Pump.fun to carry your entire TVL story.
+So **one large MetaDAO-like ecosystem** (100–200 projects using credit) is realistically a **\$0.3m–\$0.7m ARR** wedge. Cloning that model onto 2–3 similar ecosystems gets you into **\$1m+** from this vertical alone.
 
 ---
 
-## 8. Summary
+## 5. B2B onchain revenue credit (RPCs, wallets, infra)
 
-- **Borrower pricing**: keep headline APRs around **6 / 8 / 12%** by tier for normal tenors; micro RCAs can be fee-based with internal APR guardrails.
-- **MetaDAO**: treasury-driven credit per project is **$50–150k**, giving **$2–10m** deployed if you have 50–100 active borrowers. Useful, but small.
-- **Pump.fun**: creator rewards are **tens–hundreds of millions per year**; realistic outstanding capacity from short-tenor RCAs is **a few million**, maybe **up to ~5–10m** at aggressive adoption.
-- **$10m ARR** requires **$200–250m average deployed** at a **4–5% protocol spread**; that is a **Phase-3** target across multiple chains and verticals, not just MetaDAO + Pump.fun.
-- **Distribution vs neobanks**: treat attn as a **wholesale revenue-credit engine**, not a consumer app, and target weird/high-signal B2B and creator niches first where they are unlikely to compete.
-- **Pump.fun strategy**: push it hard as a **showcase vertical for cash advances**, but plan the core business around broader **B2B, launchpad, and protocol revenue** lines where ticket sizes and stability are higher.
+Model B2B as more conventional revolving credit against **recurring usage fees** (RPC, wallets, DePIN, etc.):
+
+Assume:
+
+- Borrower APR \( r_b = 10\% \).
+- Protocol share \( \alpha_{\text{margin}} = 35\% \).
+- Each client carries average outstanding \( E_{\text{b2b}} \).
+
+Per client:
+
+- Protocol ARR:  
+  \[
+  \Pi_{\text{b2b, per}} = \alpha_{\text{margin}} \cdot E_{\text{b2b}} \cdot r_b
+  \]
+
+Examples:
+
+| Clients \(N_{\text{b2b}}\) | Avg outstanding per client | Total outstanding | Protocol ARR (35%) |
+|----------------------------|----------------------------|-------------------|--------------------|
+| 5                          | \$250k                     | \$1.25m           | \$0.04m            |
+| 10                         | \$500k                     | \$5.00m           | \$0.18m            |
+| 20                         | \$1.00m                    | \$20.0m           | \$0.70m            |
+| 30                         | \$1.00m                    | \$30.0m           | \$1.05m            |
+
+This vertical is GTM-intensive but **capital-efficient**: a handful of meaningful infra clients can easily add **\$0.2m–\$1m** ARR.
+
+---
+
+## 6. High-ticket watch BNPL wedge (summary only)
+
+From the watch BNPL doc:
+
+- Typical tickets: Nautilus 5711 (~\$100k+), Submariner (~\$14k), common Richard Mille refs mid-six figures, etc.  
+- Treat watch BNPL as:
+
+  - Merchant paid upfront.
+  - Merchant fee \( \phi_{\text{BNPL}} \approx 6\% \) (within BNPL norms of 2–8%).
+  - attn retains 35% of that fee as protocol revenue after LP yield + expected losses.
+
+Formulas:
+
+- Annual financed volume \( W \).
+- Gross fees: \( G_{\text{watch}} = W \cdot \phi_{\text{BNPL}} \).
+- Protocol ARR: \( \Pi_{\text{watch}} = \alpha_{\text{margin}} \cdot G_{\text{watch}} \).
+
+Examples:
+
+| Financed volume \(W\) | Gross BNPL fees (6%) | Protocol ARR (35%) |
+|------------------------|----------------------|--------------------|
+| \$10m                  | \$0.60m              | \$0.21m            |
+| \$50m                  | \$3.00m              | \$1.05m            |
+| \$100m                 | \$6.00m              | \$2.10m            |
+| \$200m                 | \$12.00m             | \$4.20m            |
+
+High-ticket watches can be a **lumpy but very powerful add-on** once you have deep relationships with a few major dealers.
+
+---
+
+## 7. Scenario stacking: Today → Low → Mid → High
+
+Here is a **layered scenario set** that respects “each vertical is a GTM” and shows ballpark TVL and ARR.
+
+Assumptions per vertical:
+
+- Pump APR computations use **30-day** average tenor.
+- Watch BNPL outstanding uses **6-month** average tenor.
+
+### 7.1 Scenario definitions
+
+**Scenario A – “Today-ish”**
+
+- Pump.fun:
+  - \( R_{\text{pump}} = \$150m \), \( s = 2\% \), \( f = 7\% \).
+  - Idle balance \( B_{\text{idle}} = \$20m \).
+- MetaDAO:
+  - \( N_{\text{meta}} = 20 \).
+- B2B:
+  - 3 clients × \$200k outstanding.
+- Watch BNPL:
+  - Not live yet.
+
+**Scenario B – “Low” (first serious growth; ~\$1m ARR)**
+
+- Pump.fun:
+  - \( R_{\text{pump}} = \$150m \), \( s = 5\% \), \( f = 8\% \).
+  - Idle balance \( B_{\text{idle}} = \$50m \).
+- MetaDAO:
+  - \( N_{\text{meta}} = 50 \).
+- B2B:
+  - 5 clients × \$250k.
+- Watch BNPL:
+  - \$10m financed per year.
+
+**Scenario C – “Mid” (multi-vertical, few \$m ARR)**
+
+- Pump.fun:
+  - \( R_{\text{pump}} = \$150m \), \( s = 10\% \), \( f = 10\% \).
+  - Idle balance \( B_{\text{idle}} = \$100m \).
+- MetaDAO:
+  - \( N_{\text{meta}} = 100 \).
+- B2B:
+  - 10 clients × \$500k.
+- Watch BNPL:
+  - \$50m financed per year.
+
+**Scenario D – “High” (aggressive, but still single-ecosystem + watches)**
+
+- Pump.fun:
+  - \( R_{\text{pump}} = \$300m \), \( s = 20\% \), \( f = 10\% \).
+  - Idle balance \( B_{\text{idle}} = \$150m \).
+- MetaDAO:
+  - \( N_{\text{meta}} = 200 \).
+- B2B:
+  - 20 clients × \$1m.
+- Watch BNPL:
+  - \$100m financed per year.
+
+### 7.2 Scenario outputs (ARR and TVL)
+
+Approximate **protocol ARR** and **credit TVL** (average outstanding) by scenario:
+
+| Scenario | Pump ARR (factor+stake) | MetaDAO ARR | B2B ARR | Watch ARR | **Total ARR** | Pump TVL | MetaDAO TVL | B2B TVL | Watch TVL | **Total TVL** |
+|----------|-------------------------|------------|---------|-----------|---------------|----------|-------------|---------|-----------|---------------|
+| Today-ish | \$0.19m                | \$0.07m    | \$0.02m | \$0.00m   | **\$0.27m**   | \$0.25m  | \$2.00m     | \$0.60m | \$0.00m   | **\$2.85m**   |
+| Low      | \$0.58m                | \$0.18m    | \$0.04m | \$0.21m   | **\$1.11m**   | \$0.62m  | \$5.00m     | \$1.25m | \$4.93m   | **\$11.80m**  |
+| Mid      | \$1.01m                | \$0.35m    | \$0.18m | \$1.05m   | **\$2.58m**   | \$1.23m  | \$10.00m    | \$5.00m | \$24.66m  | **\$40.89m**  |
+| High     | \$2.20m                | \$0.70m    | \$0.70m | \$2.10m   | **\$5.70m**   | \$4.93m  | \$20.00m    | \$20.00m| \$49.32m  | **\$94.25m**  |
+
+(Watch TVL approximated with 6-month average tenor: \( W \cdot 6 \text{ months} / 12 \).)
+
+These are **not forecasts**, just **internal sanity-check bands** showing that:
+
+- Even with **moderate penetration**, Pump + MetaDAO + a few B2B clients + some watch BNPL give **\$2–\$6m** protocol ARR at **\$40–\$100m** TVL.
+
+---
+
+## 8. Minimal mixes to \$1m and \$10m ARR
+
+### 8.1 “Only two verticals” path to \$1m ARR
+
+You explicitly wanted: **\$1m ARR without having to run every vertical**.
+
+Take just:
+
+- Pump.fun advances + autostaking, and
+- MetaDAO-style treasury credit.
+
+Example:
+
+- Pump.fun:
+  - \( R_{\text{pump}} = \$150m \),
+  - \( s = 10\% \) of flow advanced,
+  - \( f = 10\% \) factor,
+  - idle balance \( B_{\text{idle}} = \$50m \).
+- MetaDAO:
+  - \( N_{\text{meta}} = 70 \) projects on credit.
+
+Outputs:
+
+- Pump.fun:
+  - Financed volume: \( \$150m \cdot 10\% = \$15m \).
+  - Gross factor revenue: \( \$1.5m \).
+  - Protocol share (35%): ≈ **\$0.53m**.
+  - Staking fee on \$50m idle (0.48%): ≈ **\$0.24m**.
+  - **Total Pump ARR ≈ \$0.77m**.
+- MetaDAO:
+  - Total outstanding: \( 70 \cdot \$100k = \$7.0m \).
+  - Gross interest (10%): \$0.70m.
+  - Protocol share (35%): ≈ **\$0.25m**.
+
+Combined:
+
+- **Protocol ARR ≈ \$1.01m**.
+- **TVL ≈ \$8.2m**  
+  (≈\$1.2m Pump outstanding + \$7.0m MetaDAO outstanding).
+
+So **\$1m ARR is reachable with just two wedges**:
+
+1. being the default **Pump.fun “credit + staking” backend** for ~10% of creator rewards, and  
+2. serving ~70 MetaDAO-style projects with modest treasury lines.
+
+### 8.2 A plausible \$10m ARR blend
+
+Now a deliberately aggressive **multi-vertical mix**:
+
+- Pump.fun:
+  - \( R_{\text{pump}} = \$300m \),
+  - \( s = 30\% \) of flow advanced,
+  - \( f = 10\% \),
+  - idle balance \( B_{\text{idle}} = \$200m \).
+- MetaDAO-like ecosystems:
+  - \( N_{\text{meta}} = 300 \) projects across MetaDAO + 1–2 similar ecosystems.
+- B2B:
+  - \( N_{\text{b2b}} = 30 \), each with \$1m outstanding.
+- Watches BNPL:
+  - Annual financed volume \( W = \$200m \).
+
+Outputs:
+
+- Pump.fun:
+  - Financed volume: \( \$300m \cdot 30\% = \$90m \).
+  - Factor revenue: \$9.0m; protocol share 35% ⇒ **\$3.15m**.
+  - Staking fee on \$200m idle at 0.48% ⇒ **\$0.96m**.
+  - **Total Pump ARR ≈ \$4.11m**.
+- MetaDAO:
+  - Total outstanding: \( 300 \cdot \$100k = \$30m \).
+  - Gross interest: \$3.0m; protocol share ⇒ **\$1.05m**.
+- B2B:
+  - Total outstanding: \$30m.
+  - Gross interest: \$3.0m; protocol share ⇒ **\$1.05m**.
+- Watches BNPL:
+  - Gross merchant fees: \( \$200m \cdot 6\% = \$12m \).
+  - Protocol share: 35% ⇒ **\$4.20m**.
+
+Total:
+
+- **Protocol ARR ≈ \$10.4m**.
+- **TVL ≈ \$166m**  
+  (≈\$7.4m Pump + \$30m MetaDAO + \$30m B2B + ≈\$98.6m watch BNPL).
+
+This is **not a near-term target**, but it shows:
+
+- The **order of magnitude** of ARR is constrained more by:
+  - how much of Pump.fun and similar creator flows you can anchor,
+  - how many MetaDAO-like ecosystems you replicate,
+  - how deeply you penetrate B2B and 1–2 high-ticket BNPL niches,
+- than by pure onchain revenue being “too small”.
+
+---
+
+## 9. Service / persona / pricing / ARR summary
+
+### 9.1 Per-service summary
+
+| Service                                   | Client persona                            | Pricing (borrower-side)                                          | Protocol take                    | Typical annual protocol ARR band (once scaled)          |
+|-------------------------------------------|-------------------------------------------|------------------------------------------------------------------|----------------------------------|---------------------------------------------------------|
+| Pump.fun creator cash advances            | Pump creators with high creator rewards   | Flat factor 5–15% on advanced rewards; short tenors (days–weeks) | ≈35% of factor after LP + losses | \$0.1m–\$1.5m+ depending on 5–20% share of \$150–\$300m |
+| Pump.fun autostaking on idle rewards      | Same                                      | User gets ~5.5% net if base 6% and 8% fee                        | 8% of yield (0.48% of balance)   | \$0.1m–\$0.7m for \$25–\$150m idle                       |
+| MetaDAO-style treasury credit             | Onchain startups with governed treasuries | ~10% APR on revolving line sized at ~20% of treasury             | ≈35% of interest                 | \$0.1m–\$1.0m across 30–300 projects                    |
+| B2B revenue-backed credit                 | RPCs, wallets, DePIN, infra               | ~8–12% APR on working-capital or growth lines                    | ≈35% of interest                 | \$0.04m–\$1.0m for \$1–\$30m outstanding                 |
+| High-ticket watch BNPL (luxury dealers)   | Watch retailers (Patek, Rolex, RM, etc.)  | Merchant fee ~4–6% on financed tickets                           | ≈35% of merchant fee             | \$0.2m–\$4m for \$10–\$200m financed volume             |
+
+### 9.2 Scenario-level ARR recap
+
+Using the four stacked scenarios from §7:
+
+| Scenario   | Verticals really “on”                                             | Protocol ARR | TVL    |
+|-----------|-------------------------------------------------------------------|-------------:|-------:|
+| Today-ish | Pump (small) + MetaDAO (20 proj) + tiny B2B                       |  ≈ \$0.27m   | ≈ \$2.9m |
+| Low       | Pump (5% of Pump.fun) + MetaDAO (50 proj) + small B2B + small BNPL|  ≈ \$1.11m   | ≈ \$11.8m |
+| Mid       | Pump (10%) + MetaDAO (100 proj) + more B2B + \$50m watch BNPL     |  ≈ \$2.58m   | ≈ \$40.9m |
+| High      | Pump (20% of \$300m) + MetaDAO (200 proj) + stronger B2B + \$100m BNPL | ≈ \$5.70m | ≈ \$94.3m |
+
+And two explicit mixes:
+
+- **\$1m ARR** with only **Pump.fun + MetaDAO** (no B2B, no watches):  
+  ≈\$1.01m ARR at ≈\$8.2m TVL.
+- **\$10m ARR** with **all four verticals** at aggressive but plausible penetration:  
+  ≈\$10.4m ARR at ≈\$166m TVL.
+
+This gives you concrete levers:
+
+- deepen **Pump.fun** integration (cash advances + autostaking),
+- grow the number of **governed-treasury ecosystems** (MetaDAO-like),
+- add **select B2B infra clients**, and
+- later, switch on **one high-ticket BNPL niche** (watches) to bend the curve from \$5–\$6m toward \$10m+ ARR.
