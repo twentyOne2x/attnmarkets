@@ -1,4 +1,4 @@
-`# attn.markets Credit & Risk Design  
+# attn.markets Credit & Risk Design  
 _Onchain revenue-backed cash advances, revolvers, and PT/YT infra_
 
 ## 0. Purpose and scope
@@ -90,10 +90,30 @@ Underneath everything:
   - Strip into **Principal Token (PT)** and **Yield Token (YT)** as per Exponent’s yield-stripping model  
     [Exponent Yield Stripping](https://docs.exponent.finance/protocol/protocol-mechanisms/exponent-yield-stripping).
 
-attn uses this infra as **implementation detail + future composability**:
+Orderbook integration:
 
-- Borrowers only see RCAs and RRCLs.
-- LPs see attnUSD; later, advanced LPs may access PT/YT directly (Pendle-style).
+- Every PT/YT series lives as a **real market on Exponent’s orderbook** from day one.
+- The attn risk engine computes a **model yield and a price floor** for each YT/PT series from the revenue-risk model (Sections 3–4).
+- attnUSD acts as a **backstop liquidity provider**:
+  - posts standing **limit orders** around that floor (quotes to buy/sell YT/PT),
+  - ensures there is always some depth even before external LPs arrive.
+- External LPs are free to post better bids/asks on the same orderbook:
+  - if they bid tighter yields (higher prices), they take a share of the new issuance,
+  - otherwise attnUSD absorbs the tranche.
+
+Primary vs secondary:
+
+- **Primary issuance**:
+  - New RCAs/RRCL tranches mint YT/PT on Exponent.
+  - attn underwrites at its model price and pushes those tokens into the Exponent market.
+  - If there are standing external bids at or above the floor, they participate automatically; any residual is taken by attnUSD.
+- **Secondary trading**:
+  - PT/YT continue to trade on Exponent; this gives real-time mark-to-market for attnUSD and optional exit liquidity for advanced LPs.
+
+Borrower abstraction:
+
+- Borrowers never see Exponent, PT/YT, or orderbooks.
+- They see only RCAs and RRCLs with deterministic quotes; underneath, those quotes are implemented as attn posting and filling limit orders for PT/YT on Exponent.
 
 ### 2.3 Should we be “just a PT/YT platform”?
 
@@ -110,6 +130,7 @@ So:
 - We **optionally** let external builders create custom PT/YT-based products later, with risk gating (Section 8).
 
 ---
+
 ## 3. Limit sizing from onchain revenues
 
 The goal of this section is to formalise a simple rule:
@@ -546,7 +567,7 @@ This:
 - Lets LPs choose how much risk they want beyond attnUSD Core.
 - Keeps us from ending up with unbounded borrower-curated markets where we can’t police risk at all.
 
-### 6.3 Borrower-proposed terms (Wildcat-style) — how far?
+### 6.3 Borrower-proposed terms, orderbook, RFQ, auctions
 
 Wildcat lets borrowers define almost everything: rate, reserve mode, market parameters, with lenders deciding whether to join  
 [Wildcat Docs](https://docs.wildcat.finance/overview/introduction).
@@ -556,25 +577,62 @@ For attn:
 - We **do not** want fully generic borrower-defined credit markets.
 - But we **do** want borrowers to express preferences within constraints.
 
-Proposed compromise:
+Borrower proposal fields:
 
-- Borrower proposal fields:
-  - Desired advance \( A_{\text{req}} \) or line increase.
-  - Max revenue share they are willing to route \( \alpha_{\max, \text{borrower}} \).
-  - Max acceptable “APR band”: e.g. low/med/high cost tiers.
-  - Soft preferred tenor (short/medium/long within their allowed range).
+- Desired advance \( A_{\text{req}} \) or line increase.
+- Max revenue share they are willing to route \( \alpha_{\max, \text{borrower}} \).
+- Max acceptable “APR band”: e.g. low/med/high cost tiers.
+- Soft preferred tenor (short/medium/long within their allowed range).
 
-- attn engine:
-  - Applies risk framework (Sections 3–4).
-  - Computes feasible \( A_{\max} \), \(\alpha\), \(T\), price.
-  - If solution lies within borrower’s preferences → **auto-accept**.
-  - If not → **return counter-offer** with a clear explanation.
+attn engine:
 
-We can later allow **auction-like** behaviour (e.g. LPs bidding for YT tranches at different prices, more like Wildcat markets), but only once:
+- Applies risk framework (Sections 3–4).
+- Computes feasible \( A_{\max} \), \(\alpha\), \(T\), price.
+- If solution lies within borrower’s preferences → **auto-accept**.
+- If not → **return counter-offer** with a clear explanation.
 
-- We have enough demand on the LP side.
-- There is robust UI/analytics for LPs.
-- We’ve seen revenue default cycles and have confidence in our models.
+Exponent orderbook and RFQ abstraction:
+
+- The **canonical price discovery venue** for facility risk is the Exponent orderbook for the relevant **YT** series.
+- For each new RCA/RRCL tranche:
+  - The risk engine first computes a **model yield and a price floor** consistent with coverage tests and portfolio limits.
+  - attnUSD posts **limit orders to buy YT** on Exponent around this floor (and may post asks if it wants to lighten existing exposure).
+  - Primary issuance is effectively **underwritten at this model price**:
+    - if external LP bids exist at or above the floor, they automatically fill part of the tranche via the orderbook;
+    - otherwise attnUSD absorbs the whole issuance.
+
+Notes on PT:
+
+- PT represents residual principal / future revenues **beyond** the facility horizon \(T\).
+- In v0–v1, PT is **not sold or traded**:
+  - It is either retained by the borrower or locked in protocol accounting.
+  - The Exponent integration focuses on YT as the tradable claim on the facility’s revenue slice over \([t_0, T]\).
+- Any future PT liquidity (if ever enabled) would be a separate design decision and is **not** part of the initial product.
+
+From the borrower’s point of view:
+
+- This behaves like an **RFQ-style process**:
+  - they request a facility (advance or line),
+  - the risk engine responds with a firm quote based on the model and current vault state,
+  - the fact that execution is satisfied via YT limit orders on Exponent is completely abstracted away.
+
+- In other words, attn can treat “orderbook + attnUSD quotes” as an RFQ engine under the hood.
+
+As LP depth grows, we can add a **primary RFQ / auction layer** on top:
+
+- For new credit deals, attn:
+  - pre-announces the tranche and floor yield to qualified LPs,
+  - invites them to place competitive bids on the relevant Exponent market (or via RFQ API),
+  - allocates the tranche at a **clearing yield** above the floor.
+- Settlement still happens as PT/YT trades on Exponent; the “RFQ / auction” is a UX and allocation layer, not a separate pricing mechanism.
+
+Only once:
+
+- LP demand is material,
+- we have rich analytics around defaults and recoveries,
+- and the Exponent orderbook is deep enough,
+
+do we consider more **Wildcat-style borrower-led pricing**, where borrowers propose full parameter bands and LPs compete inside attn’s hard risk limits.
 
 ---
 
@@ -617,7 +675,7 @@ We can later allow **auction-like** behaviour (e.g. LPs bidding for YT tranches 
    - Onchain:
      - Create a **Revenue-Bearing Position** via Exponent (SY + PT/YT) referencing the revenue account  
        [Solana Yields Standard](https://docs.exponent.finance/protocol/protocol-mechanisms/solana-yields-standard).
-     - attnUSD vault buys YT leg (or PT/YT combination, depending on design).
+     - attnUSD vault buys YT leg (or PT/YT combination, depending on design) by filling its own or external limit orders on Exponent.
    - Borrower receives stables (USDC/USDT/etc.).
    - Revenue share rules activate in revenue account.
 
@@ -666,7 +724,8 @@ We can later allow **auction-like** behaviour (e.g. LPs bidding for YT tranches 
    - LP burns attnUSD.
    - Receives a pro-rata basket of stables (and, in future, optionally some very liquid PT/YT).
 
-The UX should hide technicalities (PT/YT, SY) for 95% of LPs, similar to how 3Jane wraps a pool of unsecured credit lines behind a single USD3 instrument [3Jane](https://www.3jane.xyz/).
+The UX should hide technicalities (PT/YT, SY, Exponent orderbooks) for 95% of LPs, similar to how 3Jane wraps a pool of unsecured credit lines behind a single USD3 instrument [3Jane](https://www.3jane.xyz/), as described in the “3Jane Lending & Credit Origination Process” figure in [State of Stablecoins – Messari](https://www.scribd.com/document/901365543/Mesari) and the explainer [Unsecured Lending Agreement 3 – How does Jane change the on-chain market?](https://www.trendx.tech/news/unsecured-lending-agreement-3-how-does-jane-change-the-on-chain-market-1627494).
+
 
 ---
 
@@ -707,6 +766,9 @@ We piggyback on this:
 
 - Represent each revenue facility as an Exponent SY market.
 - Use PT/YT as our **bookkeeping** and, later, as liquidity primitives.
+- Use Exponent’s **orderbook** both for:
+  - primary distribution of new PT/YT (underwritten at attn’s floor), and
+  - secondary trading and mark-to-market.
 
 This keeps attn implementation simple and leverages existing infra.
 
@@ -778,7 +840,7 @@ We contrast:
 
 - Borrowers:
   - See only “advance”, “credit line”, “limit”, “share of revenue”, “estimated payback”.
-  - Never need to understand PT/YT or Exponent.
+  - Never need to understand PT/YT, Exponent, or orderbooks.
 
 - LPs:
   - Default to attnUSD.
@@ -806,7 +868,6 @@ To avoid underpricing:
   - Use incentives (token, fee discounts) later to support adoption, instead of cutting spreads below reasonable loss-adjusted levels.
 
 ---
-
 ## 10. Open questions and future work
 
 1. **Revenue modelling sophistication**  
@@ -816,9 +877,12 @@ To avoid underpricing:
      - Correlation models across entities.
    - Use time-series models and stress testing.
 
-2. **Default playbook and legal layer**  
-   - For some entities, onchain revenue may not be the only recourse.
-   - For larger lines, may need offchain agreements akin to Xitadel’s and 3Jane’s legal modules.
+2. **Default playbook and legal layer (small vs large facilities)**  
+   - v0–v1: aim to keep **small and mid-size facilities purely onchain**:
+     - enforcement via revenue-account control, shutdown of new advances, and programmatic write-downs in attnUSD;
+     - no separate offchain loan agreements; the “contract” is the onchain program + in-app terms.
+   - For **large, named credits**, plan for an **optional offchain legal wrapper** (revenue-based credit agreement, pledge / security, servicing / enforcement, assignment mechanics).  
+   - This hybrid model is **aspirational** and described in detail in Section 11; it is not required to ship v0.
 
 3. **Secondary markets for YT**  
    - Explore Pendle-like AMMs for revenue YT after we have enough variety.
@@ -834,8 +898,137 @@ To avoid underpricing:
    - Ensure entity-level facilities cannot be implicitly transformed into consumer loans on the attn side.
 
 ---
+## 11. Aspirational legal / offchain architecture for large facilities
 
-## 11. Summary of key design answers
+This section is **aspirational**: it sketches how attn could handle large, institutional-scale facilities once there is meaningful demand and regulatory clarity. It is not required for v0, which can operate purely onchain for small and mid-size tickets.
+
+In practice, these large-facility structures are **OTC-style private credit deals**:
+
+- Origination is bilateral or club (term sheet negotiation with a named entity).
+- Primary distribution is to attnUSD and/or a small set of whitelisted LPs, not a public permissionless pool.
+- Onchain PT/YT representations, if any, are either:
+  - internal bookkeeping for attnUSD, or
+  - transfer-gated instruments mirroring the legal participations, not freely tradable retail tokens.
+
+### 11.1 Small / mid-size facilities: purely onchain
+
+For small and mid-size facilities, attn should remain **fully onchain**:
+
+- Enforcement is handled entirely via:
+  - exclusive control over the revenue account / stream handle,
+  - automated reduction or shutdown of fresh advances,
+  - programmatic write-downs in attnUSD when coverage tests fail.
+- There is no separate offchain loan agreement; the “contract” is:
+  - the onchain program and its parameters, plus
+  - the in-app terms the borrower accepts when opening a facility.
+
+Default playbook for these facilities:
+
+1. Coverage breach or sustained revenue collapse is detected.
+2. Facility is frozen; no new drawings.
+3. Revenue share is optionally increased within onchain caps to accelerate recovery.
+4. After a defined cure period, any remaining shortfall is written down in attnUSD and recorded as a realised loss.
+
+This keeps the long tail of smaller entities simple, composable, and jurisdiction-neutral.
+
+### 11.2 Large, named facilities: two-layer enforcement model
+
+For **larger lines** (e.g. ≥ X USD equivalent, or for systemically important entities), a purely onchain approach may be insufficient. Here, we can target a **two-layer enforcement model**, conceptually similar to what Xitadel and 3Jane implicitly rely on.
+
+#### 11.2.1 Onchain credit instrument
+
+Each large facility is still represented onchain, typically as an Exponent-style SY/PT/YT structure:
+
+- A specific **facility ID**.
+- Revenue account binding.
+- Tenor and coverage tests.
+- Default states (e.g. “Performing”, “In Default”) encoded at program level.
+
+This mirrors Xitadel’s LTT lifecycle states (Pending → Funding → Active → Matured / Failed) and onchain coverage checks  
+([LTT Lifecycle Overview](https://docs.xitadel.fi/ltt-lifecycle-overview/)).
+
+Onchain logic:
+
+- Computes coverage metrics.
+- Flags default conditions.
+- Blocks new drawings once default is triggered.
+- Exposes a canonical state for offchain contracts to reference.
+
+#### 11.2.2 Offchain legal wrapper
+
+For large, named borrowers (major DEX, infra protocol, DePIN network, etc.), we add a conventional legal stack that maps cleanly onto the onchain facility.
+
+1. **Revenue-based credit agreement**  
+   - Contract between the borrower’s legal entity (company / foundation / DAO wrapper) and an attn SPV or trustee.
+   - References:
+     - the onchain facility ID,
+     - the designated revenue account (PDA / Squads Safe) as the “payment account”.
+   - Specifies:
+     - governing law and jurisdiction,
+     - principal amount and pricing mechanics (e.g. revenue share, cap multiple, tenor),
+     - revenue-sharing and covenants (e.g. no rerouting of revenues away from designated account; information covenants),
+     - events of default (both onchain triggers and offchain breaches),
+     - acceleration and restructuring mechanics.
+
+   This is the analogue, on the corporate/revenue side, of the unsecured loan agreements sitting behind 3Jane’s USD3 pool, which in their design enable non-performing debts to be sold to US debt-collection agencies rather than left purely onchain.
+
+2. **Security / pledge agreement (if there is asset backing)**  
+   - If the entity also pledges treasury assets (stables, LSTs, LRTs) à la Xitadel:
+     - a pledge or security agreement over those assets, referencing the onchain collateral vault,
+     - explicit remedies in case of default (enforcement on pledged tokens, right to instruct certain onchain actions, etc.).
+   - This is conceptually similar to Xitadel’s overcollateralised LTTs, where treasury tokens back fixed-term instruments and onchain coverage tests drive default outcomes  
+     ([What is LTT?](https://docs.xitadel.fi/what-is-ltt/)).
+
+3. **Servicing / enforcement agreement**  
+   - Defines a “credit servicer” or “enforcement agent” (internal or third party) empowered to:
+     - monitor onchain facility state and revenue data,
+     - declare offchain events of default when onchain coverage tests fail or covenants are breached,
+     - take enforcement actions on behalf of attnUSD LPs:
+       - demand letters and standstills,
+       - restructuring negotiations,
+       - legal proceedings or assignment of the claim.
+   - Functionally similar to Xitadel’s notion of external enforcement agents monitoring coverage and triggering default actions in the LTT lifecycle  
+     ([External Enforcement Agents](https://docs.xitadel.fi/external-enforcement-agents/), [Compliance Orientation](https://docs.xitadel.fi/compliance-orientation/)).
+
+4. **Assignment / participation mechanics**  
+   - For very large tickets, the documents should allow:
+     - syndication of a portion of the facility to specific LPs or partners,
+     - or assignment of the claim (in part) to another credit or distressed-debt fund or servicer.
+   - This is analogous to 3Jane’s plan to auction non-performing unsecured debts to traditional US collectors (who purchase the legal claim, not just an onchain handle).
+
+#### 11.2.3 Default playbook for large facilities
+
+For large facilities with this hybrid structure:
+
+1. Onchain coverage breach or sustained revenue collapse is detected.
+2. Facility is frozen onchain; no new drawings.
+3. Attempt to cure onchain (e.g. adjust revenue share within predefined caps).
+4. If default persists beyond a defined cure period:
+   - the offchain credit agreement allows **acceleration** of the full outstanding amount;
+   - the enforcement agent can:
+     - negotiate restructuring with the borrower’s legal entity (extend tenor, adjust share, partial write-down),
+     - enforce via pledged assets or other legal remedies,
+     - or assign/sell the claim to a specialised credit/distressed-debt fund or collector.
+5. Any recovery is routed:
+   - back into the onchain facility (reducing defaulted balance), or
+   - directly into attnUSD,
+   - and allocated to LPs with appropriate write-backs.
+
+### 11.3 Design goals for this aspirational layer
+
+- Keep the **core product** (long tail of entities, small and mid tickets) clean and fully onchain.
+- Make it possible, when needed, to:
+  - structure **institutional-scale deals** with governance, covenants, and enforceability comparable to treasury financings (Xitadel) or unsecured consumer/SMB credit (3Jane);
+  - bridge between DeFi-native LPs and traditional credit/distressed capital.
+
+All of this requires jurisdiction-specific legal work. The protocol’s job is to:
+
+- define a clear mapping between onchain facility states and offchain rights; and
+- keep the onchain state machine simple and composable, so different legal wrappers can sit on top where appropriate.
+
+---
+
+## 12. Summary of key design answers
 
 - **Should risk be centralised?**  
   - Yes, at v0–v1. attn runs a central risk engine.  
@@ -851,8 +1044,24 @@ To avoid underpricing:
 - **Allow firms to propose their own limits and prices Wildcat-style?**  
   - Yes, but **bounded**:
     - Borrower indicates ask and preferences.
-    - Engine accepts or counter-offers inside risk envelope.
+    - Engine accepts or counter-offers inside the risk envelope.
   - No fully free-form borrower-defined markets in v0–v1.
+
+- **Orderbook vs RFQ vs auctions?**  
+  - Use **Exponent’s orderbook from day one**:
+    - attnUSD posts limit orders at a model-based floor.
+    - External LPs can bid tighter and take primary allocation.
+  - From the borrower’s perspective, this behaves like an **RFQ-style quote**:
+    - they ask for credit,
+    - attn responds with a firm price,
+    - underlying execution is via the orderbook.
+  - Add explicit RFQ/auction allocation for large deals once LP depth is real.
+
+- **Legal / offchain architecture for large facilities?**  
+  - v0–v1: small and mid-size facilities are **purely onchain**; enforcement via revenue-account control and programmatic write-downs, no mandatory offchain loan docs.  
+  - Later: optionally enable a **two-layer model** for large, named credits:
+    - onchain facility state machine (facility ID, coverage tests, default states);
+    - offchain revenue-based credit agreements, pledge/security, enforcement/servicing and assignment mechanics (Section 11).
 
 - **Does this doc cover the full journey?**  
   - Yes:
@@ -860,13 +1069,17 @@ To avoid underpricing:
     - Pricing / interest (Section 4).
     - Duration selection (Section 4.3).
     - Vault caps & LP side (Section 5).
+    - Central vs curated risk (Section 6).
+    - Full borrower / LP journeys (Section 7).
     - How to price per vault when attnUSD is counterparty (Section 4.4).
     - Lessons from 3Jane, Morpho, Wildcat, Xitadel, Pendle, Boros, Exponent (Section 8).
-    - UX / product implications (Sections 2, 7, 9).
+    - UX / product implications (Sections 2, 9).
+    - Open questions (Section 10).
+    - Aspirational legal/offchain layering for large facilities (Section 11).
 
 ---
 
-## 12. Source index
+## 13. Source index
 
 Core references (non-exhaustive):
 
@@ -881,6 +1094,8 @@ Core references (non-exhaustive):
 - [Xitadel Docs](https://docs.xitadel.fi/)
 - [What is LTT?](https://docs.xitadel.fi/what-is-ltt/)
 - [LTT Lifecycle](https://docs.xitadel.fi/ltt-lifecycle-overview/)
+- [External Enforcement Agents](https://docs.xitadel.fi/external-enforcement-agents/)
+- [Compliance Orientation](https://docs.xitadel.fi/compliance-orientation/)
 - [Pendle Docs](https://docs.pendle.finance/Introduction/)
 - [Yield Tokenization](https://docs.pendle.finance/pendle-v2/Developers/Contracts/YieldTokenization)
 - [SY Standard](https://docs.pendle.finance/ProtocolMechanics/YieldTokenization/SY/)
@@ -890,4 +1105,3 @@ Core references (non-exhaustive):
 - [Exponent Docs](https://docs.exponent.finance/starthere)
 - [Solana Yields Standard](https://docs.exponent.finance/protocol/protocol-mechanisms/solana-yields-standard)
 - [Exponent Yield Stripping](https://docs.exponent.finance/protocol/protocol-mechanisms/exponent-yield-stripping)
-`
