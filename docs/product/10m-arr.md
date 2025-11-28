@@ -1,441 +1,410 @@
-# attn.markets – Business Scale, ARR Targets, and Distribution Strategy
+# attn.markets TVL, ARR & Verticals  
+_MetaDAO treasuries, Pump.fun creator flows, and borrower pricing (6–8–12%)_
 
-This note formalises how attn can scale economically, what levels of **average deployed credit** are required to reach **$1m** and **$10m**+ ARR, and how distribution/partnerships should be structured so attn is not just a “last resort lender” behind Avici/Krak/others.
+This note reframes the TVL / ARR plan to:
 
----
-
-## 1. Objectives
-
-Near- to medium-term economic objectives (protocol-level, pre-operating expenses):
-
-- **Target A:** Reach ≈ **$1m ARR** from credit/spread and fees.
-- **Target B:** Design a credible path to ≈ **$10m ARR** over time.
-
-These targets are expressed in terms of:
-
-- **Average deployed credit** across all facilities, not just vault TVL.
-- **Net protocol margin** after LP yield and expected losses.
+- Respect borrower pricing bands of roughly **6% / 8% / 12% APR** (Tier A/B/C).
+- Add **Pump.fun** as a short-tenor, cash-advance vertical.
+- Clarify **cash-advance vs revolving line pricing**.
+- Show what a **$10m ARR** target realistically implies.
+- Address distribution concerns vs Avici, Krak, etc.
 
 ---
 
-## 2. Basic economics and notation
+## 1. Pricing guardrails
 
-We separate:
+You want to keep borrower headline pricing in a sane band, not 18%+.
 
-- **TVL in attnUSD / vaults**: total LP funds.
-- **Average deployed credit** \(D\): the portion of TVL that is actually lent out (exposed to credit risk).
+Assume three risk tiers at facility level:
 
-Key parameters (all annualised):
+- **Tier A (best)** – 6% APR target  
+- **Tier B (mid)** – 8% APR target  
+- **Tier C (riskier tail)** – 12% APR target  
 
-- \( D \) – Average deployed credit (USD).
-- \( r_b \) – Average **borrower APR** across the book (weighted by deployed notional).
-- \( r_{LP} \) – Average **net yield promised to LPs** (attnUSD, per vault mix).
-- \( \ell \) – **Expected annual loss rate** on deployed credit (as % of \(D\)), after diversification and recoveries.
-- \( r_{\text{prot}} \) – **Protocol gross margin rate** (before opex).
+This is for:
 
-Approximate identity:
+- RCAs (cash advances) with **30–120 day** effective tenors.
+- RRCLs (revolving credit lines) where utilisation over the year gives a similar IRR.
+
+For **very short-tenor micro-advances** (e.g. 7–14 days to Pump.fun creators):
+
+- You quote **flat fees** rather than headline APR (e.g. 0.5–1.5% on a 7–14 day bridge).
+- Internally, you still monitor **annualised IRR** and keep the **portfolio average** in the 6–12% band.
+- Individual micro-advances can annualise higher, but the *book* should not drift into predatory territory.
+
+LP side:
+
+- Target stablecoins → **4–6% net** after losses, depending on vault and tenor.
+- This implies an attn “spread” on deployed credit of **~2–5%** (borrower APR minus LP yield), depending on segment.
+
+If average borrower APR ≈ 9–10% and average LP yield ≈ 4–5%, then:
+
+- Protocol spread ≈ **4–5% on average deployed credit**.
+
+This is what we use below to back out ARR vs TVL.
+
+---
+
+## 2. MetaDAO: treasury-driven credit is small but real
+
+For MetaDAO-type cohorts:
+
+- Typical fundraise: **$500k–$2m** into a **Squads treasury**.
+- Typical burn: **$40k–$100k/month**.
+- 12–18 months of runway is common.
+
+Even if revenues are **zero** early on, the treasury + burn constraints in Squads give you a controlled environment to lend against:
+
+- You know:
+  - current balance,
+  - burn,
+  - available runway,
+  - that funds are gated by governed spending rules.
+
+A conservative treasury-backed line per project:
+
+- Let:
+  - \( B \) = treasury balance (e.g. $1m),
+  - \( \text{burn} \) = monthly burn (e.g. $60k),
+  - runway = \( B / \text{burn} \) (≈ 16.7 months),
+  - haircut × LTV on “excess runway” = e.g. 0.2 (20%).
+
+Example:
+
+- \( B = 1\,000\,000 \), \( \text{burn} = 60\,000 \), 12-month minimum runway:
+  - excess runway months ≈ 4.7,
+  - excess dollars ≈ \( 4.7 \times 60\,000 \approx 282\,000 \),
+  - capacity at 20% haircut×LTV ≈ **$56k** per project.
+
+If you stretch to a bit less conservative (as in your earlier rough maths):
+
+- Straight 0.2 × 12-month burn = \( 0.2 \times 12 \times 60\,000 \approx 144\,000 \) capacity.
+
+Realistic range:
+
+- **$50k–$150k** per MetaDAO project, depending on:
+  - treasury level,
+  - runway constraints,
+  - how aggressive you are.
+
+If:
+
+- 100 MetaDAO projects,
+- 50% of them actively use lines,
+- average utilisation = 50% of capacity,
+
+then with e.g. $100k capacity per project you get:
+
+- Effective deployed per project ≈ $50k,
+- Deployed across 50 projects ≈ **$2.5m**.
+
+Even if you are more aggressive and get to:
+
+- 100 projects × \$100k deployed = **$10m**,
+
+that is still **small** in absolute TVL terms. So MetaDAO treasury-backed credit is **useful but not enough** alone.
+
+---
+
+## 3. Pump.fun creator revenues: cash-advance wedge
+
+### 3.1 What Pump.fun pays creators (order of magnitude)
+
+Mechanics:
+
+- Pump.fun charges **1% swap fee** on trades and a listing fee when tokens “graduate”.   
+- A portion of the fee (often quoted as **0.05–0.3% of trading volume**) is shared with creators/streamers.   
+
+Empirical numbers:
+
+- TokenDispatch reported Pump.fun distributing **$3m to creators in three weeks** early in the revenue-share program.   
+- Axios later reported that creators have claimed **$21m in fees in a single week** at peak activity.   
+
+Rough implication:
+
+- Even if that $21m/week is a spike, it shows that creator rewards can be at **hundreds of millions per year** on a run-rate basis (e.g. 50–200m+ annualised is plausible, depending on volume regime).
+
+So your “~$300m annualised” mental model is not crazy as a *growth scenario*; current public data suggests:
+
+- “Steady-state” / normalised might be **$50–200m/year**,
+- Peak regimes can be **$1b+ annualised** if the $21m/week level is sustained.
+
+### 3.2 How much of that can attn reasonably finance?
+
+Let:
+
+- \( R_{\text{year}} \) = annual creator rewards (USD) actually flowing onchain.
+- Suppose effective \( R_{\text{year}} \) ≈ **$150m** as a conservative mid-case.
+
+Define:
+
+- \( f_{\text{penetration}} \): fraction of all creator rewards that ever get financed via attn (e.g. 10–30%).
+- \( T \): average advance tenor (days) – for Pump.fun you expect **very short**, e.g. 7–30 days.
+
+If an advance is basically “I sell the next \(T\) days of my creator rewards”, then average outstanding notional is:
 
 \[
-r_{\text{prot}} \approx r_b - r_{LP} - \ell
+\text{Outstanding} \approx f_{\text{penetration}} \cdot R_{\text{year}} \cdot \frac{T}{365}
 \]
 
-Protocol ARR:
+Examples:
 
-\[
-\text{ARR} \approx D \cdot r_{\text{prot}}
-\]
+1. **Low penetration, very short tenor**  
+   - \( R_{\text{year}} = 150m \)  
+   - \( f_{\text{penetration}} = 10\% \)  
+   - \( T = 7 \) days  
+   ⇒ Outstanding ≈ \( 0.1 \times 150m \times 7/365 \approx \$2.9m \).
 
-Interpretation:
+2. **Moderate penetration, 30-day tenor**  
+   - \( f_{\text{penetration}} = 20\% \), \( T = 30 \)  
+   ⇒ Outstanding ≈ \( 0.2 \times 150m \times 30/365 \approx \$2.5m \).
 
-- If you earn 18% from borrowers, pay 10% to LPs, and expect 3% annual loss, you keep ≈ 5% as protocol margin.
-- That 5% applied to the **average deployed credit** \(D\) is what pays for ops, token incentives, and profit.
+3. **Aggressive penetration, 30-day tenor, higher R**  
+   - \( R_{\text{year}} = 300m \), \( f_{\text{penetration}} = 30\% \), \( T = 30 \)  
+   ⇒ Outstanding ≈ \( 0.3 \times 300m \times 30/365 \approx \$7.4m \).
+
+Conclusion:
+
+- Even with aggressive adoption, **Pump.fun cash advances are likely a single-digit-millions TVL vertical** on Solana.  
+- But they are **short-tenor, high-turnover** and can be **high-yield** within your 6–12% APR band, so they punch above their weight in ARR relative to TVL.
 
 ---
 
-## 3. Order-of-magnitude for $1m ARR
+## 4. Product shape: cash advances vs lines (and pricing)
 
-To get a feel for required scale, plug in illustrative bands.
+### 4.1 Cash advances (RCAs) – per YT / per invoice
 
-### 3.1 Higher-yield / higher-risk book
+Use case:
 
-Example “credity” configuration:
+- A Pump.fun or creator economy user sells a **slice of future creator rewards** (a YT strip) for cash today.
+- A MetaDAO project sells a **specific invoice / revenue event** (e.g. a launchpad payout, a campaign payout).
 
-- Borrower APR \( r_b \) ≈ 20%  
-- LP yield \( r_{LP} \) ≈ 10%  
-- Expected loss \( \ell \) ≈ 3%  
+Characteristics:
+
+- Short tenor (7–60 days typical; 90 max for safer names).
+- Self-liquidating from that specific stream.
+- Lumpy and episodic.
+
+Pricing guideline:
+
+- Aim for **effective APR in 8–12% band** for “normal” deals.
+- Express to users as **simple fee** on the notional, based on tenor:
+
+  - 30-day Tier B advance at 8% APR → fee ≈ 8% × 30/365 ≈ **0.66%**.
+  - 30-day Tier C advance at 12% APR → fee ≈ 12% × 30/365 ≈ **0.99%**.
+
+For very short advances (e.g. 7 days), fee can look small in absolute terms but large annualised:
+
+- 7-day advance with 0.25% fee → APR ≈ 0.25% × 365/7 ≈ 13%.  
+- You can set internal guardrails like:
+  - “For tenors < 14 days we cap fee so that implied APR ≤ 15–18%, unless explicitly justified.”
+
+You can *optionally* charge slightly higher fee percentages on **one-off RCAs** vs longer, reusable lines (see below), while still keeping APR within or near the 6–12% band on typical tenors.
+
+### 4.2 Revolving lines (RRCLs) – across multiple YTs / months
+
+Use case:
+
+- A MetaDAO project or more mature protocol with recurring revenue wants a **reusable line**.
+- A top Pump.fun creator with sustained volume wants a **rolling limit** based on trailing rewards (not just one token).
+
+Characteristics:
+
+- Limit \( L_{\max} \) sized via your Section 3.4 logic (stressed revenue, utilisation, horizon).
+- Utilisation floats over time; each draw behaves like a small RCA slice.
+- Better names, more data, more diversification → treat as lower risk than one-off RCAs.
+
+Pricing guideline:
+
+- Tier A line: **6% APR** target.
+- Tier B line: **8% APR**.
+- Tier C line: **10–12% APR** (but try to reserve 12% for genuinely noisy, risky books).
+
+Borrowers get:
+
+- Better pricing for sticking to a relationship product (line) and routing multiple YTs / revenue streams into it.
+- A simpler UX: “Your line is 100k at 8% APR; here’s your monthly minimum if fully drawn.”
+
+You still structure each draw as an internal YT slice (for Exponent/PT–YT bookkeeping), but user sees a single line product.
+
+### 4.3 Relative pricing: “higher %” on one-off RCAs
+
+Putting it together:
+
+- **One-off RCAs**:
+  - Slightly higher fee per unit time,
+  - Very flexible, per-stream,
+  - Good for Pump.fun bursts, single campaigns, invoices.
+
+- **RRCLs**:
+  - Better APR,
+  - Require more history, K-factors (tier A/B), and more robust revenue streams,
+  - Good for MetaDAO cohort, more mature apps, multi-month creator income.
+
+This matches your intuition: **sell a single YT slice → more expensive; aggregate into a revolving facility → cheaper**.
+
+---
+
+## 5. ARR math: what does $10m look like?
+
+Assume you keep average **borrower APR ≈ 9–10%**, LPs get **4–5%**, and attn’s net spread is:
+
+- Protocol spread ≈ **4–5%** on average deployed credit.
 
 Then:
 
-\[
-r_{\text{prot}} \approx 20\% - 10\% - 3\% = 7\%
-\]
+- \( \text{ARR}_{\text{attn}} \approx \text{Deployed} \times \text{spread} \).
 
-To reach \$1m ARR:
+To reach **$10m ARR** to attn on a stable basis:
 
-\[
-D_{\text{needed}} \approx \frac{1{,}000{,}000}{0.07} \approx 14.3\text{m}
-\]
+- If spread = 4% → need **$250m** average deployed.
+- If spread = 5% → need **$200m** average deployed.
 
-So under an aggressive, high-yield, higher-loss mix, you could reach ≈$1m ARR with **mid-teens millions deployed** on average.
+Given MetaDAO + Pump.fun alone are unlikely to exceed **$20–30m** deployed in the near term, you should think of:
 
-### 3.2 More conservative, treasury-heavy / lower-yield book
+- **Phase 1** – prove product/credit with:
+  - MetaDAO cohort (treasury-backed + early revenue),
+  - Pump.fun + similar creator flows (short-tenor RCAs),
+  - a few other Solana-native revenue verticals (DEX fees, infra).
 
-Example “safer” configuration:
+  Realistic target: **$10–30m deployed**, yielding **$0.4–1.5m ARR** at 4–5% spread.
 
-- Borrower APR \( r_b \) ≈ 12%  
-- LP yield \( r_{LP} \) ≈ 8%  
-- Expected loss \( \ell \) ≈ 1\%  
+- **Phase 2** – expand to:
+  - EVM projects via wrapped attn vaults,
+  - B2B SaaS-like revenues,
+  - card/BNPL platforms as B2B borrowers (entity-level credit behind their consumer products).
 
-Then:
+  Target: **$50–100m deployed**, **$2–5m ARR** to attn.
 
-\[
-r_{\text{prot}} \approx 12\% - 8\% - 1\% = 3\%
-\]
+- **Phase 3** – if you become the default revenue-credit engine across ecosystems:
+  - Dozens of major protocols / platforms integrating attn as wholesale lender.
+  - Aggregated deployed **$200m+**, enabling **$8–10m+ ARR**.
 
-To reach \$1m ARR:
-
-\[
-D_{\text{needed}} \approx \frac{1{,}000{,}000}{0.03} \approx 33.3\text{m}
-\]
-
-So with low double-digit borrower APRs and low loss rates, you need on the order of **30–35m deployed**.
-
-### 3.3 Practical target band for $1m ARR
-
-Realistically, attn will have a **blended book**:
-
-- Some **low- to mid-yield**, lower-risk facilities (treasury/runway-backed, strong governance).
-- Some **higher-yield**, higher-risk facilities (revenue-based BNPL, merchant credit, riskier B2B).
-
-That suggests a blended \( r_{\text{prot}} \) in the **3–6%** range.
-
-- At \( r_{\text{prot}} \approx 4\% \) → need ≈ 25m deployed.
-- At \( r_{\text{prot}} \approx 5\% \) → need ≈ 20m deployed.
-- At \( r_{\text{prot}} \approx 6\% \) → need ≈ 16.7m deployed.
-
-**Working target band for $1m ARR:**  
-attn needs roughly **15–30m of average deployed credit**, depending on risk/return mix.
+The key point: **$10m ARR** is a Phase-3 outcome that requires **being plugged into multiple big revenue pipes**, not just MetaDAO and Pump.fun.
 
 ---
 
-## 4. Order-of-magnitude for $10m ARR
+## 6. Distribution and competition vs Avici, Krak, etc.
 
-Same logic, just scaled.
+You are correctly worried that:
 
-### 4.1 If attn keeps a healthy margin (5–7%)
+- Avici, Krak, and other neobanks / card players might **build their own credit** for their primary users.
+- attn risks becoming **“last resort lender”** if those platforms vertically integrate credit.
 
-Assume you stabilise at a reasonably profitable mix:
+There are three answers here:
 
-- \( r_{\text{prot}} \approx 5–7\% \)
+### 6.1 Pick verticals where they are unlikely to compete directly
 
-Then:
+- **MetaDAO**:
+  - Onchain governance, Squads treasuries, Futarchy, etc.  
+  - This is idiosyncratic; a Kraken or Avici is unlikely to build “MetaDAO-specific revenue + treasury credit” infra.
 
-- At 5% margin:
+- **Pump.fun** and similar high-velocity onchain creator flows:
+  - Regulatory and reputational risk is high, as Le Monde and others have noted .  
+  - Many retail-facing neobanks may not want direct exposure to this segment.
+  - You can be a **specialist, risk-aware lender** here, with narrow, well-defined exposure limits.
 
-  \[
-  D_{\text{needed}} \approx \frac{10{,}000{,}000}{0.05} = 200\text{m}
-  \]
+- **Narrow B2B ecosystems**:
+  - RPCs, infra providers, wallets with clear onchain revenue PDAs.
+  - This is bespoke, small but high-margin. Generalist neobanks are unlikely to bother.
 
-- At 6% margin:
+If you anchor yourself in these “weird but high-signal” segments first, you become **the default specialist**.
 
-  \[
-  D_{\text{needed}} \approx \frac{10{,}000{,}000}{0.06} \approx 166.7\text{m}
-  \]
+### 6.2 Offer to be the wholesale engine, not the UX
 
-- At 7% margin:
+Position attn as:
 
-  \[
-  D_{\text{needed}} \approx \frac{10{,}000{,}000}{0.07} \approx 142.9\text{m}
-  \]
+- A **B2B revenue-credit rail** under Avici/Krak/Slash, not a competing consumer app.
 
-So, to reach ≈$10m ARR with a healthy spread, you likely need on the order of **150–200m of average deployed credit**.
+Examples:
 
-### 4.2 If the book becomes very conservative (3–4%)
+- Avici / Krak can:
+  - Keep all **consumer credit risk** (overdrafts, personal lines) for now.
+  - Use attn only for **entity-level credit** to:
+    - high-trust DAOs,
+    - fintech partners,
+    - ecosystem projects whose onchain revenue attn underwrites.
 
-If, over time, competition and de-risking compress margins:
+- You provide:
+  - limit sizing,
+  - coverage tests,
+  - PT/YT and attnUSD infrastructure,
+  - backstop capital.
 
-- \( r_{\text{prot}} \approx 3–4\% \)
+They get:
 
-Then requirements jump:
+- An **off-balance-sheet** way to offer deeper credit to key B2B / community partners without re-building your infra.
 
-- At 3%: \( D \approx 333\text{m} \)
-- At 4%: \( D \approx 250\text{m} \)
+You can further sweeten distribution with:
 
-So the realistic “design goal” for a $10m ARR business is:
+- Revenue-sharing on spread or protocol fees.
+- White-label endpoints (“/revenue-credit-limit”) so they never need to show attn branding.
 
-> Build a path toward **150–250m** of average deployed credit, with a blended protocol margin in the **4–6%** range.
+### 6.3 Make attnUSD a useful asset *for them*
 
-That is a long-term goal and implies multiple verticals and geographies, not just one launchpad or one partner.
+If attnUSD is:
 
----
+- A credible, low-vol, revenue-backed USD share token,
+- With open analytics and short average duration,
 
-## 5. Vertical contributions: MetaDAO vs others
+then:
 
-### 5.1 MetaDAO treasury + future revenue vertical
+- Avici-style DAOs, Krak treasury desks, MetaDAO treasuries etc. can:
+  - hold attnUSD as a **yield sleeve**,
+  - or use it as **collateral** elsewhere,
+  - which creates pull for your product.
 
-MetaDAO is an excellent **design partner**, but its scale is bounded.
+Distribution then looks like:
 
-Even if you:
+- “We will underwrite your key B2B partners’ revenues”  
+  + “You can park excess treasury or savings in attnUSD with known duration and risk.”
 
-- Look at **governed treasuries** in Squads (e.g. 500k–2m per project),
-- Use a **runway-constrained, haircut LTV** (say, 15–25% of stable/blue-chip runway),
-- And have 50–100 projects drawing **50% utilisation** on average,
-
-you land in the rough bands:
-
-- Average capacity per project (illustrative): 100k  
-- Deployed with 50 projects using 50%: ≈ 2.5m  
-- Deployed with 100 projects using 50%: ≈ 5m  
-
-Even if MetaDAO becomes the largest launchpad and you push usage, you’re probably in the **5–10m** deployed credit range from this vertical.
-
-Implication:
-
-- MetaDAO can be **5–30%** of the book at scale, but **not the whole thing**.
-- It is a great wedge to:
-  - prove the revenue+treasury underwriting,
-  - test the Exponent PT/YT plumbing,
-  - and generate early, relatively safe yield.
-
-### 5.2 Crypto B2B / infra vertical
-
-Candidates with **larger, more stable, B2B revenue**:
-
-- RPC providers, indexing/oracle infra, API SaaS.
-- Custody and wallet SaaS (Business / Pro tiers).
-- DePIN networks with usage-based income in stables or majors.
-
-These firms often:
-
-- Have 5–30m ARR-equivalent in revenue at the “crypto-native mid-market” level.
-- Use working capital for:
-  - customer acquisition,
-  - global expansion,
-  - hardware/capex (for DePIN).
-
-A single B2B customer can justify **250k–2m** of revenue-based capacity. A portfolio of, say, 30–50 such names can give:
-
-- Low end: 30 × 300k × 50% utilisation ≈ 4.5m deployed.
-- More mature: 50 × 1m × 50% utilisation ≈ 25m deployed.
-
-This vertical is a natural path to **tens of millions** of deployed credit, with:
-
-- Reasonable default expectations (B2B, recurring revenue),
-- Borrower APRs in the low-to-mid teens,
-- Lower-than-consumer loss rates.
-
-### 5.3 Onchain fintech / cards / BNPL / merchant verticals
-
-Partners like:
-
-- **Avici** (internet neobank, payroll account, trust score, unsecured loans).
-- Other Solana/EVM card/wallet stacks.
-- BNPL-like merchant ecosystems (ecommerce, luxury, specialised niches like watches).
-
-Here attn can:
-
-- Finance **merchant advances**, merchant BNPL working capital, and B2B credit lines.
-- Underwrite against:
-  - merchant revenue,
-  - fee and interchange flows,
-  - and, selectively, merchant treasury.
-
-This is where you can realistically see **single-partner exposures in the 10–50m range** over time, because:
-
-- Consumer volumes are large (cards, BNPL),
-- Merchant networks can scale quickly,
-- Revenue pools (fees, interchange, interest spreads) are meaningful.
-
-Even if attn only funds a **small slice** of such partners’ books (e.g. a specialised watch BNPL program, a subset of geos, or a B2B merchant cohort), this vertical is essential to reach:
-
-- ~**15–30m deployed** (for $1m ARR),
-- on the way to ~**100m+ deployed** (toward $10m ARR).
+This is closer to **wholesale funding + structured credit** than retail lending; that is a harder segment for those teams to internalise, and therefore more defensible for you.
 
 ---
 
-## 6. Example compositions to reach \$1m and \$10m ARR
+## 7. How hard to push Pump.fun, practically?
 
-These are illustrative mixes, not forecasts.
+Given the numbers:
 
-### 6.1 $1m ARR target (≈20m deployed, 5% margin)
+- Creator rewards already in **tens to hundreds of millions per year**.
+- Realistic outstanding capacity for you, at modest penetration, is **low- to mid-single-digit millions**.
 
-Assume:
+Pump.fun should be treated as:
 
-- \( r_{\text{prot}} \approx 5\% \)
-- \( D \approx 20\text{m} \)
+- A **high-velocity, high-visibility wedge** into the creator economy:
+  - lots of small RCAs,
+  - fast data feedback,
+  - good story (“we advance against live revenue, not vibes”).
 
-Vertical mix (rough example):
+- Not the entire business:
+  - Even an aggressive Pump.fun vertical probably tops out at **$5–10m deployed** without over-concentration and regulatory headaches.
 
-- **MetaDAO runway credit:**  
-  - 5m deployed (runway-constrained treasury facilities).  
-- **Crypto B2B/infra:**  
-  - 7m deployed (working-capital lines and RCAs).  
-- **Fintech / merchant / BNPL (e.g. watch BNPL, small merchant cohorts):**  
-  - 8m deployed.
+Product shape there:
 
-Protocol ARR:
+- **Primary**: very short-tenor RCAs against specific upcoming rewards:
+  - durations 7–30 days,
+  - fee schedule consistent with 8–12% APR equivalent on 30–90d,
+  - internal cap on ultra-short APR.
 
-\[
-\text{ARR} \approx 20\text{m} \cdot 5\% = 1\text{m}
-\]
+- **Secondary**: for a few top-tier, long-running creators:
+  - a small **RRCL** sized off trailing 90–180 days of rewards,
+  - at 6–8% APR,
+  - with tight utilisation and line size caps.
 
-### 6.2 $10m ARR target (≈180m deployed, ~5.5% margin)
+This gets you:
 
-Assume:
-
-- \( r_{\text{prot}} \approx 5.5\% \)
-- \( D \approx 180\text{m} \)
-
-Vertical mix (illustrative, more mature stage):
-
-- **MetaDAO and other launchpads (Solana + EVM):**  
-  - 15–25m deployed (runway + revenue-backed credit).
-
-- **Crypto B2B / infra / DePIN:**  
-  - 40–60m deployed (recurring-revenue term loans and revolvers).
-
-- **Onchain fintech / card / BNPL / merchant verticals:**  
-  - 80–120m deployed (multiple programs, diversified across merchants and geos).
-
-- **Other specialised programs (e.g. specific RWA-adjacent revenue streams, niche protocols):**  
-  - 10–30m deployed.
-
-With \(D ≈ 180\text{m}\) and \(r_{\text{prot}} ≈ 5.5\%\):
-
-\[
-\text{ARR} \approx 180\text{m} \cdot 5.5\% = 9.9\text{m} \approx 10\text{m}
-\]
-
----
-
-## 7. Distribution and avoiding “last-resort lender” status
-
-Concern: large onchain fintechs (Avici, Krak, others) could build their own underwriting and funding, leaving attn as a capital provider of last resort.
-
-To avoid that, attn should design **how it plugs into these stacks** from the beginning.
-
-### 7.1 Where Avici/Krak-type partners naturally need external capital
-
-Even if a fintech builds its own credit engine, it still needs to decide:
-
-- How much credit **risk** to hold on its own balance sheet.
-- How quickly it wants to **grow** vs. how much equity it is willing to deploy.
-- How much **duration and correlation risk** it is comfortable with.
-
-attn can be positioned as:
-
-1. **Off-balance-sheet capital for specific verticals:**
-   - e.g. “onchain-native merchants”, “crypto-heavy geos”, “high-ticket verticals like watches”.
-   - The partner originates and services; attn funds or co-funds.
-
-2. **Revenue-backed funding for B2B and merchant-side credit:**
-   - Avici’s consumer loans and home mortgages are not where attn starts.
-   - Instead, focus on:
-     - merchant advances,
-     - B2B lines to crypto-native businesses,
-     - working capital for payroll-backed entities and DAOs.
-
-3. **Risk tranching and scaling:**
-   - Early phase: the fintech wants to own the “safe” part and offload tail risk.
-   - Later: as volumes scale, they want external partners to absorb more of the book, especially non-core geos or segments.
-
-### 7.2 Integration patterns that create distribution and stickiness
-
-To avoid being replaceable, target **integration depth**, not just “here is a pool of money”:
-
-1. **Revenue-account + data integration, not just lending API**
-
-   - Integrate attn’s revenue accounts or observability directly with:
-     - merchant payout flows,
-     - settlement rails,
-     - card/BNPL transaction data (aggregated, privacy-preserving).
-   - Provide underwriting and analytics that feed both:
-     - attn’s risk engine,
-     - and the partner’s trust/credit models (e.g. Avici Trust Score).
-
-   This makes attn part of the **data and risk stack**, not only the funding stack.
-
-2. **Dedicated joint vaults / programs**
-
-   - Launch **co-branded or dedicated vaults**:
-     - “Avici Merchant Revenue Vault”,
-     - “DePIN Working Capital Vault”,
-     - “Watch BNPL Vault”.
-   - These vaults:
-     - have partner-specific underwriting guidelines,
-     - give LPs clarity on exposure,
-     - and tie attn to the partner’s long-term success.
-
-3. **Program-by-program deals**
-
-   - Instead of being the generic lender of last resort, structure **program-level agreements**:
-     - Watch BNPL program,
-     - Specific merchant category,
-     - Specific country/segment.
-   - In each program:
-     - the partner can set UX and front-end terms,
-     - attn controls risk limits, pricing floors, and coverage tests.
-
-4. **Multi-party capital stack, where attn has unique role**
-
-   - Design stacks where:
-     - partner takes a slice (first-loss or mezz),
-     - attn takes a slice,
-     - external credit funds or insurers take senior slices.
-   - attn’s value:
-     - orchestrating onchain structuring,
-     - providing infra and PT/YT representation,
-     - connecting DeFi LPs into these tranches.
-
-   This discourages the partner from vertically integrating everything, because:
-
-   - they still get economics and control,
-   - but do not need to build or maintain all the onchain structuring and DeFi distribution.
-
-### 7.3 Why attn is not simply a “fallback” lender
-
-If attn does the following, it has real defensibility:
-
-- **Specialisation in revenue-backed structures**:
-  - Good at sizing and monitoring facilities based on live onchain revenue and governed accounts.
-  - Off-the-shelf templates for:
-    - launchpads (MetaDAO),
-    - B2B infra,
-    - merchant watch BNPL,
-    - other verticals.
-
-- **Data advantage over time**:
-  - Default and performance data on thousands of entities across verticals.
-  - Better posterior priors than any single fintech, especially across cross-ecosystem revenues.
-
-- **Convenience + cost for partners**:
-  - It is cheaper and faster for Avici/Krak/others to:
-    - plug into attn for specific programs,
-    - than to build onchain securitisation, vault infra, and LP distribution themselves.
-
-- **Neutral infra positioning**:
-  - attn is not trying to be *the* consumer neobank or *the* card issuer.
-  - That lowers competition risk relative to partners and makes them more willing to integrate deeply.
-
-If attn only offers “a pool of stables at X%” with no infra or data benefit, it will be last resort. If it offers **revenue-native structuring, risk infra, and access to DeFi LPs**, it becomes a **natural funding & structuring partner** instead.
+- Useful TVL + ARR,
+- A clean narrative (“we bank real onchain income, even in chaotic segments”),
+- Without needing Pump.fun to carry your entire TVL story.
 
 ---
 
 ## 8. Summary
 
-- **Economics:**  
-  - ARR ≈ \( D \cdot (r_b - r_{LP} - \ell) \).  
-  - For **$1m ARR**, aim for roughly **15–30m of average deployed credit** with a blended 3–6% margin.  
-  - For **$10m ARR**, aim for roughly **150–250m of average deployed credit** with a blended 4–6% margin.
-
-- **Vertical contributions:**  
-  - MetaDAO and launchpads: **5–10m** deployed (possibly 15–25m later) – great wedge, limited TAM alone.  
-  - Crypto B2B/infra/DePIN: **tens of millions** in working-capital and revenue-based lines.  
-  - Onchain fintech/card/BNPL/merchant programs: **tens to low hundreds of millions** across multiple partners and geos, if structured carefully.
-
-- **Distribution and defensibility:**  
-  - Don’t aim to replace Avici/Krak; **fund and structure their merchant/B2B and niche vertical credit**, especially where onchain revenues and crypto-native users dominate.  
-  - Integrate deeply at the **revenue-account + data layer**, co-design vaults and programs, and become the default **revenue-backed securitisation + DeFi funding infra**.  
-  - Over time, default and performance data across many verticals becomes a core moat that is hard for any single partner to replicate.
-
-This frames MetaDAO-style revenue+treasury credit as one important wedge, but makes clear that meaningful ARR requires scaling into **B2B and fintech/merchant verticals**, with attn positioned as the **revenue-native credit and structuring engine** behind them.
+- **Borrower pricing**: keep headline APRs around **6 / 8 / 12%** by tier for normal tenors; micro RCAs can be fee-based with internal APR guardrails.
+- **MetaDAO**: treasury-driven credit per project is **$50–150k**, giving **$2–10m** deployed if you have 50–100 active borrowers. Useful, but small.
+- **Pump.fun**: creator rewards are **tens–hundreds of millions per year**; realistic outstanding capacity from short-tenor RCAs is **a few million**, maybe **up to ~5–10m** at aggressive adoption.
+- **$10m ARR** requires **$200–250m average deployed** at a **4–5% protocol spread**; that is a **Phase-3** target across multiple chains and verticals, not just MetaDAO + Pump.fun.
+- **Distribution vs neobanks**: treat attn as a **wholesale revenue-credit engine**, not a consumer app, and target weird/high-signal B2B and creator niches first where they are unlikely to compete.
+- **Pump.fun strategy**: push it hard as a **showcase vertical for cash advances**, but plan the core business around broader **B2B, launchpad, and protocol revenue** lines where ticket sizes and stability are higher.
