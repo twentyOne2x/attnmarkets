@@ -427,6 +427,7 @@ This makes explicit:
 - How the **$1m+ protocol ARR** target maps to a roughly **Mid** scaling across verticals, with pump.fun and B2B doing most of the work.
 
 ---
+
 ## 11. Market check: how aggressive are these rates vs other undercollateralised lenders?
 
 This section is only about **sanity-checking attn’s assumed rate bands** against what is visible in other undercollateralised / credit-like markets. It does not change any of the TVL/ARR maths above; those scale linearly if actual pricing is higher or lower.
@@ -436,39 +437,38 @@ This section is only about **sanity-checking attn’s assumed rate bands** again
 A few reference points:
 
 - **Maple Finance – institutional undercollateralised lending**  
-  Maple’s own materials show that its High Yield Secured pool has been netting around **20% yields for stablecoin lenders** in some recent periods. That is *lender* return, so implied **borrower APR is higher** once fees, losses, and manager cut are included.  
-  See: [Maple Finance](https://maple.finance/insights/a-brief-history-of-crypto-lending-markets).   
+  Maple’s own materials show that its High Yield Secured pool has been netting around **20% yields for stablecoin lenders** in some recent periods. That is lender return, so implied **borrower APR is higher** once fees, losses, and manager cut are included.  
+  See: [Maple Finance](https://maple.finance/insights/a-brief-history-of-crypto-lending-markets).
 
 - **Clearpool – uncollateralised pools for institutions**  
   Clearpool connects institutions to uncollateralised funding pools and explicitly markets “highly attractive interest rates” for lenders, with many pools historically printing **double-digit APYs**. Again, these are lender yields; borrower costs sit above that.  
-  See overview: [Exponential.fi on Clearpool](https://exponential.fi/protocols/clearpool/311db98d-13e9-450c-aa68-e484837f1cd8).   
+  See overview: [Exponential.fi on Clearpool](https://exponential.fi/protocols/clearpool/311db98d-13e9-450c-aa68-e484837f1cd8).
 
 - **3Jane – unsecured credit accounts and USD3**  
   3Jane provides **unsecured USDC credit lines** to asset-rich users, funded by USD3, a yield-bearing stablecoin backed by that credit book. Public docs emphasise:
   - unsecured structure with multi-source credit data,
   - a yield-bearing USD token for LPs,
   - and a risk profile closer to an uncollateralised credit fund than simple lending.  
-  See: [3Jane](https://www.3jane.xyz/) and ecosystem write-ups like [Binance Square](https://www.binance.com/en/square/post/7068391414584).   
-  While explicit APR bands are not front-and-centre, the positioning is squarely in **high single-digit to mid-teens net yield** territory for LPs, implying **teens+** for many borrowers.
+  See: [3Jane](https://www.3jane.xyz/) and ecosystem write-ups like [Binance Square](https://www.binance.com/en/square/post/7068391414584).
 
 - **Wildcat – borrower-defined undercollateralised markets**  
   Wildcat’s design allows borrowers to configure markets with:
   - fixed coupon rate,
   - reserve ratio,
-  - withdrawal rules, and
+  - withdrawal rules,
   - optional whitelisting / legal agreements.  
   In practice, the combinations that clear tend to have **meaningfully higher coupons** than collateralised lending, to compensate lenders for credit and liquidity risk.  
-  Docs: [Wildcat Docs](https://docs.wildcat.finance/).   
+  Docs: [Wildcat Docs](https://docs.wildcat.finance/).
 
-**Takeaway vs attn bands**
+Takeaway vs attn bands:
 
-- For **onchain B2B lines @ ~15–18% APR** and **MetaDAO lines @ ~10–14% APR**, attn is **in the same general ballpark**, but likely **a bit cheaper** than the most aggressive undercollateralised deals on Maple / Clearpool.
+- For **onchain B2B lines @ ~15–18% APR** and **MetaDAO lines @ ~10–14% APR**, attn is in the same general ballpark, but likely a bit cheaper than the most aggressive undercollateralised deals on Maple / Clearpool.
 - This is defensible because:
   - attn’s exposures are:
     - shorter-dated,
     - often tied to **governed revenue accounts** or **governed treasuries** with coverage tests,
-    - and more granular (many small facilities vs a few giant CeFi borrowers).
-  - attn also takes **only ~30% of gross fees** as protocol net, leaving the bulk to LPs.
+    - more granular (many small facilities vs a few giant CeFi borrowers).
+  - attn also takes only ~30% of gross fees as protocol net, leaving the bulk to LPs.
 
 If actual underwritten risk ends up looking closer to Maple-/Clearpool-style institutional risk, attn can raise the **B2B and MetaDAO rate bands by a few points** (e.g. 12–16% and 14–20%) without breaking the TVL/ARR modelling.
 
@@ -478,11 +478,11 @@ The **pump.fun creator advances** sit somewhere between:
 
 - invoice factoring,
 - merchant cash advances,
-- and very short-term working capital.
+- very short-term working capital.
 
 In Web2:
 
-- Short-tenor merchant cash advances and receivables factoring often price at **flat fees per 30–90 days** that translate to **very high annualised APRs**, even if the headline merchant discount looks “only” like a few percent.  
+- Short-tenor merchant cash advances and receivables factoring often price at **flat fees per 30–90 days** that translate to **very high annualised APRs**, even if the headline merchant discount looks like a few percent.
 - Underwriting is usually on:
   - card / PSP flows,
   - invoices,
@@ -490,16 +490,15 @@ In Web2:
 
 Given that:
 
-- A **5–15% flat fee** on **7–30d** is **aggressive in APR terms**, but:
+- A **5–15% flat fee** on **7–30d** is aggressive in APR terms, but:
   - consistent with the risk profile (volatile creator revenues, many deals, small ticket size),
-  - and in line with the economics of Web2 merchant-advance and factoring products once annualised.
+  - in line with the economics of Web2 merchant-advance and factoring products once annualised.
 
-In other words:
+For pump.fun, pricing is intentionally steep, but:
 
-- For pump.fun, **pricing is intentionally steep**, but:
-  - tenors are very short,
-  - creators opt in voluntarily for specific advances,
-  - and expected loss and operational overhead per dollar are high.
+- tenors are very short,
+- creators opt in voluntarily for specific advances,
+- expected loss and operational overhead per dollar are high.
 
 If loss data and competition show that the true risk is lower, attn can:
 
@@ -508,34 +507,322 @@ If loss data and competition show that the true risk is lower, attn can:
 
 ### 11.3 What this suggests for attn’s final rate bands
 
-Putting it together:
-
 - **MetaDAO / launchpad treasury-backed**  
-  - 10–14% APR is **not out of line** vs a world where unsecured institutional credit often costs mid-teens or more.  
-  - Given treasuries, burn caps, and governance, 10–14% is probably near the **lower end** of justifiable pricing; 12–16% could be justified if loss experience or market conditions demand it.
+  - 10–14% APR is not out of line vs a world where unsecured institutional credit often costs mid-teens or more.  
+  - Given treasuries, burn caps, and governance, 10–14% is near the lower end of justifiable pricing; 12–16% could be justified if loss experience or market conditions demand it.
 
 - **Onchain B2B lines**  
-  - 12–18% APR is **squarely in the middle** of DeFi undercollateralised ranges, and still cheaper for borrowers than many Maple/Clearpool-style deals once all fees are included.  
+  - 12–18% APR is in the middle of DeFi undercollateralised ranges, and still cheaper for borrowers than many Maple/Clearpool-style deals once all fees are included.  
   - If B2B names prove safer (sticky infra, diversified customers), attn can sit closer to 12–15%; if they prove spikier, 15–20% is defensible.
 
 - **Card/payroll/retail BNPL (entity-level)**  
   - 10–16% APR on outstanding receivables is broadly consistent with:
-    - the economics of consumer BNPL aggregators (who often generate mid-teens effective returns on their books),
-    - but repositioned as **entity-level revenue lines** instead of consumer receivables.  
+    - economics of consumer BNPL aggregators (who often generate mid-teens effective returns on their books),
+    - repositioned as entity-level revenue lines instead of consumer receivables.  
   - For high-quality merchants / partners, attn can offer the low end of that range as a competitive wholesale line.
 
 - **pump.fun creator advances**  
-  - 5–15% flat on 7–30 days is **deliberately rich**, but mirrors Web2 merchant-advance style pricing and reflects the risk of very short, spiky revenue.  
-  - It is also the main vertical where attn can reasonably sustain **very high gross spreads** without LPs complaining, because:
+  - 5–15% flat on 7–30 days is deliberately rich, but mirrors Web2 merchant-advance style pricing and reflects the risk of very short, spiky revenue.  
+  - It is also the main vertical where attn can sustain very high gross spreads without LP pushback, because:
     - ticket sizes are small,
-    - operational handling can be automated,
-    - and the product is framed clearly as a “pay a premium to get cash instantly” offer.
+    - handling can be automated,
+    - product framing is “pay a premium to get cash instantly”.
 
-The modelling in Sections 0–10 remains valid; if anything, these market comparisons suggest:
+Overall, attn will likely need to sit toward the **upper half** of the proposed ranges in some verticals, especially early on when:
 
-- attn will likely need to sit **toward the upper half** of the proposed ranges in some verticals, especially early on when:
-  - there is no long default history,
-  - TVL is small,
-  - and LPs will demand a clear risk premium.
+- there is no long default history,
+- TVL is small,
+- LPs demand a clear risk premium.
 
-All ARR / TVL numbers above scale linearly with these bands; the main role of this section is to confirm that **the current assumptions are not obviously too high** in the context of onchain undercollateralised credit and short-tenor merchant-style advances.
+All ARR / TVL numbers above scale linearly with these bands; this section only confirms that the current assumptions are not obviously too high in the context of onchain undercollateralised credit and short-tenor merchant-style advances.
+
+---
+
+## 12. Distribution wedges with Avici, Krak, Slash, Deel
+
+This section focuses on **scale and network effects** of card / payroll and money-app partners, and where attn can realistically fit as backend credit infra.
+
+### 12.1 Aggregator pattern vs direct B2B
+
+Direct B2B (RPC, infra, SaaS) looks like:
+
+- Many small–medium entities,
+- Each with its own revenue account,
+- attn originates lines one by one.
+
+Card, money-app, and payroll partners (Avici, Krak, Slash, Deel-like) are **aggregators**:
+
+- One integration gives access to:
+  - thousands of employers / businesses,
+  - tens or hundreds of thousands of cardholders / employees.
+- attn’s role is:
+  - wholesale facility to the aggregator **entity**, and/or
+  - entity-level lines to selected merchants / employers **inside** their network, with the partner providing distribution and front-end.
+
+This is why “card/payroll” is structurally different from generic B2B: the right aggregator partner can move TVL by **several million at once** if the integration is deep enough.
+
+---
+
+### 12.2 Avici – Solana-native internet banking + payroll
+
+From Avici’s own launch materials and docs:
+
+- Avici has shipped a **public beta Visa card** with:
+  - $1.2m+ in card spend since August 2025,
+  - ~4,000 monthly active users,
+  - ~70% month-on-month retention,
+  - global USD/EUR virtual accounts for deposits and paychecks.
+- The strategy is to:
+  - be the **default payroll account** and “primary home of finances”,
+  - build an **internet-native trust score**,
+  - offer **unsecured loans, mortgages, and business credit** sourced from onchain pools,
+  - route everything through self-custodial, stablecoin-backed flows.
+
+Docs: [Avici Docs](https://docs.avici.org) and [Avici Money App Docs](https://docs.avici.money).
+
+**Integration roles for attn:**
+
+1. **Avici as a single wholesale borrower**
+
+   - Use Avici’s **interchange + fees + lending margin** as the revenue base.
+   - Set up an Avici revenue account:
+     - Fee share from card spends,
+     - Onramp / account fees,
+     - Net interest margins from trust-score-based loans (as they launch).
+   - attn can then:
+     - size a **wholesale working-capital / growth line** for Avici itself,
+     - with tenors 30–180 days,
+     - pricing in the **10–16%** APR band (Card/payroll vertical).
+
+   Stylised scenario:
+
+   - Avici scales to **$500m/year** of card spend in a few years.
+   - Interchange and other per-spend economics yield **~1.5–2.0%** gross (before rewards), i.e. **$7.5–10m/year**.
+   - attn underwrites a **3–6 month** slice of that revenue into a line:
+     - 3 months ~ **$1.9–2.5m**,
+     - 6 months ~ **$3.8–5m**.
+   - At **12% APR** and 50–70% utilisation, this contributes on the order of **\$0.23–0.42m** gross fee ARR, **$0.07–0.13m** net to attn.
+
+   This sits comfortably inside the “Card/payroll” TVL ranges already modelled.
+
+2. **Avici as a router for employer payroll**
+
+   - Employers pay salaries into Avici smart payroll accounts.
+   - For employers with **onchain revenues**, attn can:
+     - set up **employer revenue accounts**,
+     - provide **payroll float / working-capital lines** that cover 1–2 payroll cycles,
+     - repay directly from incoming protocol / app revenues via attn’s routing rules.
+
+   Here, Avici handles:
+
+   - KYC / KYB,
+   - fiat rails and card stack,
+   - employee UX.
+
+   attn handles:
+
+   - revenue underwriting,
+   - line sizing,
+   - capital.
+
+3. **Avici + watch / high-ticket BNPL**
+
+   - For watch and luxury pilots:
+     - Avici can be the **consumer app + card / checkout layer**.
+     - attn provides:
+       - merchant BNPL facilities,
+       - risk-sharing and tranching as per the watch-BNPL doc,
+       - possibly full risk takeout for certain merchants in exchange for higher spreads.
+
+   In this sub-vertical, Avici’s network effects (cardholders, merchants, payroll users) distribute attn’s BNPL product. Even modest penetration can generate **single digit millions** of TVL due to high ticket sizes.
+
+---
+
+### 12.3 Krak – global money app from an exchange
+
+Krak, as defined in the competitive landscape doc, is:
+
+- A **global consumer money app** from a major exchange, with:
+  - personal multi-asset account,
+  - Mastercard debit card,
+  - global P2P transfers and remittances,
+  - yields on balances and vaults.
+
+There is limited public data on Krak specifically; however, major exchanges already report **millions of global clients** on their core platforms. For attn, Krak is best treated conceptually as:
+
+- a **front-end for users’ personal finances**, not a B2B entity in itself.
+
+Integration roles:
+
+1. **Revenue upstream, Krak downstream**
+
+   - Revenue flows for attn verticals (MetaDAO, pump.fun, B2B) pay out:
+     - teams,
+     - creators,
+     - contributors.
+   - Those recipients may custody and spend via Krak.
+   - attn does not need a direct Krak integration for this flow; Krak simply benefits downstream from:
+     - more stable coin income,
+     - higher balances and spend from projects attn finances.
+
+2. **Optional co-branded payout rails**
+
+   - If Krak exposes APIs / partner rails, attn could:
+     - offer a “payout to Krak” option on revenue accounts,
+     - or co-market “advance your protocol revenues, settle to a Krak card”.
+
+Given this, Krak is **not a core TVL source** for attn; it is a **distribution plus UX enhancer** for some counterparties that attn already underwrites upstream.
+
+---
+
+### 12.4 Slash – Global USD and business banking
+
+Slash is a **business banking and stablecoin-payments platform** that offers:
+
+- business accounts,
+- corporate cards,
+- and a Global USD account backed by **USDSL** (a stablecoin minted for Slash’s Global USD rail).
+
+Public materials state that Slash has already processed **over $1b of annualised stablecoin payments**, and offers USDSL as the settlement asset for Global USD balances and transfers. See: [Slash](https://slash.fi).
+
+From attn’s perspective, Slash is both:
+
+- a **B2B infra client** (RPC / infra vertical),
+- and a **Card/payroll-like aggregator**.
+
+**Integration roles:**
+
+1. **Wholesale line to Slash**
+
+   - Similar to Avici:
+     - Track Slash’s net economics (fees on Global USD, card margin, FX spreads).
+     - Establish a **revenue account** for Slash’s fee share.
+     - Size a working-capital / growth line against that revenue, with multi-month tenor.
+
+   Stylised scenario:
+
+   - Slash processes **$1b/year** stablecoin volume across business clients.
+   - Effective net revenue margin (mix of fees, card economics, spreads) is, say, **0.3–0.5%** → **$3–5m**/year.
+   - attn underwrites 3–6 months of those net revenues:
+     - 3 months ~ **$0.75–1.25m**,
+     - 6 months ~ **$1.5–2.5m** line.
+   - At 12–15% APR and typical utilisation, this yields **low-to-mid six-figure** gross ARR, tens of thousands net to attn, and grows with Slash’s volume.
+
+2. **Lines to Slash’s business clients**
+
+   - Slash already has:
+     - KYC/KYB on entities,
+     - visibility into cashflows and card usage,
+     - stablecoin rails.
+   - attn can be embedded as:
+     - a **revenue-backed line** for selected Slash clients that:
+       - bill in stablecoins,
+       - have observable recurring revenues (SaaS, infra, agencies),
+       - need working capital against those flows.
+   - Slash controls UX and onboarding; attn underwrites and funds.
+
+This makes Slash a hybrid between the **Onchain B2B** and **Card/payroll** verticals: one partnership can unlock both.
+
+---
+
+### 12.5 Deel and Deel-like payroll networks
+
+Deel today is a massive Web2 payroll and HR stack:
+
+- **\$1b+ ARR**, **$22b** in payroll processed, **150+ countries**, **35,000+ clients**. See: [Deel](https://www.deel.com) and public summaries such as [HRTechFY](https://www.linkedin.com/posts/hrtechfy-official_hrtech-futureofwork-globalpayroll-activity-7386481375547383808-jHZd).
+
+Realistically:
+
+- Direct integration with Deel is low-probability in the near term.
+- Deel operates primarily with:
+  - fiat rails,
+  - local payroll entities,
+  - and its own compliance stack.
+
+However, Deel is a **useful upper bound** for what an “internet payroll network” can look like in steady state.
+
+For attn, the more realistic angle is:
+
+1. **Avici-like “onchain Deel” as target**
+
+   - If Avici or another startup manages to build:
+     - an onchain-native payroll network,
+     - even at **1–2% of Deel’s scale**,
+   - this means **$220–440m/year** in payroll flows.
+
+   Stylised working-capital logic:
+
+   - Payroll is usually paid:
+     - semi-monthly or monthly,
+     - with employers funding payroll accounts a few days before disbursement.
+   - A payroll platform or employer may need:
+     - a **payroll float line** covering **1–2 cycles** of payroll.
+
+   If an onchain payroll platform:
+
+   - processes **$300m/year** in payroll,
+   - average monthly payroll ≈ **$25m**,
+   - then a line sized at **1–2x monthly payroll** → **$25–50m** in potential credit capacity.
+
+   attn would not take all of that but could:
+
+   - finance **5–20%** of this as:
+     - working capital for the platform itself,
+     - or lines to selected employers with onchain revenues.
+
+   That suggests a future **card/payroll vertical TVL** of **$5–10m+** off a single large onchain payroll partner at small penetration.
+
+2. **Employer-level working capital**
+
+   For employers with onchain revenues:
+
+   - combine:
+     - **revenue account** for protocol/app revenues,
+     - **payroll account** on Avici or similar,
+   - structure:
+     - a line that ensures payroll hits on time,
+     - repaid automatically from incoming revenues.
+
+   This links the **B2B revenue vertical** and the **payroll vertical**, with the payroll platform acting as UX and distribution.
+
+---
+
+### 12.6 Network effects vs “plain” B2B
+
+Comparatively:
+
+- A direct B2B infra client might have:
+  - **$1–10m** annual revenue,
+  - support a **$0.5–3m** line,
+  - and add **$0.05–0.4m** of TVL to attn.
+
+- An aggregator like:
+  - Avici,
+  - Slash,
+  - an onchain payroll platform,
+
+can:
+
+- concentrate flows for **hundreds or thousands of entities**, so that:
+
+  - a **single wholesale line** to the aggregator,
+  - plus **selective lines** to their merchants / employers,
+
+can together account for **$5–20m+ TVL** over time.
+
+The basic pattern:
+
+- **MetaDAO + pump.fun**:
+  - high-signal, Solana-native, but individually small names.
+- **Onchain B2B**:
+  - larger lines per entity, but still relatively granular.
+- **Card/payroll aggregators (Avici, Slash, Deel-like competitors)**:
+  - fewer contracts,
+  - each potentially backing **multi-million** revenue lines and multi-vertical integrations.
+
+For ARR planning:
+
+- The core TVL and revenue tables remain valid.
+- Avici, Slash, and any “onchain Deel” should be treated as:
+  - **large, lumpy sources of B2B + Card/payroll TVL**, not incremental small accounts,
+  - each capable of shifting attn by a full TVL scenario tier (e.g. from Low to Mid) if seriously integrated.
