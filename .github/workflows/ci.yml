@@ -78,8 +78,24 @@ jobs:
         run: pnpm dlx playwright install --with-deps
 
       - name: Dapp e2e tests
-        run: E2E=1 pnpm --filter dapp-prod test
+        run: E2E=1 PLAYWRIGHT_HTML_REPORT=apps/dapp-prod/playwright-report PLAYWRIGHT_OUTPUT_DIR=apps/dapp-prod/test-results pnpm --filter dapp-prod test
         continue-on-error: true
+
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dapp-prod-playwright-report
+          path: apps/dapp-prod/playwright-report
+          if-no-files-found: ignore
+
+      - name: Upload Playwright traces and videos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dapp-prod-playwright-test-results
+          path: apps/dapp-prod/test-results
+          if-no-files-found: ignore
 
       - name: Backend tests
         working-directory: protocol

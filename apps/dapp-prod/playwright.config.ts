@@ -10,9 +10,19 @@ const config: PlaywrightTestConfig = {
   testDir: './tests',
   testIgnore: ['bridge-proxy.spec.ts'],
   timeout: 120_000,
+  reporter: process.env.PLAYWRIGHT_HTML_REPORT
+    ? [
+        ['list'],
+        ['html', { outputFolder: process.env.PLAYWRIGHT_HTML_REPORT, open: 'never' }],
+      ]
+    : [['list']],
+  outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR ?? 'test-results',
   use: {
     baseURL: 'http://127.0.0.1:3100',
     headless: true,
+    screenshot: 'only-on-failure',
+    trace: 'retain-on-failure',
+    video: 'retain-on-failure',
   },
   webServer: {
     command: 'node scripts/start-playwright-server.js',

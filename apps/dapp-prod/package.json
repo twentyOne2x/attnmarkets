@@ -12,7 +12,8 @@
     "cypress:open": "cypress open",
     "test": "playwright test",
     "test:e2e": "bash scripts/run-e2e.sh",
-    "test:e2e:headed": "bash scripts/run-e2e.sh --headed"
+    "test:e2e:headed": "bash scripts/run-e2e.sh --headed",
+    "test:e2e:evidence": "node scripts/e2e_evidence.mjs"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.29.0",
